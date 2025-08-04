@@ -1,0 +1,29 @@
+# --- Flask Core ---
+flask
+Flask-WTF
+Flask-Mail
+Flask-Bootstrap
+Flask-Cors
+Flask-Login
+Flask-Migrate
+Flask-SQLAlchemy
+Flask-DotEnv
+
+# --- Supabase Python Client ---
+supabase
+httpx  # required by Supabase
+
+# --- Database & ORM ---
+SQLAlchemy
+
+# --- Environment Variables ---
+python-dotenv
+
+# --- Email (SMTP via Gmail) ---
+email-validator  # For Flask-WTF email fields
+
+# --- Backend Utils ---
+itsdangerous
+gunicorn  # For Render/production deployment
+bcrypt  # For password hashing
+werkzeug  # For security
