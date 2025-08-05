@@ -13,7 +13,8 @@ def create_app():
     from .auth import auth_bp
     from .members import members_bp
     from .clerk import clerk_bp
-    from .manager import manager_bp, register_cli as register_manager_cli, init_login as init_manager_login
+    # now just import the API blueprint
+    from .manager.api import manager_bp
     from .finance import finance_bp
     from .notification import notification_bp
     from .core import core_bp
@@ -25,11 +26,6 @@ def create_app():
     app.register_blueprint(finance_bp)
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
-
-    # Register CLI commands
-    register_manager_cli(app)
-    # Initialize Flask-Login for manager/admin
-    init_manager_login(app)
 
     return app
 
@@ -44,6 +40,10 @@ def list_routes(app):
     for line in sorted(output):
         print(line)
 
+# Example usage:
+# In your app.py, after creating the app:
+# from app import list_routes
+# list_routes(app)
 # Example usage:
 # In your app.py, after creating the app:
 # from app import list_routes

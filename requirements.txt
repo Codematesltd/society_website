@@ -27,3 +27,4 @@ itsdangerous
 gunicorn  # For Render/production deployment
 bcrypt  # For password hashing
 werkzeug  # For security
+pillow
