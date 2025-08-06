@@ -18,6 +18,7 @@ def create_app():
     from .finance import finance_bp
     from .notification import notification_bp
     from .core import core_bp
+    from app.clerk.api import clerk_api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(members_bp)
@@ -26,6 +27,7 @@ def create_app():
     app.register_blueprint(finance_bp)
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
+    app.register_blueprint(clerk_api_bp)
 
     return app
 
