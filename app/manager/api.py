@@ -173,3 +173,56 @@ def add_staff():
         'status': 'success',
         'staff': staff_data
     }), 201
+
+def send_status_email(email, status):
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
+    if status == "approved":
+        subject = "Membership Approved"
+        body = "Congratulations! Your membership has been approved. You can now sign in."
+    elif status == "rejected":
+        subject = "Membership Rejected"
+        body = "Sorry, your membership request has been rejected."
+    else:
+        subject = "Membership Status Update"
+        body = f"Your membership status is now: {status}"
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = EMAIL_USER
+    msg['To'] = email
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.send_message(msg)
+    except smtplib.SMTPException as e:
+        raise RuntimeError(f"SMTP error: {e}")
+
+@manager_bp.route('/approve-member', methods=['POST'])
+def approve_member():
+    email = request.form.get('email')
+    if not email:
+        return jsonify({'status': 'error', 'message': 'Email required'}), 400
+    try:
+        resp = supabase.table("members").update({"status": "approved"}).eq("email", email).execute()
+        if not resp.data or len(resp.data) == 0:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        send_status_email(email, "approved")
+        return jsonify({'status': 'success', 'message': 'Member approved'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to approve member', 'error': str(e)}), 500
+
+@manager_bp.route('/reject-member', methods=['POST'])
+def reject_member():
+    email = request.form.get('email')
+    if not email:
+        return jsonify({'status': 'error', 'message': 'Email required'}), 400
+    try:
+        resp = supabase.table("members").update({"status": "rejected"}).eq("email", email).execute()
+        if not resp.data or len(resp.data) == 0:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        send_status_email(email, "rejected")
+        return jsonify({'status': 'success', 'message': 'Member rejected'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to reject member', 'error': str(e)}), 500

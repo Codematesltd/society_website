@@ -83,6 +83,34 @@ def compress_image(file_storage, max_size_kb=100):
     buffer.seek(0)
     return buffer
 
+def send_status_email(email, status):
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
+    if status == "pending":
+        subject = "Membership Pending Approval"
+        body = "Your membership request is pending manager approval."
+    elif status == "approved":
+        subject = "Membership Approved"
+        body = "Congratulations! Your membership has been approved. You can now sign in."
+    elif status == "rejected":
+        subject = "Membership Rejected"
+        body = "Sorry, your membership request has been rejected."
+    else:
+        subject = "Membership Status Update"
+        body = f"Your membership status is now: {status}"
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = EMAIL_USER
+    msg['To'] = email
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.send_message(msg)
+    except smtplib.SMTPException as e:
+        raise RuntimeError(f"SMTP error: {e}")
+
 @clerk_api_bp.route('/add-member', methods=['POST'])
 def add_member():
     print("Request content-type:", request.content_type)
@@ -93,8 +121,10 @@ def add_member():
     print("Form values:", {k: form.get(k) for k in form.keys()})
     print("Files keys:", list(files.keys()))
     print("Files info:", {k: (files[k].filename, files[k].mimetype) for k in files.keys()})
-    required_fields = ['name', 'kgid', 'phone', 'email', 'pan_aadhar', 'salary', 'organization_name', 'address', 'otp']
+    required_fields = ['name', 'phone', 'email', 'pan_aadhar', 'salary', 'organization_name', 'address', 'otp']
     data = {field: form.get(field, '').strip() for field in required_fields}
+    # Handle kgid as optional
+    kgid = form.get('kgid', '').strip()
     missing = [f for f, v in data.items() if not v]
     if missing:
         return jsonify({'status': 'error', 'message': f'Missing fields: {", ".join(missing)}'}), 400
@@ -158,7 +188,7 @@ def add_member():
 
     member_data = {
         "name": data['name'],
-        "kgid": data['kgid'],
+        "kgid": kgid,  # kgid is now optional
         "phone": data['phone'],
         "email": data['email'],
         "pan_aadhar": data['pan_aadhar'],
@@ -166,7 +196,8 @@ def add_member():
         "organization_name": data['organization_name'],
         "address": data['address'],
         "photo_url": photo_url,
-        "signature_url": signature_url
+        "signature_url": signature_url,
+        "status": "pending"  # <-- set status to pending
     }
 
     try:
@@ -177,6 +208,8 @@ def add_member():
         if not insert_resp.data or len(insert_resp.data) == 0:
             raise Exception("Failed to insert/update member record")
         member_data['id'] = insert_resp.data[0]['id']
+        # Send pending email
+        send_status_email(member_data['email'], "pending")
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Database insert failed', 'error': str(e)}), 500
 

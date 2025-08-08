@@ -29,7 +29,7 @@ def find_role(email):
     staff = supabase.table("staff").select("id,email").eq("email", email).execute()
     if staff.data and len(staff.data) > 0:
         return "staff"
-    members = supabase.table("members").select("id,email").eq("email", email).execute()
+    members = supabase.table("members").select("id,email,status").eq("email", email).execute()
     if members.data and len(members.data) > 0:
         return "members"
     return None
@@ -43,6 +43,11 @@ def login():
     role = find_role(email)
     if not role:
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
+    # Check member status if role is members
+    if role == "members":
+        user_status = supabase.table("members").select("status").eq("email", email).execute()
+        if not user_status.data or user_status.data[0].get("status") != "approved":
+            return jsonify({'status': 'error', 'message': 'Account not approved by manager'}), 403
     user = supabase.table(role).select("id,email,password").eq("email", email).execute()
     if not user.data or not user.data[0].get("password"):
         return jsonify({'status': 'error', 'message': 'Password not set. Use first-time sign-in.'}), 403
@@ -59,6 +64,11 @@ def first_time_signin():
     role = find_role(email)
     if not role:
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
+    # Check member status if role is members
+    if role == "members":
+        user_status = supabase.table("members").select("status").eq("email", email).execute()
+        if not user_status.data or user_status.data[0].get("status") != "approved":
+            return jsonify({'status': 'error', 'message': 'Account not approved by manager'}), 403
     otp = str(uuid.uuid4().int)[-6:]
     # Store OTP in table
     supabase.table(role).update({"otp": otp}).eq("email", email).execute()
