@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import random
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 from io import BytesIO
@@ -111,6 +112,10 @@ def send_status_email(email, status):
     except smtplib.SMTPException as e:
         raise RuntimeError(f"SMTP error: {e}")
 
+def generate_customer_id(prefix="ABCDE"):
+    """Generate a unique customer ID like ABCDE1234."""
+    return f"{prefix}{random.randint(1000, 9999)}"
+
 @clerk_api_bp.route('/add-member', methods=['POST'])
 def add_member():
     print("Request content-type:", request.content_type)
@@ -133,7 +138,7 @@ def add_member():
         return jsonify({'status': 'error', 'message': 'Invalid email format'}), 400
 
     otp = data['otp']
-    member_rows = supabase.table("members").select("otp").eq("email", data['email']).execute()
+    member_rows = supabase.table("members").select("otp,customer_id").eq("email", data['email']).execute()
     if not member_rows.data or not member_rows.data[0].get("otp"):
         return jsonify({'status': 'error', 'message': 'OTP not found for this email'}), 400
     stored_otp = member_rows.data[0]["otp"]
@@ -186,6 +191,7 @@ def add_member():
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Image upload failed', 'error': str(e)}), 500
 
+    # Prepare member_data
     member_data = {
         "name": data['name'],
         "kgid": kgid,  # kgid is now optional
@@ -197,8 +203,22 @@ def add_member():
         "address": data['address'],
         "photo_url": photo_url,
         "signature_url": signature_url,
-        "status": "pending"  # <-- set status to pending
+        "status": "pending"
     }
+
+    # Generate customer_id if not already present
+    customer_id = member_rows.data[0].get("customer_id") if member_rows.data and "customer_id" in member_rows.data[0] else None
+    if not customer_id:
+        # Ensure uniqueness (very unlikely to collide, but check anyway)
+        for _ in range(5):
+            new_customer_id = generate_customer_id()
+            exists = supabase.table("members").select("id").eq("customer_id", new_customer_id).execute()
+            if not exists.data:
+                customer_id = new_customer_id
+                break
+        else:
+            return jsonify({'status': 'error', 'message': 'Could not generate unique customer ID'}), 500
+        member_data["customer_id"] = customer_id
 
     try:
         insert_resp = supabase.table("members").upsert(
@@ -208,6 +228,8 @@ def add_member():
         if not insert_resp.data or len(insert_resp.data) == 0:
             raise Exception("Failed to insert/update member record")
         member_data['id'] = insert_resp.data[0]['id']
+        # Always return customer_id in response
+        member_data['customer_id'] = insert_resp.data[0].get('customer_id', customer_id)
         # Send pending email
         send_status_email(member_data['email'], "pending")
     except Exception as e:
