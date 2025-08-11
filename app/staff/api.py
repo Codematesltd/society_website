@@ -11,7 +11,7 @@ import smtplib
 from email.mime.text import MIMEText
 from PIL import Image
 
-clerk_api_bp = Blueprint('clerk_api', __name__, url_prefix='/clerk/api')
+staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
 
 load_dotenv()
 
@@ -38,7 +38,7 @@ def send_otp_email(email, otp):
     except smtplib.SMTPException as e:
         raise RuntimeError(f"SMTP error: {e}")
 
-@clerk_api_bp.route('/add-member/send-otp', methods=['POST'])
+@staff_api_bp.route('/add-member/send-otp', methods=['POST'])
 def send_member_otp():
     email = request.form.get('email')
     if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
@@ -57,7 +57,8 @@ def send_member_otp():
                 "kgid": "",
                 "phone": "",
                 "email": email,
-                "pan_aadhar": "",
+                "aadhar_no": "",
+                "pan_no": "",
                 "salary": None,
                 "organization_name": "",
                 "address": "",
@@ -116,7 +117,7 @@ def generate_customer_id(prefix="ABCDE"):
     """Generate a unique customer ID like ABCDE1234."""
     return f"{prefix}{random.randint(1000, 9999)}"
 
-@clerk_api_bp.route('/add-member', methods=['POST'])
+@staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
     print("Request content-type:", request.content_type)
     # Strip whitespace from form and file keys
@@ -126,7 +127,7 @@ def add_member():
     print("Form values:", {k: form.get(k) for k in form.keys()})
     print("Files keys:", list(files.keys()))
     print("Files info:", {k: (files[k].filename, files[k].mimetype) for k in files.keys()})
-    required_fields = ['name', 'phone', 'email', 'pan_aadhar', 'salary', 'organization_name', 'address', 'otp']
+    required_fields = ['name', 'phone', 'email', 'aadhar_no', 'pan_no', 'salary', 'organization_name', 'address', 'otp']
     data = {field: form.get(field, '').strip() for field in required_fields}
     # Handle kgid as optional
     kgid = form.get('kgid', '').strip()
@@ -197,7 +198,8 @@ def add_member():
         "kgid": kgid,  # kgid is now optional
         "phone": data['phone'],
         "email": data['email'],
-        "pan_aadhar": data['pan_aadhar'],
+        "aadhar_no": data['aadhar_no'],
+        "pan_no": data['pan_no'],
         "salary": data['salary'],
         "organization_name": data['organization_name'],
         "address": data['address'],

@@ -79,7 +79,7 @@ def compress_image(file_storage, max_size_kb=100):
 @manager_bp.route('/add-staff', methods=['POST'])
 def add_staff():
     # Validate required fields
-    required_fields = ['name', 'kgid', 'phone', 'email', 'pan_aadhar', 'organization_name', 'address', 'otp']
+    required_fields = ['name', 'kgid', 'phone', 'email', 'aadhar_no', 'pan_no', 'organization_name', 'address', 'otp']
     data = {field: request.form.get(field, '').strip() for field in required_fields}
     missing = [f for f, v in data.items() if not v]
     if missing:
@@ -140,7 +140,8 @@ def add_staff():
         "kgid": data['kgid'],
         "phone": data['phone'],
         "email": data['email'],
-        "pan_aadhar": data['pan_aadhar'],
+        "aadhar_no": data['aadhar_no'],
+        "pan_no": data['pan_no'],
         "organization_name": data['organization_name'],
         "address": data['address'],
         "photo_url": photo_url,

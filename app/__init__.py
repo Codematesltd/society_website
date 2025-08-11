@@ -12,23 +12,23 @@ def create_app():
     # Register blueprints
     from .auth import auth_bp
     from .members import members_bp
-    from .clerk import clerk_bp
+    from .staff import staff_bp
     # now just import the API blueprint
     from .manager.api import manager_bp
     from .finance import finance_bp
     from .notification import notification_bp
     from .core import core_bp
-    from app.clerk.api import clerk_api_bp
+    from app.staff.api import staff_api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(members_bp)
-    app.register_blueprint(clerk_bp)
+    app.register_blueprint(staff_bp)
     app.register_blueprint(manager_bp)
     app.register_blueprint(finance_bp)
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
-    app.register_blueprint(clerk_api_bp)
-
+    app.register_blueprint(staff_api_bp)
+    
     return app
 
 def list_routes(app):

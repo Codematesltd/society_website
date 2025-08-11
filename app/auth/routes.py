@@ -93,6 +93,8 @@ def otp_verification():
     return jsonify({'status': 'success', 'next': 'set_password'}), 200
 
 def valid_password(pw):
+    if not pw:
+        return False
     return (len(pw) >= 8 and
             re.search(r'[A-Za-z]', pw) and
             re.search(r'\d', pw) and
