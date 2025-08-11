@@ -238,3 +238,16 @@ def add_member():
         return jsonify({'status': 'error', 'message': 'Database insert failed', 'error': str(e)}), 500
 
     return jsonify({'status': 'success', 'member': member_data}), 201
+
+@staff_api_bp.route('/unblock-member', methods=['POST'])
+def staff_unblock_member():
+    email = request.form.get('email')
+    if not email:
+        return jsonify({'status': 'error', 'message': 'Email required'}), 400
+    try:
+        resp = supabase.table("members").update({"blocked": False, "login_attempts": 0}).eq("email", email).execute()
+        if not resp.data or len(resp.data) == 0:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        return jsonify({'status': 'success', 'message': 'Member account unblocked'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to unblock member', 'error': str(e)}), 500

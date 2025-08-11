@@ -94,6 +94,41 @@
 
 ---
 
+## 11. Unblock Member (by Manager)
+**POST** `http://127.0.0.1:5000/manager/unblock-member`
+- Body: `form-data`
+  - `email`: member_email@example.com
+
+---
+
+## 12. Unblock Member (by Staff)
+**POST** `http://127.0.0.1:5000/staff/api/unblock-member`
+- Body: `form-data`
+  - `email`: member_email@example.com
+
+---
+
+## 13. Unblock Staff (by Manager)
+**POST** `http://127.0.0.1:5000/manager/unblock-staff`
+- Body: `form-data`
+  - `email`: staff_email@example.com
+
+---
+
+## 14. Forgot Password (Staff or Member)
+**POST** `http://127.0.0.1:5000/auth/forgot_password`
+- Body: `form-data`
+  - `email`: staff_email@example.com or member_email@example.com
+
+---
+
+## 15. Reset Password (Staff or Member)
+**POST** `http://127.0.0.1:5000/auth/reset_password?token=[token from email]`
+- Body: `form-data`
+  - `password`: MyNewPassword@123
+
+---
+
 **Notes:**
 - For every registration, use the OTP received in the respective email.
 - Only approved members can log in and complete first-time sign-in.

@@ -173,7 +173,7 @@ def add_staff():
     return jsonify({
         'status': 'success',
         'staff': staff_data
-    }), 201
+    }, 201)
 
 def send_status_email(email, status):
     EMAIL_USER = os.getenv("EMAIL_USER")
@@ -227,3 +227,29 @@ def reject_member():
         return jsonify({'status': 'success', 'message': 'Member rejected'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Failed to reject member', 'error': str(e)}), 500
+
+@manager_bp.route('/unblock-member', methods=['POST'])
+def unblock_member():
+    email = request.form.get('email')
+    if not email:
+        return jsonify({'status': 'error', 'message': 'Email required'}), 400
+    try:
+        resp = supabase.table("members").update({"blocked": False, "login_attempts": 0}).eq("email", email).execute()
+        if not resp.data or len(resp.data) == 0:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        return jsonify({'status': 'success', 'message': 'Member account unblocked'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to unblock member', 'error': str(e)}), 500
+
+@manager_bp.route('/unblock-staff', methods=['POST'])
+def unblock_staff():
+    email = request.form.get('email')
+    if not email:
+        return jsonify({'status': 'error', 'message': 'Email required'}), 400
+    try:
+        resp = supabase.table("staff").update({"blocked": False, "login_attempts": 0}).eq("email", email).execute()
+        if not resp.data or len(resp.data) == 0:
+            return jsonify({'status': 'error', 'message': 'Staff not found'}), 404
+        return jsonify({'status': 'success', 'message': 'Staff account unblocked'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to unblock staff', 'error': str(e)}), 500
