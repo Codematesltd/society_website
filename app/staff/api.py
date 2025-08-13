@@ -251,3 +251,51 @@ def staff_unblock_member():
         return jsonify({'status': 'success', 'message': 'Member account unblocked'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Failed to unblock member', 'error': str(e)}), 500
+
+@staff_api_bp.route('/add-transaction', methods=['POST'])
+def add_transaction():
+    required_fields = [
+        "customer_id", "account_number", "type", "amount",
+        "from_account", "to_account", "date", "transaction_id"
+    ]
+    data = {field: request.form.get(field) for field in required_fields}
+    missing = [f for f, v in data.items() if not v]
+    if missing:
+        return jsonify({'status': 'error', 'message': f'Missing fields: {", ".join(missing)}'}), 400
+
+    # Optional remarks
+    data["remarks"] = request.form.get("remarks", "")
+
+    # Get current balance from members table using customer_id
+    customer_id = data["customer_id"]
+    member_row = supabase.table("members").select("balance").eq("customer_id", customer_id).execute()
+    if not member_row.data or "balance" not in member_row.data[0]:
+        return jsonify({"status": "error", "message": "Member not found or missing balance column. Please add 'balance' column to members table."}), 404
+    current_balance = member_row.data[0]["balance"] or 0
+
+    # Calculate new balance
+    try:
+        amount = float(data["amount"])
+    except Exception:
+        return jsonify({"status": "error", "message": "Invalid amount"}), 400
+
+    if data["type"] == "deposit":
+        new_balance = current_balance + amount
+    elif data["type"] == "withdraw":
+        new_balance = current_balance - amount
+    else:
+        return jsonify({"status": "error", "message": "Invalid transaction type"}), 400
+
+    # Add balance_after to transaction data
+    data["balance_after"] = new_balance
+
+    # Insert transaction
+    try:
+        resp = supabase.table("transactions").insert(data).execute()
+        if not resp.data:
+            raise Exception("Insert failed")
+        # Update member's balance using customer_id
+        supabase.table("members").update({"balance": new_balance}).eq("customer_id", customer_id).execute()
+        return jsonify({"status": "success", "transaction": resp.data[0], "balance_after": new_balance}), 201
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

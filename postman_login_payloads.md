@@ -129,6 +129,30 @@
 
 ---
 
+## 16. Staff Adds Deposit/Withdraw Transaction for Member
+**POST** `http://127.0.0.1:5000/staff/api/add-transaction`
+- Body: `form-data`
+  - `customer_id`: ABCDE1234
+  - `account_number`: 9876543210
+  - `type`: deposit or withdraw
+  - `amount`: 1500
+  - `from_account`: 1234567890
+  - `to_account`: 1122334455
+  - `date`: 2024-06-01T10:00:00Z
+  - `transaction_id`: TXN123456
+  - `remarks`: June deposit (optional)
+
+**Response Example:**
+```json
+{
+  "status": "success",
+  "transaction": { ... },
+  "balance_after": 2500
+}
+```
+
+---
+
 **Notes:**
 - For every registration, use the OTP received in the respective email.
 - Only approved members can log in and complete first-time sign-in.
@@ -136,3 +160,6 @@
 - Use the same email for all steps for each user.
 - Attach files for `photo` and `signature` fields where required.
 - If you need to test dashboards, use GET requests to `/staff/dashboard`, `/members/dashboard`, etc.
+- Use `type` as either `deposit` (to add funds) or `withdraw` (to remove funds).
+- `balance_after` shows the member's balance after the transaction.
+- All fields except `remarks` are required.
