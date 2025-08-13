@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loan Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .fade-enter-active {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .floating-box {
+      transform: translateY(100%);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+    .floating-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <!-- Header -->
+  <header class="w-full h-16 bg-white shadow flex items-center justify-between px-6">
+    <div class="text-2xl font-bold text-blue-700">Loan Dashboard</div>
+    <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-semibold">U</div>
+  </header>
+
+  <div class="flex h-[calc(100vh-4rem)]">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r p-6 space-y-6">
+      <h2 class="font-semibold text-xl text-blue-600">Navigation</h2>
+      <nav class="space-y-4">
+        <a href="landing page.html" class="block w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">🏠 Home</a>
+        <button onclick="fetchData('loan')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">📄 Loan Status</button>
+        <button onclick="fetchData('statement')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">📁 Get Statement</button>
+        <button onclick="fetchData('balance')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">💳 Check Balance</button>
+        <button onclick="window.location.href='landing page.html'" class="w-full px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition">🚪 Logout</button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto">
+      <section id="loan" class="hidden animate-fade-in"></section>
+      <section id="statement" class="hidden animate-fade-in"></section>
+      <section id="balance" class="hidden animate-fade-in"></section>
+    </main>
+  </div>
+
+  <script>
+    const loader = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
+
+    const loanData = `
+      <h2 class="text-2xl font-bold text-blue-700 mb-6">Loan Status</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white rounded shadow">
+          <thead class="bg-blue-100">
+            <tr>
+              <th class="py-3 px-4 border">Initial Date</th>
+              <th class="py-3 px-4 border">Loan Amount</th>
+              <th class="py-3 px-4 border">End Date</th>
+              <th class="py-3 px-4 border">Status</th>
+            </tr>
+        
+        </table>
+      </div>`;
+
+    const statementData = `
+      <h2 class="text-2xl font-bold text-blue-700 mb-6">Get Statement</h2>
+      <div class="flex flex-wrap gap-4 mb-6">
+        <input type="date" class="border p-3 rounded-lg w-48" />
+        <input type="date" class="border p-3 rounded-lg w-48" />
+        <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Generate</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white rounded shadow">
+          <thead class="bg-blue-100">
+            <tr>
+              <th class="py-3 px-4 border">Date</th>
+              <th class="py-3 px-4 border">Description</th>
+              <th class="py-3 px-4 border">Debit</th>
+              <th class="py-3 px-4 border">Credit</th>
+              <th class="py-3 px-4 border">Balance</th>
+            </tr>
+          </thead>
+         
+        </table>
+      </div>
+      <p class="mt-4 text-green-600 font-medium">✔ Statement successfully generated</p>`;
+
+    const balanceData = `
+      <h2 class="text-2xl font-bold text-blue-700 mb-6">Check Balance</h2>
+      <input type="password" placeholder="Enter 6-digit PIN" class="border p-3 rounded-lg w-60 mb-4" />
+      <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Check</button>
+      <p class="mt-4 text-red-600 font-medium">Your current balance is ₹45,500</p>`;
+
+    async function fetchData(tabId) {
+      const section = document.getElementById(tabId);
+
+      document.querySelectorAll("main section").forEach(s => {
+        s.classList.add("hidden");
+        s.innerHTML = "";
+      });
+
+      section.innerHTML = loader;
+      section.classList.remove("hidden");
+
+      setTimeout(() => {
+        const contentMap = {
+          loan: loanData,
+          statement: statementData,
+          balance: balanceData
+        };
+
+        section.innerHTML = contentMap[tabId];
+        section.classList.add("fade-enter");
+        requestAnimationFrame(() => {
+          section.classList.add("fade-enter-active");
+        });
+      }, 600);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
+    <!-- Add before closing body tag -->
+  <!-- Floating Query Button -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+    📩 Query
+  </button>
+
+  <!-- Floating Query Box -->
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
+    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+  </div>
+
+  <!-- Floating Civil Score Button -->
+  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
+    📊 Civil Score
+  </button>
+
+  <!-- Floating Civil Score Box -->
+  <div id="civilBox" class="floating-box hidden fixed bottom-36 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Check Civil Score</h3>
+      <button id="closeCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
+    <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
+  </div>
+  
+  <script src="shared.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
+</body>
+</html>

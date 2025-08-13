@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loan Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .floating-box {
+      transform: translateY(100%);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+    .floating-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sections = document.querySelectorAll('.dynamic-section');
+      const buttons = document.querySelectorAll('.nav-button');
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          sections.forEach((sec) => sec.classList.add('hidden'));
+          const target = document.getElementById(btn.dataset.target);
+          if (target) {
+            target.classList.remove('hidden');
+            const content = target.querySelector('.content');
+            const loader = target.querySelector('.loader');
+            content.classList.add('hidden');
+            loader.classList.remove('hidden');
+            setTimeout(() => {
+              loader.classList.add('hidden');
+              content.classList.remove('hidden');
+            }, 800);
+          }
+        });
+      });
+
+      // Customer Account Info search logic
+      const form = document.getElementById('customerSearchForm');
+      if (form) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          editing = false;
+          const kgid = document.getElementById('kgidInput').value.trim();
+          const resultDiv = document.getElementById('customerInfoResult');
+          resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
+          try {
+            const res = await fetch(`/api/customer?kgid=${encodeURIComponent(kgid)}`);
+            if (res.ok) {
+              const data = await res.json();
+              currentData = data;
+              if (data && data.name) {
+                resultDiv.innerHTML = renderCustomerInfo(data, false);
+                attachEditHandler(data);
+              } else {
+                resultDiv.innerHTML = `
+                  <div class="text-red-600 font-semibold mb-4">No account found for KGID: ${kgid}</div>
+                  <button onclick="window.location.href='landing page.html'" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Create Account</button>
+                `;
+              }
+            } else {
+              resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
+            }
+          } catch {
+            resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+          }
+        });
+      }
+
+      let editing = false;
+      let currentData = null;
+
+      function renderCustomerInfo(data, editable) {
+        if (!editable) {
+          return `
+            <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+              <div class="mb-4">
+                <p><strong>Name:</strong> ${data.name}</p>
+                <p><strong>KGID:</strong> ${data.kgid}</p>
+                <p><strong>Phone:</strong> ${data.phone}</p>
+                <p><strong>Email:</strong> ${data.email}</p>
+                <p><strong>Address:</strong> ${data.address}</p>
+              </div>
+              <button id="editProfileBtn" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Edit Profile</button>
+            </div>
+          `;
+        } else {
+          return `
+            <form id="editProfileForm" class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+              <div class="mb-4">
+                <label class="block mb-1 font-medium">Name</label>
+                <input type="text" name="name" value="${data.name}" class="w-full px-4 py-2 border rounded mb-2" />
+                <label class="block mb-1 font-medium">KGID</label>
+                <input type="text" name="kgid" value="${data.kgid}" class="w-full px-4 py-2 border rounded mb-2" disabled />
+                <label class="block mb-1 font-medium">Phone</label>
+                <input type="text" name="phone" value="${data.phone}" class="w-full px-4 py-2 border rounded mb-2" />
+                <label class="block mb-1 font-medium">Email</label>
+                <input type="email" name="email" value="${data.email}" class="w-full px-4 py-2 border rounded mb-2" />
+                <label class="block mb-1 font-medium">Address</label>
+                <input type="text" name="address" value="${data.address}" class="w-full px-4 py-2 border rounded mb-2" />
+              </div>
+              <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded shadow">Update</button>
+            </form>
+          `;
+        }
+      }
+
+      function attachEditHandler(data) {
+        const editBtn = document.getElementById('editProfileBtn');
+        if (editBtn) {
+          editBtn.onclick = function() {
+            editing = true;
+            const resultDiv = document.getElementById('customerInfoResult');
+            resultDiv.innerHTML = renderCustomerInfo(data, true);
+            attachUpdateHandler();
+          };
+        }
+      }
+
+      function attachUpdateHandler() {
+        const editForm = document.getElementById('editProfileForm');
+        if (editForm) {
+          editForm.onsubmit = async function(e) {
+            e.preventDefault();
+            const formData = new FormData(editForm);
+            const updatedData = {
+              name: formData.get('name'),
+              kgid: formData.get('kgid'),
+              phone: formData.get('phone'),
+              email: formData.get('email'),
+              address: formData.get('address')
+            };
+            const resultDiv = document.getElementById('customerInfoResult');
+            resultDiv.innerHTML = '<div class="text-blue-600">Updating...</div>';
+            try {
+              const res = await fetch(`/api/customer/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+              });
+              if (res.ok) {
+                resultDiv.innerHTML = renderCustomerInfo(updatedData, false);
+                attachEditHandler(updatedData);
+              } else {
+                resultDiv.innerHTML = `<div class="text-red-600">Update failed.</div>`;
+              }
+            } catch {
+              resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+            }
+          };
+        }
+      }
+    });
+  </script>
+</head>
+<body class="bg-gray-50">
+  <!-- Header - Updated to match landing page style -->
+  <header class="w-full bg-white shadow-lg">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
+        <span class="text-2xl font-bold text-blue-700">FinanceApp</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-gray-700">Welcome, Staff</span>
+        <a href="landing page.html" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex min-h-screen bg-gray-50">
+    <!-- Sidebar - Updated style -->
+    <aside class="w-64 bg-white shadow-lg p-6 space-y-4">
+      <h2 class="font-bold text-xl text-blue-700 mb-6">Staff Dashboard</h2>
+      <nav class="space-y-3">
+        <a href="landing page.html" class="block w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">🏠 Home</a>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Check Expense</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
+      </nav>
+    </aside>
+
+    <!-- Main content area - Updated style -->
+    <main class="flex-1 p-8 space-y-6">
+      <section id="applyLoan" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content space-y-8">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Apply for Loan</h2>
+          <!-- Switch buttons side by side -->
+          <div class="flex flex-row space-x-4 mb-6">
+            <button id="normalLoanBtn" class="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition">Normal Loan</button>
+            <button id="emergencyLoanBtn" class="px-4 py-2 bg-gray-300 text-black rounded shadow hover:bg-gray-400 transition">Emergency Loan</button>
+          </div>
+          <!-- Loan Containers, only one visible at a time -->
+          <div id="normalLoanForm" class="bg-white p-6 rounded-xl shadow text-center">
+            <h3 class="text-lg font-semibold mb-4 text-blue-700">Normal Loan</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="KGID" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Interest Rate" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Account Number" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Loan Purpose" class="w-full px-4 py-2 border rounded" />
+              <input type="number" placeholder="Loan Amount" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Loan Tenure" class="w-full px-4 py-2 border rounded" />
+            </div>
+            <div class="mt-4 text-left">
+              <h4 class="font-semibold mb-2 text-gray-700">Sureties (Max 2)</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" placeholder="Surety 1" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="text" placeholder="Surety 2" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
+              </div>
+            </div>
+            <button class="mt-6 bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Apply Normal Loan</button>
+          </div>
+          <div id="emergencyLoanForm" class="bg-white p-6 rounded-xl shadow text-center" style="display:none;">
+            <h3 class="text-lg font-semibold mb-4 text-blue-700">Emergency Loan</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="KGID" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Interest Rate" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Account Number" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Loan Purpose" class="w-full px-4 py-2 border rounded" />
+              <input type="number" placeholder="Loan Amount" class="w-full px-4 py-2 border rounded" />
+              <input type="text" placeholder="Loan Tenure" class="w-full px-4 py-2 border rounded" />
+            </div>
+            <div class="mt-4 text-left">
+              <h4 class="font-semibold mb-2 text-gray-700">Sureties (Max 2)</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" placeholder="Surety 1" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="text" placeholder="Surety 2" class="w-full px-4 py-2 border rounded mb-2" />
+                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
+              </div>
+            </div>
+            <button class="mt-6 bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Apply Emergency Loan</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="accountInfo" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Customer Account Info</h2>
+          <form id="customerSearchForm" class="mb-4 flex gap-2">
+            <input type="text" id="kgidInput" placeholder="Enter Account Number" class="border p-2 w-full rounded" />
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+          </form>
+          <div id="customerInfoResult"></div>
+        </div>
+      </section>
+      <script>
+document.addEventListener('DOMContentLoaded', () => {
+  let editing = false;
+  let currentData = null;
+
+  const form = document.getElementById('customerSearchForm');
+  if (form) {
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      editing = false;
+      const kgid = document.getElementById('kgidInput').value.trim();
+      const resultDiv = document.getElementById('customerInfoResult');
+      resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
+      try {
+        const res = await fetch(`/api/customer?kgid=${encodeURIComponent(kgid)}`);
+        if (res.ok) {
+          const data = await res.json();
+          currentData = data;
+          if (data && data.name) {
+            resultDiv.innerHTML = renderCustomerInfo(data, false);
+            attachEditHandler(data);
+          } else {
+            resultDiv.innerHTML = `
+              <div class="text-red-600 font-semibold mb-4">No account found for KGID: ${kgid}</div>
+              <button onclick="window.location.href='landing page.html'" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Create Account</button>
+            `;
+          }
+        } else {
+          resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
+        }
+      } catch {
+        resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+      }
+    });
+  }
+
+  function renderCustomerInfo(data, editable) {
+    if (!editable) {
+      return `
+        <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <div class="mb-4">
+            <p><strong>Name:</strong> ${data.name}</p>
+            <p><strong>KGID:</strong> ${data.kgid}</p>
+            <p><strong>Phone:</strong> ${data.phone}</p>
+            <p><strong>Email:</strong> ${data.email}</p>
+            <p><strong>Address:</strong> ${data.address}</p>
+          </div>
+          <button id="editProfileBtn" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Edit Profile</button>
+        </div>
+      `;
+    } else {
+      return `
+        <form id="editProfileForm" class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <div class="mb-4">
+            <label class="block mb-1 font-medium">Name</label>
+            <input type="text" name="name" value="${data.name}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">KGID</label>
+            <input type="text" name="kgid" value="${data.kgid}" class="w-full px-4 py-2 border rounded mb-2" disabled />
+            <label class="block mb-1 font-medium">Phone</label>
+            <input type="text" name="phone" value="${data.phone}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">Email</label>
+            <input type="text" name="Adhar " value="${data.dhar}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">Email</label>
+            <input type="text" name="Pan" value="${data.pan}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">Email</label>
+            <input type="email" name="email" value="${data.email}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">Address</label>
+            <input type="text" name="address" value="${data.address}" class="w-full px-4 py-2 border rounded mb-2" />
+            <input type="text" name="Current Balance " value="${data.balance}" class="w-full px-4 py-2 border rounded mb-2" />
+            <label class="block mb-1 font-medium">Email</label>
+          </div>
+          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded shadow">Update</button>
+        </form>
+      `;
+    }
+  }
+
+  function attachEditHandler(data) {
+    const editBtn = document.getElementById('editProfileBtn');
+    if (editBtn) {
+      editBtn.onclick = function() {
+        editing = true;
+        const resultDiv = document.getElementById('customerInfoResult');
+        resultDiv.innerHTML = renderCustomerInfo(data, true);
+        attachUpdateHandler();
+      };
+    }
+  }
+
+  function attachUpdateHandler() {
+    const editForm = document.getElementById('editProfileForm');
+    if (editForm) {
+      editForm.onsubmit = async function(e) {
+        e.preventDefault();
+        const formData = new FormData(editForm);
+        const updatedData = {
+          name: formData.get('name'),
+          kgid: formData.get('kgid'),
+          phone: formData.get('phone'),
+          email: formData.get('email'),
+          address: formData.get('address')
+        };
+        const resultDiv = document.getElementById('customerInfoResult');
+        resultDiv.innerHTML = '<div class="text-blue-600">Updating...</div>';
+        try {
+          const res = await fetch(`/api/customer/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+          });
+          if (res.ok) {
+            resultDiv.innerHTML = renderCustomerInfo(updatedData, false);
+            attachEditHandler(updatedData);
+          } else {
+            resultDiv.innerHTML = `<div class="text-red-600">Update failed.</div>`;
+          }
+        } catch {
+          resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+        }
+      };
+    }
+  }
+
+  /* -------- Loan Type Toggle Logic -------- */
+  const normalLoanBtn = document.getElementById("normalLoanBtn");
+  const emergencyLoanBtn = document.getElementById("emergencyLoanBtn");
+  const normalLoanForm = document.getElementById("normalLoanForm");
+  const emergencyLoanForm = document.getElementById("emergencyLoanForm");
+
+  if (normalLoanBtn && emergencyLoanBtn && normalLoanForm && emergencyLoanForm) {
+    normalLoanBtn.addEventListener("click", () => {
+      normalLoanForm.style.display = "block";
+      emergencyLoanForm.style.display = "none";
+      normalLoanBtn.classList.add("bg-blue-600", "text-white");
+      normalLoanBtn.classList.remove("bg-gray-300", "text-black");
+      emergencyLoanBtn.classList.add("bg-gray-300", "text-black");
+      emergencyLoanBtn.classList.remove("bg-blue-600", "text-white");
+    });
+
+    emergencyLoanBtn.addEventListener("click", () => {
+      normalLoanForm.style.display = "none";
+      emergencyLoanForm.style.display = "block";
+      emergencyLoanBtn.classList.add("bg-blue-600", "text-white");
+      emergencyLoanBtn.classList.remove("bg-gray-300", "text-black");
+      normalLoanBtn.classList.add("bg-gray-300", "text-black");
+      normalLoanBtn.classList.remove("bg-blue-600", "text-white");
+    });
+  }
+});
+</script>
+
+<section id="addUser" class="dynamic-section hidden bg-white p-6 rounded shadow">
+  <div class="loader hidden text-center text-blue-600">Loading...</div>
+  <div class="content">
+    <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- First / Middle / Last Name -->
+      <div>
+        <label class="block text-sm font-medium mb-1">First Name</label>
+        <input type="text" placeholder="First Name" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Middle Name</label>
+        <input type="text" placeholder="Middle Name" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Last Name</label>
+        <input type="text" placeholder="Last Name" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">KGID</label>
+        <input type="text" placeholder="KGID" class="border p-2 rounded w-full" />
+      </div>
+
+      <!-- Phone & Email Row -->
+      <div>
+        <label class="block text-sm font-medium mb-1">Phone Number</label>
+        <input type="text" placeholder="Phone Number" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Email</label>
+        <div class="flex gap-2">
+          <input type="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" />
+          <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">
+            Verify
+          </button>
+        </div>
+      </div>
+
+      <!-- OTP Input -->
+      <div id="otpContainer" class="col-span-1 md:col-span-2 hidden">
+        <label class="block text-sm font-medium mb-1">Enter OTP</label>
+        <input type="text" id="otpInput" placeholder="Enter OTP" class="border p-2 rounded w-full" />
+      </div>
+
+      <!-- More User Details -->
+      <div>
+        <label class="block text-sm font-medium mb-1">Father's Name</label>
+        <input type="text" placeholder="Father's Name" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Salary</label>
+        <input type="text" placeholder="Salary" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Organization Name</label>
+        <input type="text" placeholder="Organization Name" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Aadhar Number</label>
+        <input type="text" placeholder="Aadhar Number" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">PAN Number</label>
+        <input type="text" placeholder="PAN Number" class="border p-2 rounded w-full" />
+      </div>
+
+      <!-- Address -->
+      <div class="col-span-1 md:col-span-2">
+        <label class="block text-sm font-medium mb-1">Address</label>
+        <textarea placeholder="Address" class="border p-2 rounded w-full"></textarea>
+      </div>
+
+      <!-- Photo Upload -->
+      <div>
+        <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+        <input type="file" class="border p-2 rounded w-full" accept="image/*" />
+      </div>
+
+      <!-- Signature Upload -->
+      <div>
+        <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+        <input type="file" class="border p-2 rounded w-full" accept="image/*" />
+      </div>
+
+    </div>
+
+    <!-- Warning Message -->
+    <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
+
+    <button id="addUserBtn" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  let emailVerified = false;
+
+  const verifyBtn = document.getElementById('verifyEmailBtn');
+  const otpContainer = document.getElementById('otpContainer');
+  const otpInput = document.getElementById('otpInput');
+  const warning = document.getElementById('verifyWarning');
+  const addUserBtn = document.getElementById('addUserBtn');
+
+  verifyBtn.addEventListener('click', () => {
+    otpContainer.classList.remove('hidden');
+    otpInput.focus();
+    warning.classList.add('hidden');
+  });
+
+  otpInput.addEventListener('input', () => {
+    if (otpInput.value.length === 6) {
+      emailVerified = true;
+      otpInput.classList.add('border-green-500');
+    }
+  });
+
+  addUserBtn.addEventListener('click', (e) => {
+    if (!emailVerified) {
+      e.preventDefault();
+      warning.classList.remove('hidden');
+    }
+  });
+});
+</script>
+
+
+     <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
+  <div class="loader hidden text-center text-blue-600">Loading...</div>
+  
+  <!-- Header with Download Button -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold text-blue-700">Check Expense</h2>
+    <button id="downloadReportBtn" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+      Download Report
+    </button>
+  </div>
+
+  <div class="content space-y-4">
+    <!-- Transaction ID -->
+    <input type="text" placeholder="Transaction ID" class="w-full border p-2 rounded" />
+
+    <!-- Expense Fields -->
+    <input type="text" placeholder="Expense Name" class="w-full border p-2 rounded" />
+    <input type="number" placeholder="Amount" class="w-full border p-2 rounded" />
+
+    <!-- From & To Date -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <input type="date" placeholder="From Date" class="w-full border p-2 rounded" />
+      <input type="date" placeholder="End Date" class="w-full border p-2 rounded" />
+    </div>
+
+    <textarea placeholder="Description" class="w-full border p-2 rounded"></textarea>
+
+    <button class="px-4 py-2 bg-blue-500 text-white rounded">Add Expense</button>
+  </div>
+</section>
+
+<script>
+// Download Report Logic Placeholder
+document.getElementById('downloadReportBtn').addEventListener('click', () => {
+  alert("Report download functionality will be implemented here.");
+});
+</script>
+
+      <section id="depositWithdraw" class="dynamic-section hidden bg-white p-6 rounded shadow">
+  <div class="loader hidden text-center text-blue-600">Loading...</div>
+  <div class="content space-y-6">
+    <h2 class="text-xl font-bold text-blue-700 mb-4">Deposit / Withdraw</h2>
+
+    <!-- Search Customer -->
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="customerIdInput" placeholder="Enter Customer ID / KGID" class="flex-1 border p-2 rounded" />
+      <button id="searchCustomerBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Search Customer</button>
+    </div>
+
+    <!-- Customer Info -->
+    <div id="customerInfo" class="hidden p-3 bg-gray-100 rounded border">
+      <p><strong>Name:</strong> <span id="customerName">-</span></p>
+      <p><strong>Current Balance:</strong> ₹<span id="customerBalance">0</span></p>
+    </div>
+
+    <!-- Toggle Buttons -->
+    <div class="flex gap-2 mb-4">
+      <button id="showDepositBtn" class="toggle-btn px-4 py-2 rounded shadow bg-green-500 text-white">Deposit</button>
+      <button id="showWithdrawBtn" class="toggle-btn px-4 py-2 rounded shadow bg-gray-300">Withdraw</button>
+    </div>
+
+    <!-- Deposit Form -->
+    <div id="depositForm" class="bg-white p-6 rounded-xl shadow">
+      <h3 class="text-lg font-semibold mb-4 text-green-700 text-center">Deposit</h3>
+      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="depositName" />
+      <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="depositAmount" />
+      <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="depositDate" />
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositBank" />
+      </div>
+      <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="depositTxnId" />
+      <button id="depositBtn" class="bg-green-500 text-white px-6 py-2 rounded w-full shadow hover:bg-green-600 transition">Deposit</button>
+    </div>
+
+    <!-- Withdraw Form -->
+    <div id="withdrawForm" class="bg-white p-6 rounded-xl shadow hidden">
+      <h3 class="text-lg font-semibold mb-4 text-red-700 text-center">Withdraw</h3>
+      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="withdrawName" />
+      <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAmount" />
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawBank" />
+      </div>
+      <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="withdrawDate" />
+      <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawTxnId" />
+      <button id="withdrawBtn" class="bg-red-500 text-white px-6 py-2 rounded w-full shadow hover:bg-red-600 transition">Withdraw</button>
+    </div>
+
+  </div>
+</section>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const depositForm = document.getElementById("depositForm");
+  const withdrawForm = document.getElementById("withdrawForm");
+  const depositBtnToggle = document.getElementById("showDepositBtn");
+  const withdrawBtnToggle = document.getElementById("showWithdrawBtn");
+
+  // Toggle Deposit/Withdraw
+  function toggleForms(showDeposit) {
+    if (showDeposit) {
+      depositForm.classList.remove("hidden");
+      withdrawForm.classList.add("hidden");
+      depositBtnToggle.classList.add("bg-green-500", "text-white");
+      depositBtnToggle.classList.remove("bg-gray-300");
+      withdrawBtnToggle.classList.add("bg-gray-300");
+      withdrawBtnToggle.classList.remove("bg-red-500", "text-white");
+    } else {
+      withdrawForm.classList.remove("hidden");
+      depositForm.classList.add("hidden");
+      withdrawBtnToggle.classList.add("bg-red-500", "text-white");
+      withdrawBtnToggle.classList.remove("bg-gray-300");
+      depositBtnToggle.classList.add("bg-gray-300");
+      depositBtnToggle.classList.remove("bg-green-500", "text-white");
+    }
+  }
+
+  depositBtnToggle.addEventListener("click", () => toggleForms(true));
+  withdrawBtnToggle.addEventListener("click", () => toggleForms(false));
+
+  // Search Customer (Demo Data)
+  document.getElementById("searchCustomerBtn").addEventListener("click", () => {
+    const customerId = document.getElementById("customerIdInput").value.trim();
+
+    if (!customerId) {
+      alert("Please enter a Customer ID or KGID");
+      return;
+    }
+
+    // Simulated fetch from DB
+    const dummyData = {
+      "KGID123": { name: "Ramesh Kumar", balance: 45000 },
+      "KGID456": { name: "Suresh Reddy", balance: 32000 }
+    };
+
+    if (dummyData[customerId]) {
+      document.getElementById("customerName").innerText = dummyData[customerId].name;
+      document.getElementById("customerBalance").innerText = dummyData[customerId].balance;
+      document.getElementById("customerInfo").classList.remove("hidden");
+    } else {
+      alert("Customer not found!");
+    }
+  });
+
+  // Deposit
+  document.getElementById("depositBtn").addEventListener("click", () => {
+    const depositData = {
+      name: document.getElementById("depositName").value.trim(),
+      amount: document.getElementById("depositAmount").value.trim(),
+      date: document.getElementById("depositDate").value.trim(),
+      accountNumber: document.getElementById("depositAccount").value.trim(),
+      bankName: document.getElementById("depositBank").value.trim(),
+      transactionId: document.getElementById("depositTxnId").value.trim()
+    };
+
+    if (Object.values(depositData).some(v => v === "")) {
+      alert("Please fill all Deposit fields.");
+      return;
+    }
+
+    console.log("Deposit Data:", depositData);
+    alert("Deposit request submitted!");
+  });
+
+  // Withdraw
+  document.getElementById("withdrawBtn").addEventListener("click", () => {
+    const withdrawData = {
+      name: document.getElementById("withdrawName").value.trim(),
+      amount: document.getElementById("withdrawAmount").value.trim(),
+      accountNumber: document.getElementById("withdrawAccount").value.trim(),
+      bankName: document.getElementById("withdrawBank").value.trim(),
+      date: document.getElementById("withdrawDate").value.trim(),
+      transactionId: document.getElementById("withdrawTxnId").value.trim()
+    };
+
+    if (Object.values(withdrawData).some(v => v === "")) {
+      alert("Please fill all Withdraw fields.");
+      return;
+    }
+
+    console.log("Withdraw Data:", withdrawData);
+    alert("Withdraw request submitted!");
+  });
+
+});
+</script>
+
+     
+      <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Loan Repayment</h2>
+          <!-- Search Type Selection -->
+          <div class="mb-4">
+            <label class="font-semibold mr-2">Search By:</label>
+            <select id="loanSearchType" class="border p-2 rounded">
+              <option value="loanId">Loan ID</option>
+              <option value="accountNumber">Account Number</option>
+            </select>
+          </div>
+          <!-- Search Bar -->
+          <form id="loanSearchForm" class="mb-4 flex gap-2">
+            <input type="text" id="loanSearchInput" placeholder="Enter Loan ID or Account Number" class="border p-2 w-full rounded" />
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+          </form>
+          <!-- Loan Info Result -->
+          <div id="loanInfoResult"></div>
+          <!-- Auto Transaction Form -->
+          <div id="autoTransactionFormContainer" class="mt-6"></div>
+        </div>
+      </section>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          // Loan Repayment search logic
+          const loanSearchForm = document.getElementById('loanSearchForm');
+          if (loanSearchForm) {
+            loanSearchForm.addEventListener('submit', async function(e) {
+              e.preventDefault();
+              const type = document.getElementById('loanSearchType').value;
+              const value = document.getElementById('loanSearchInput').value.trim();
+              const resultDiv = document.getElementById('loanInfoResult');
+              const autoTxnDiv = document.getElementById('autoTransactionFormContainer');
+              resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
+              autoTxnDiv.innerHTML = '';
+              try {
+                const res = await fetch(`/api/loan?${type}=${encodeURIComponent(value)}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data && data.loanAmount) {
+                    resultDiv.innerHTML = `
+                      <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
+                        <p><strong>Loan Amount:</strong> ₹${data.loanAmount}</p>
+                        <p><strong>Recovered:</strong> ₹${data.recovered}</p>
+                        <p><strong>Pending:</strong> ₹${data.pending}</p>
+                        <p><strong>Term:</strong> ${data.term} months</p>
+                      </div>
+                    `;
+                    autoTxnDiv.innerHTML = `
+                      <div class="bg-white p-6 rounded-xl shadow mt-4">
+                        <h3 class="text-lg font-semibold mb-4 text-blue-700">Auto Transaction to Another Person</h3>
+                        <form id="autoTransactionForm" class="space-y-3">
+                          <input type="text" name="holderName" placeholder="Account Holder Name" class="w-full px-4 py-2 border rounded" required />
+                          <input type="text" name="bankName" placeholder="Bank Name" class="w-full px-4 py-2 border rounded" required />
+                          <input type="text" name="accountNo" placeholder="Account Number" class="w-full px-4 py-2 border rounded" required />
+                          <input type="text" name="transactionId" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded" required />
+                          <input type="date" name="date" class="w-full px-4 py-2 border rounded" required />
+                          <input type="number" name="amount" placeholder="Amount" class="w-full px-4 py-2 border rounded" required />
+                          <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Submit</button>
+                        </form>
+                        <div id="autoTxnResult" class="mt-2"></div>
+                      </div>
+                    `;
+                    // Handle auto transaction submit
+                    const autoTxnForm = document.getElementById('autoTransactionForm');
+                    if (autoTxnForm) {
+                      autoTxnForm.onsubmit = async function(ev) {
+                        ev.preventDefault();
+                        const formData = new FormData(autoTxnForm);
+                        const payload = {
+                          holderName: formData.get('holderName'),
+                          bankName: formData.get('bankName'),
+                          accountNo: formData.get('accountNo'),
+                          transactionId: formData.get('transactionId'),
+                          date: formData.get('date'),
+                          amount: formData.get('amount'),
+                          loanId: data.loanId
+                        };
+                        const result = document.getElementById('autoTxnResult');
+                        result.innerHTML = '<div class="text-blue-600">Processing...</div>';
+                        try {
+                          const resp = await fetch('/api/loan/auto-transaction', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                          });
+                          if (resp.ok) {
+                            result.innerHTML = '<div class="text-green-600">Transaction submitted successfully!</div>';
+                          } else {
+                            result.innerHTML = '<div class="text-red-600">Transaction failed.</div>';
+                          }
+                        } catch {
+                          result.innerHTML = '<div class="text-red-600">Network error.</div>';
+                        }
+                      };
+                    }
+                  } else {
+                    resultDiv.innerHTML = `<div class="text-red-600">No loan found.</div>`;
+                  }
+                } else {
+                  resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
+                }
+              } catch {
+                resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+              }
+            });
+          }
+        });
+      </script>
+      
+
+      <section id="nextInstallment" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content">
+          <h2 class="text-xl font-bold text-blue-700 mb-6">Next Installment Details</h2>
+          
+          <!-- Search Bar -->
+          <div class="mb-6">
+            <input type="text" placeholder="Enter Loan ID" class="border p-2 w-full rounded mb-2" />
+            <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">
+              Get Details
+            </button>
+          </div>
+
+          <!-- Status Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-blue-100 p-4 rounded shadow text-center">
+              <h3 class="font-bold text-blue-700 text-lg">Loan Amount</h3>
+              <p id="loanAmount" class="text-xl font-semibold">₹0</p>
+            </div>
+
+            <div class="bg-green-100 p-4 rounded shadow text-center">
+              <h3 class="font-bold text-green-700 text-lg">Paid Amount</h3>
+              <p id="paidAmount" class="text-xl font-semibold">₹0</p>
+            </div>
+
+            <div class="bg-red-100 p-4 rounded shadow text-center">
+              <h3 class="font-bold text-red-700 text-lg">Remaining</h3>
+              <p id="remainingAmount" class="text-xl font-semibold">₹0</p>
+            </div>
+
+            <div class="bg-yellow-100 p-4 rounded shadow text-center">
+              <h3 class="font-bold text-yellow-700 text-lg">Next Month + Interest</h3>
+              <p id="nextMonthAmount" class="text-xl font-semibold">₹0</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <script>
+        // Add Next Installment functionality
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchBtn = document.querySelector('#nextInstallment button');
+      const searchInput = document.querySelector('#nextInstallment input');
+      
+      if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+          // Example values from backend (replace with API call)
+          let loanAmount = 50000;
+          let paidAmount = 20000;
+          let remainingAmount = loanAmount - paidAmount;
+          let interestRate = 0.02; // 2% interest
+          let monthlyInstallment = 5000;
+          let nextMonthWithInterest = monthlyInstallment + (monthlyInstallment * interestRate);
+
+          // Populate values
+          document.getElementById("loanAmount").textContent = `₹${loanAmount.toLocaleString()}`;
+          document.getElementById("paidAmount").textContent = `₹${paidAmount.toLocaleString()}`;
+          document.getElementById("remainingAmount").textContent = `₹${remainingAmount.toLocaleString()}`;
+          document.getElementById("nextMonthAmount").textContent = `₹${nextMonthWithInterest.toLocaleString()}`;
+        });
+      }
+    });
+      </script>
+    </main>
+  </div>
+
+  <!-- Add before closing body tag -->
+  <!-- Floating Query Button -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+    📩 Query
+  </button>
+
+  <!-- Floating Query Box -->
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
+    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+  </div>
+
+  <!-- Floating Civil Score Button -->
+  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
+    📊 Civil Score
+  </button>
+
+  <!-- Floating Civil Score Box -->
+  <div id="civilBox" class="floating-box hidden fixed bottom-36 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Check Civil Score</h3>
+      <button id="closeCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
+    <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
+  </div>
+  
+  <script src="shared.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
+</body>
+</html>

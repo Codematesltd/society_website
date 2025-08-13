@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinanceApp - Landing Page</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Carousel animation */
+    .carousel-slide {
+      display: none;
+    }
+    .carousel-slide.active {
+      display: block;
+    }
+    /* Floating Box Animation */
+    .floating-box {
+      transform: translateY(100%);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+    .floating-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-lg">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
+        <span class="text-2xl font-bold text-blue-700">FinanceApp</span>
+      </div>
+      <div class="space-x-6">
+        <a href="landing page.html" class="text-gray-700 hover:text-blue-600 transition">Home</a>
+        <a href="about.html" class="text-gray-700 hover:text-blue-600 transition">About</a>
+        <a href="services.html" class="text-gray-700 hover:text-blue-600 transition">Services</a>
+        <a href="user_login.html" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition">User Login</a>
+        <a href="staff_login.html" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Staff Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Marquee -->
+  <div class="bg-yellow-200 py-2">
+    <marquee behavior="scroll" direction="left" class="text-gray-800 font-medium">
+      📢 New loan scheme available for employees | 📢 Update your KGID details | 📢 Interest rates revised from next month
+    </marquee>
+  </div>
+
+  <!-- Carousel -->
+  <div class="relative w-full h-72 overflow-hidden">
+    <img src="https://via.placeholder.com/1200x300/2563eb/ffffff?text=Slide+1" class="carousel-slide active w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/f59e0b/ffffff?text=Slide+2" class="carousel-slide w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/10b981/ffffff?text=Slide+3" class="carousel-slide w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/ef4444/ffffff?text=Slide+4" class="carousel-slide w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/8b5cf6/ffffff?text=Slide+5" class="carousel-slide w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/f43f5e/ffffff?text=Slide+6" class="carousel-slide w-full h-full object-cover">
+    <img src="https://via.placeholder.com/1200x300/14b8a6/ffffff?text=Slide+7" class="carousel-slide w-full h-full object-cover">
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white mt-12">
+    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div>
+        <h3 class="text-lg font-bold mb-4">FinanceApp</h3>
+        <p class="text-sm text-gray-400">
+          Your trusted partner for loans, credit scores, and financial services.
+        </p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Quick Links</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li><a href="landing page.html" class="hover:text-white">Home</a></li>
+          <li><a href="about.html" class="hover:text-white">About</a></li>
+          <li><a href="services.html" class="hover:text-white">Services</a></li>
+          <li><a href="contact.html" class="hover:text-white">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Services</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li>Loan Assistance</li>
+          <li>Credit Score Check</li>
+          <li>Financial Planning</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Contact Us</h4>
+        <p class="text-sm text-gray-400">📍 123 Main Street, City</p>
+        <p class="text-sm text-gray-400">📞 +91 9876543210</p>
+        <p class="text-sm text-gray-400">📧 support@financeapp.com</p>
+      </div>
+    </div>
+    <div class="bg-gray-800 text-center py-3 text-sm text-gray-400">
+      &copy; 2025 FinanceApp. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Floating Query Button -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+    📩 Query
+  </button>
+
+  <!-- Floating Query Box -->
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
+    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+  </div>
+
+  <!-- Floating Civil Score Button -->
+  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
+    📊 Civil Score
+  </button>
+
+  <!-- Floating Civil Score Box -->
+  <div id="civilBox" class="floating-box hidden fixed bottom-36 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Check Civil Score</h3>
+      <button id="closeCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
+    <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
+  </div>
+
+  <script>
+    // Carousel Auto Slide
+    let currentSlide = 0;
+    const slides = document.querySelectorAll(".carousel-slide");
+    function showSlide(index) {
+      slides.forEach((slide, i) => {
+        slide.classList.toggle("active", i === index);
+      });
+    }
+    setInterval(() => {
+      currentSlide = (currentSlide + 1) % slides.length;
+      showSlide(currentSlide);
+    }, 3000);
+
+    // Query Popup
+    const queryBtn = document.getElementById('queryBtn');
+    const queryBox = document.getElementById('queryBox');
+    const closeQuery = document.getElementById('closeQuery');
+    const sendQuery = document.getElementById('sendQuery');
+
+    queryBtn.addEventListener('click', () => {
+      queryBox.classList.remove('hidden');
+      setTimeout(() => queryBox.classList.add('show'), 10);
+    });
+    closeQuery.addEventListener('click', () => {
+      queryBox.classList.remove('show');
+      setTimeout(() => queryBox.classList.add('hidden'), 400);
+    });
+    sendQuery.addEventListener('click', () => {
+      alert("✅ Your query has been sent successfully!");
+      queryBox.classList.remove('show');
+      setTimeout(() => queryBox.classList.add('hidden'), 400);
+    });
+
+    // Civil Score Popup
+    const civilBtn = document.getElementById('civilBtn');
+    const civilBox = document.getElementById('civilBox');
+    const closeCivil = document.getElementById('closeCivil');
+    const checkCivil = document.getElementById('checkCivil');
+
+    civilBtn.addEventListener('click', () => {
+      civilBox.classList.remove('hidden');
+      setTimeout(() => civilBox.classList.add('show'), 10);
+    });
+    closeCivil.addEventListener('click', () => {
+      civilBox.classList.remove('show');
+      setTimeout(() => civilBox.classList.add('hidden'), 400);
+    });
+    checkCivil.addEventListener('click', () => {
+      alert("📊 Civil score checked successfully!");
+      civilBox.classList.remove('show');
+      setTimeout(() => civilBox.classList.add('hidden'), 400);
+    });
+  </script>
+
+</body>
+</html>
