@@ -163,3 +163,44 @@
 - Use `type` as either `deposit` (to add funds) or `withdraw` (to remove funds).
 - `balance_after` shows the member's balance after the transaction.
 - All fields except `remarks` are required.
+
+
+
+# Deposit & Withdrawal API Payloads
+
+## 1. Deposit Transaction
+
+**POST** `/staff/api/add-transaction`
+- Body: `form-data`
+  - customer_id: <customer_id_of_member>
+  - account_number: 1234567890
+  - type: deposit
+  - amount: 1000
+  - from_account: CASH
+  - to_account: 1234567890
+  - date: 2024-07-01
+  - transaction_id: TXN001
+  - remarks: Initial deposit (optional)
+
+---
+
+## 2. Withdrawal Transaction
+
+**POST** `/staff/api/add-transaction`
+- Body: `form-data`
+  - customer_id: <customer_id_of_member>
+  - account_number: 1234567890
+  - type: withdraw
+  - amount: 500
+  - from_account: 1234567890
+  - to_account: CASH
+  - date: 2024-07-02
+  - transaction_id: TXN002
+  - remarks: ATM withdrawal (optional)
+
+---
+
+**Notes:**
+- Replace `<customer_id_of_member>` with the actual customer_id from your members table.
+- All fields except `remarks` are required.
+- The API will automatically generate and return the unique `stid` for each transaction.

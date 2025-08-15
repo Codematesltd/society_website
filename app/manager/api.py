@@ -253,3 +253,87 @@ def unblock_staff():
         return jsonify({'status': 'success', 'message': 'Staff account unblocked'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Failed to unblock staff', 'error': str(e)}), 500
+
+@manager_bp.route('/loan-applications', methods=['GET'])
+def view_loan_applications():
+    """
+    View all pending loan applications.
+    """
+    try:
+        loans = supabase.table("loans").select("*").eq("status", "pending").execute()
+        return jsonify({'status': 'success', 'loans': loans.data}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to fetch loan applications', 'error': str(e)}), 500
+
+@manager_bp.route('/loan-application/<loan_id>', methods=['GET'])
+def view_loan_application(loan_id):
+    """
+    View details of a specific loan application, including sureties and staff.
+    """
+    try:
+        loan = supabase.table("loans").select("*").eq("id", loan_id).execute()
+        if not loan.data:
+            return jsonify({'status': 'error', 'message': 'Loan not found'}), 404
+        sureties = supabase.table("sureties").select("*").eq("loan_id", loan_id).execute()
+        staff = {
+            "email": loan.data[0].get("staff_email"),
+            "name": loan.data[0].get("staff_name"),
+            "photo_url": loan.data[0].get("staff_photo_url"),
+            "signature_url": loan.data[0].get("staff_signature_url")
+        }
+        return jsonify({
+            'status': 'success',
+            'loan': loan.data[0],
+            'sureties': sureties.data,
+            'staff': staff
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to fetch loan application', 'error': str(e)}), 500
+
+@manager_bp.route('/loan-application/approve/<loan_id>', methods=['POST'])
+def approve_loan_application(loan_id):
+    """
+    Approve a pending loan application.
+    """
+    try:
+        # Generate unique loan_id (LNXXXX)
+        def generate_loan_id():
+            resp = supabase.table("loans").select("loan_id").like("loan_id", "LN%").order("loan_id", desc=True).limit(1).execute()
+            if resp.data and resp.data[0].get("loan_id"):
+                last = resp.data[0]["loan_id"]
+                match = re.match(r"LN(\d{4})", last)
+                seq = int(match.group(1)) + 1 if match else 1
+            else:
+                seq = 1
+            return f"LN{seq:04d}"
+
+        unique_loan_id = generate_loan_id()
+        resp = supabase.table("loans").update({"status": "approved", "loan_id": unique_loan_id}).eq("id", loan_id).execute()
+        if not resp.data:
+            return jsonify({'status': 'error', 'message': 'Loan not found or update failed'}), 404
+        supabase.table("sureties").update({"active": True}).eq("loan_id", loan_id).execute()
+        supabase.table("loan_records").insert({
+            "loan_id": unique_loan_id,
+            "outstanding_balance": resp.data[0]["loan_amount"],
+            "status": "active"
+        }).execute()
+        return jsonify({'status': 'success', 'loan_id': unique_loan_id}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to approve loan', 'error': str(e)}), 500
+
+@manager_bp.route('/loan-application/reject/<loan_id>', methods=['POST'])
+def reject_loan_application(loan_id):
+    """
+    Reject a pending loan application.
+    """
+    reason = request.json.get("reason")
+    if not reason:
+        return jsonify({'status': 'error', 'message': 'Rejection reason required'}), 400
+    try:
+        resp = supabase.table("loans").update({"status": "rejected", "rejection_reason": reason}).eq("id", loan_id).execute()
+        if not resp.data:
+            return jsonify({'status': 'error', 'message': 'Loan not found or update failed'}), 404
+        supabase.table("sureties").update({"active": False}).eq("loan_id", loan_id).execute()
+        return jsonify({'status': 'success'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to reject loan', 'error': str(e)}), 500

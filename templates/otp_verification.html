@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OTP Verification</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">OTP Verification</h2>
+        <form id="otpForm" class="space-y-6">
+            <div>
+                <label for="otp" class="block text-gray-700">Enter OTP</label>
+                <input id="otp" name="otp" type="text" maxlength="6" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+            </div>
+            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Verify OTP</button>
+        </form>
+        <div id="otpMsg" class="mt-4 text-center text-red-600"></div>
+    </div>
+    <script>
+    document.getElementById('otpForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const otp = document.getElementById('otp').value.trim();
+        const res = await fetch('/auth/otp_verification', {
+            method: 'POST',
+            body: new URLSearchParams({otp}),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.href = '/set_password';
+        } else {
+            document.getElementById('otpMsg').textContent = data.message;
+        }
+    };
+    </script>
+</body>
+</html>

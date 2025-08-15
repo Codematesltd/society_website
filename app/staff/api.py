@@ -2,7 +2,7 @@ import os
 import uuid
 import re
 import random
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template, make_response, abort, session
 from werkzeug.utils import secure_filename
 from io import BytesIO
 from supabase import create_client, Client
@@ -10,8 +10,12 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from PIL import Image
+from datetime import datetime
+import pdfkit
+import inflect
 
 staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
+staff_bp = Blueprint('staff', __name__, url_prefix='/staff')
 
 load_dotenv()
 
@@ -21,6 +25,7 @@ SUPABASE_BUCKET = "staff-add"
 STORAGE_PUBLIC_PATH = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+p = inflect.engine()
 
 def send_otp_email(email, otp):
     EMAIL_USER = os.getenv("EMAIL_USER")
@@ -116,6 +121,28 @@ def send_status_email(email, status):
 def generate_customer_id(prefix="ABCDE"):
     """Generate a unique customer ID like ABCDE1234."""
     return f"{prefix}{random.randint(1000, 9999)}"
+
+def generate_stid():
+    """Generate a unique Society Transaction ID (STID####), 4-digit sequence, no year."""
+    stid_prefix = "STID"
+    # Query for the latest stid
+    resp = supabase.table("transactions") \
+        .select("stid") \
+        .like("stid", f"{stid_prefix}%") \
+        .order("stid", desc=True) \
+        .limit(1) \
+        .execute()
+    if resp.data and len(resp.data) > 0 and resp.data[0].get("stid"):
+        last_stid = resp.data[0]["stid"]
+        # Extract the numeric part after STID
+        match = re.match(r"STID(\d{4})", last_stid)
+        if match:
+            seq = int(match.group(1)) + 1
+        else:
+            seq = 1
+    else:
+        seq = 1
+    return f"STID{seq:04d}"
 
 @staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
@@ -255,7 +282,7 @@ def staff_unblock_member():
 @staff_api_bp.route('/add-transaction', methods=['POST'])
 def add_transaction():
     required_fields = [
-        "customer_id", "account_number", "type", "amount",
+        "customer_id", "type", "amount",
         "from_account", "to_account", "date", "transaction_id"
     ]
     data = {field: request.form.get(field) for field in required_fields}
@@ -289,6 +316,12 @@ def add_transaction():
     # Add balance_after to transaction data
     data["balance_after"] = new_balance
 
+    # Generate unique stid for this transaction
+    try:
+        data["stid"] = generate_stid()
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to generate STID: {e}"}), 500
+
     # Insert transaction
     try:
         resp = supabase.table("transactions").insert(data).execute()
@@ -299,3 +332,81 @@ def add_transaction():
         return jsonify({"status": "success", "transaction": resp.data[0], "balance_after": new_balance}), 201
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+def amount_to_words(amount):
+    try:
+        n = int(float(amount))
+        words = p.number_to_words(n, andword='').replace(',', '')
+        return words.title() + " Rupees Only"
+    except Exception:
+        return str(amount)
+
+def get_member_by_customer_id(customer_id):
+    resp = supabase.table("members").select("customer_id,name,phone,signature_url,photo_url").eq("customer_id", customer_id).execute()
+    return resp.data[0] if resp.data else None
+
+def get_staff_by_email(email):
+    resp = supabase.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
+    return resp.data[0] if resp.data else None
+
+@staff_bp.route('/transaction/certificate/<stid>')
+def transaction_certificate(stid):
+    """
+    View, print, or download a deposit/withdrawal transaction certificate by STID.
+    Query param: action=view|download|print|json (default: view)
+    """
+    action = request.args.get('action', 'view')
+    # Fetch transaction by STID
+    tx_resp = supabase.table("transactions").select("*").eq("stid", stid).execute()
+    if not tx_resp.data:
+        return jsonify({"status": "error", "message": "Transaction not found"}), 404
+    tx = tx_resp.data[0]
+
+    # Fetch member
+    member = get_member_by_customer_id(tx["customer_id"])
+
+    # Fetch staff from session
+    staff_email = session.get("staff_email")
+    staff = get_staff_by_email(staff_email) if staff_email else {}
+
+    # Society info
+    society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
+    taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
+    district_name = os.environ.get("DISTRICT_NAME", "koppala")
+
+    template_data = dict(
+        transaction=tx,
+        member=member,
+        staff=staff,
+        society_name=society_name,
+        taluk_name=taluk_name,
+        district_name=district_name,
+        amount_words=amount_to_words(tx["amount"])
+    )
+
+    if action == "json":
+        return jsonify({
+            "status": "success",
+            "transaction": tx,
+            "member": member,
+            "staff": staff,
+            "society_name": society_name,
+            "taluk_name": taluk_name,
+            "district_name": district_name,
+            "amount_words": template_data["amount_words"]
+        }), 200
+
+    html = render_template("certificate.html", **template_data)
+
+    if action == "download":
+        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
+        return response
+    elif action == "print":
+        html += "<script>window.onload = function(){window.print();}</script>"
+        return html
+    else:
+        return html
+

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Universal Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label for="email" class="block text-gray-700">Email</label>
+                <input id="email" name="email" type="email" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+            </div>
+            <div>
+                <label for="password" class="block text-gray-700">Password</label>
+                <input id="password" name="password" type="password" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+            </div>
+            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Login</button>
+        </form>
+        <div class="mt-4 text-center">
+            <button id="firstTimeBtn" class="text-blue-600 hover:underline">Sign in for the first time?</button>
+        </div>
+        <div id="loginMsg" class="mt-4 text-center text-red-600"></div>
+    </div>
+    <script>
+    document.getElementById('loginForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const res = await fetch('/auth/login', {
+            method: 'POST',
+            body: new URLSearchParams({email, password}),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.href = '/dashboard'; // Adjust as needed
+        } else {
+            document.getElementById('loginMsg').textContent = data.message;
+        }
+    };
+    document.getElementById('firstTimeBtn').onclick = function() {
+        window.location.href = '/first_time_signin';
+    };
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 from . import auth_bp
-from flask import request, jsonify, session
+from flask import request, jsonify, session, render_template, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
@@ -46,8 +46,10 @@ def find_role(email):
         return "members"
     return None
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET':
+        return render_template('login.html')
     email = request.form.get('email')
     password = request.form.get('password')
     if not email or not password:
@@ -87,6 +89,10 @@ def login():
     # Redirect according to role (for API, just return role)
     return jsonify({'status': 'success', 'role': role, 'id': user['id']}), 200
 
+@auth_bp.route('/first_time_signin', methods=['GET'])
+def first_time_signin_page():
+    return render_template('first_time_signin.html')
+
 @auth_bp.route('/first-time-signin', methods=['POST'])
 def first_time_signin():
     email = request.form.get('email')
@@ -108,8 +114,10 @@ def first_time_signin():
     session['otp_role'] = role
     return jsonify({'status': 'success', 'message': 'OTP sent', 'next': 'otp_verification'}), 200
 
-@auth_bp.route('/otp_verification', methods=['POST'])
+@auth_bp.route('/otp_verification', methods=['GET', 'POST'])
 def otp_verification():
+    if request.method == 'GET':
+        return render_template('otp_verification.html')
     email = session.get('otp_email')
     role = session.get('otp_role')
     otp = request.form.get('otp')
@@ -131,8 +139,10 @@ def valid_password(pw):
             re.search(r'\d', pw) and
             re.search(r'[^A-Za-z0-9]', pw))
 
-@auth_bp.route('/set_password', methods=['POST'])
+@auth_bp.route('/set_password', methods=['GET', 'POST'])
 def set_password():
+    if request.method == 'GET':
+        return render_template('set_password.html')
     email = session.get('otp_email')
     role = session.get('otp_role')
     otp_verified = session.get('otp_verified')
