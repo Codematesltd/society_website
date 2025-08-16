@@ -12,7 +12,9 @@ app.jinja_loader = ChoiceLoader([
     app.jinja_loader
 ])
 
-app.register_blueprint(certificate_bp)
+# Register certificate blueprint only if not already added
+if 'certificate' not in app.blueprints:
+    app.register_blueprint(certificate_bp)
 
 # Register main routes blueprint (not registered in create_app)
 try:
@@ -23,11 +25,14 @@ try:
 except ImportError as e:
     print(f"Failed to import main blueprint: {e}")
 
-# Register auth blueprint (for login redirect)
+# Register auth blueprint only if not already registered
 try:
     from app.auth import auth_bp
-    app.register_blueprint(auth_bp)
-    print("Auth blueprint registered successfully")
+    if 'auth' not in app.blueprints:
+        app.register_blueprint(auth_bp)
+        print("Auth blueprint registered successfully")
+    else:
+        print("Auth blueprint already registered (skipped)")
 except ImportError as e:
     print(f"Failed to import auth blueprint: {e}")
 

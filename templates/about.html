@@ -19,23 +19,18 @@
 </head>
 <body class="bg-gray-50">
 
-  <!-- Navbar -->
-  <nav class="bg-white shadow-lg sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between h-16 items-center">
-        <!-- Logo and Title -->
-        <div class="flex items-center space-x-4">
-          <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-2xl">F</div>
-          <span class="hidden sm:inline text-xl md:text-2xl font-bold text-blue-700 whitespace-nowrap">ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಷ್ಟ</span>
-        </div>
-        <!-- Navigation Links -->
-        <div class="flex items-center space-x-2 md:space-x-6">
-          <a href="landing page.html" class="text-gray-700 hover:text-blue-600 px-2 py-1 rounded transition font-medium">Home</a>
-          <a href="about.html" class="text-gray-700 hover:text-blue-600 px-2 py-1 rounded transition font-medium">About</a>
-          <a href="services.html" class="text-gray-700 hover:text-blue-600 px-2 py-1 rounded transition font-medium">Services</a>
-          <a href="user_login.html" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition font-semibold">User Login</a>
-          <a href="staff_login.html" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">Staff Login</a>
-        </div>
+  <!-- Navbar (updated to match landing_page) -->
+  <nav class="bg-white shadow-lg">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
+        <span class="text-2xl font-bold text-blue-700">ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಷ್ಟ</span>
+      </div>
+      <div class="space-x-6">
+        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
       </div>
     </div>
   </nav>
@@ -73,13 +68,6 @@
     </div>
   </div>
 
-  <script src="shared.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeFloatingBoxes();
-    });
-  </script>
-    <!-- Add before closing body tag -->
   <!-- Floating Query Button -->
   <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
     📩 Query
@@ -114,6 +102,41 @@
   
   <script src="shared.js"></script>
   <script>
+    // Define (or re-define) initializeFloatingBoxes once
+    function initializeFloatingBoxes() {
+      const queryBtn = document.getElementById('queryBtn');
+      const queryBox = document.getElementById('queryBox');
+      const closeQuery = document.getElementById('closeQuery');
+      const civilBtn = document.getElementById('civilBtn');
+      const civilBox = document.getElementById('civilBox');
+      const closeCivil = document.getElementById('closeCivil');
+
+      if (queryBtn && queryBox) {
+        queryBtn.onclick = () => {
+          queryBox.classList.remove('hidden');
+          setTimeout(()=>queryBox.classList.add('show'),10);
+        };
+      }
+      if (closeQuery && queryBox) {
+        closeQuery.onclick = () => {
+          queryBox.classList.remove('show');
+          setTimeout(()=>queryBox.classList.add('hidden'),400);
+        };
+      }
+      if (civilBtn && civilBox) {
+        civilBtn.onclick = () => {
+          civilBox.classList.remove('hidden');
+          setTimeout(()=>civilBox.classList.add('show'),10);
+        };
+      }
+      if (closeCivil && civilBox) {
+        closeCivil.onclick = () => {
+          civilBox.classList.remove('show');
+          setTimeout(()=>civilBox.classList.add('hidden'),400);
+        };
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       initializeFloatingBoxes();
     });

@@ -35,9 +35,9 @@
         <span class="text-2xl font-bold text-blue-700">ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಷ್ಟ</span>
       </div>
       <div class="space-x-6">
-        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition">Home</a>
-        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition">About</a>
-        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition">Services</a>
+        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
         <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
       </div>
     </div>
@@ -184,8 +184,12 @@
       civilBox.classList.remove('show');
       setTimeout(() => civilBox.classList.add('hidden'), 400);
     });
+
+    // Stub so any leftover calls on other pages don't render as plain text
+    if (typeof initializeFloatingBoxes !== 'function') {
+      function initializeFloatingBoxes() { /* no-op on landing page */ }
+    }
   </script>
 
 </body>
-</html>
 </html>

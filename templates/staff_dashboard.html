@@ -735,28 +735,30 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
     <!-- Deposit Form -->
     <div id="depositForm" class="bg-white p-6 rounded-xl shadow">
       <h3 class="text-lg font-semibold mb-4 text-green-700 text-center">Deposit</h3>
-      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="depositName" />
+      <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="depositCustomerId" />
+      <input type="text" placeholder="Account Number (To Account)" class="w-full px-4 py-2 border rounded mb-3" id="depositAccount" />
+      <input type="text" placeholder="From Account (e.g. CASH, Bank)" class="w-full px-4 py-2 border rounded mb-3" id="depositFromAccount" />
       <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="depositAmount" />
       <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="depositDate" />
-      <div class="flex gap-2 mb-3">
-        <input type="text" placeholder="Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositAccount" />
-        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositBank" />
-      </div>
       <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="depositTxnId" />
+      <input type="text" placeholder="Remarks (optional)" class="w-full px-4 py-2 border rounded mb-3" id="depositRemarks" />
+      <input type="hidden" id="depositStaffId" />
+      <input type="hidden" id="depositStaffName" />
       <button id="depositBtn" class="bg-green-500 text-white px-6 py-2 rounded w-full shadow hover:bg-green-600 transition">Deposit</button>
     </div>
 
     <!-- Withdraw Form -->
     <div id="withdrawForm" class="bg-white p-6 rounded-xl shadow hidden">
       <h3 class="text-lg font-semibold mb-4 text-red-700 text-center">Withdraw</h3>
-      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="withdrawName" />
+      <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawCustomerId" />
+      <input type="text" placeholder="Account Number (From Account)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAccount" />
+      <input type="text" placeholder="To Account (e.g. CASH, Bank)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawToAccount" />
       <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAmount" />
-      <div class="flex gap-2 mb-3">
-        <input type="text" placeholder="Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawAccount" />
-        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawBank" />
-      </div>
       <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="withdrawDate" />
       <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawTxnId" />
+      <input type="text" placeholder="Remarks (optional)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawRemarks" />
+      <input type="hidden" id="withdrawStaffId" />
+      <input type="hidden" id="withdrawStaffName" />
       <button id="withdrawBtn" class="bg-red-500 text-white px-6 py-2 rounded w-full shadow hover:bg-red-600 transition">Withdraw</button>
     </div>
 
@@ -764,101 +766,99 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
 </section>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
-  const depositForm = document.getElementById("depositForm");
-  const withdrawForm = document.getElementById("withdrawForm");
-  const depositBtnToggle = document.getElementById("showDepositBtn");
-  const withdrawBtnToggle = document.getElementById("showWithdrawBtn");
-
-  // Toggle Deposit/Withdraw
-  function toggleForms(showDeposit) {
-    if (showDeposit) {
-      depositForm.classList.remove("hidden");
-      withdrawForm.classList.add("hidden");
-      depositBtnToggle.classList.add("bg-green-500", "text-white");
-      depositBtnToggle.classList.remove("bg-gray-300");
-      withdrawBtnToggle.classList.add("bg-gray-300");
-      withdrawBtnToggle.classList.remove("bg-red-500", "text-white");
-    } else {
-      withdrawForm.classList.remove("hidden");
-      depositForm.classList.add("hidden");
-      withdrawBtnToggle.classList.add("bg-red-500", "text-white");
-      withdrawBtnToggle.classList.remove("bg-gray-300");
-      depositBtnToggle.classList.add("bg-gray-300");
-      depositBtnToggle.classList.remove("bg-green-500", "text-white");
-    }
-  }
-
-  depositBtnToggle.addEventListener("click", () => toggleForms(true));
-  withdrawBtnToggle.addEventListener("click", () => toggleForms(false));
-
-  // Search Customer (Demo Data)
-  document.getElementById("searchCustomerBtn").addEventListener("click", () => {
-    const customerId = document.getElementById("customerIdInput").value.trim();
-
-    if (!customerId) {
-      alert("Please enter a Customer ID or KGID");
-      return;
-    }
-
-    // Simulated fetch from DB
-    const dummyData = {
-      "KGID123": { name: "Ramesh Kumar", balance: 45000 },
-      "KGID456": { name: "Suresh Reddy", balance: 32000 }
-    };
-
-    if (dummyData[customerId]) {
-      document.getElementById("customerName").innerText = dummyData[customerId].name;
-      document.getElementById("customerBalance").innerText = dummyData[customerId].balance;
-      document.getElementById("customerInfo").classList.remove("hidden");
-    } else {
-      alert("Customer not found!");
-    }
-  });
+  // Set staff info (replace with actual values from session/backend)
+  const staffId = window.staffId || ""; // e.g. set from backend/session
+  const staffName = window.staffName || ""; // e.g. set from backend/session
+  document.getElementById("depositStaffId").value = staffId;
+  document.getElementById("depositStaffName").value = staffName;
+  document.getElementById("withdrawStaffId").value = staffId;
+  document.getElementById("withdrawStaffName").value = staffName;
 
   // Deposit
-  document.getElementById("depositBtn").addEventListener("click", () => {
+  document.getElementById("depositBtn").addEventListener("click", async () => {
     const depositData = {
-      name: document.getElementById("depositName").value.trim(),
+      customer_id: document.getElementById("depositCustomerId").value.trim(),
+      account_number: document.getElementById("depositAccount").value.trim(),
+      type: "deposit",
       amount: document.getElementById("depositAmount").value.trim(),
+      from_account: document.getElementById("depositFromAccount").value.trim(),
+      to_account: document.getElementById("depositAccount").value.trim(),
       date: document.getElementById("depositDate").value.trim(),
-      accountNumber: document.getElementById("depositAccount").value.trim(),
-      bankName: document.getElementById("depositBank").value.trim(),
-      transactionId: document.getElementById("depositTxnId").value.trim()
+      transaction_id: document.getElementById("depositTxnId").value.trim(),
+      remarks: document.getElementById("depositRemarks").value.trim(),
+      staff_id: document.getElementById("depositStaffId").value.trim(),
+      staff_name: document.getElementById("depositStaffName").value.trim()
     };
 
-    if (Object.values(depositData).some(v => v === "")) {
-      alert("Please fill all Deposit fields.");
+    // Basic validation
+    if (!depositData.customer_id || !depositData.account_number || !depositData.amount || !depositData.date || !depositData.transaction_id || !depositData.from_account) {
+      alert("Please fill all required Deposit fields.");
       return;
     }
 
-    console.log("Deposit Data:", depositData);
-    alert("Deposit request submitted!");
+    const formData = new FormData();
+    Object.entries(depositData).forEach(([k, v]) => formData.append(k, v));
+
+    try {
+      const res = await fetch("/staff/api/add-transaction", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        alert("Deposit successful! New balance: ₹" + data.balance_after);
+      } else {
+        alert("Deposit failed: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Network error during deposit.");
+    }
   });
 
   // Withdraw
-  document.getElementById("withdrawBtn").addEventListener("click", () => {
+  document.getElementById("withdrawBtn").addEventListener("click", async () => {
     const withdrawData = {
-      name: document.getElementById("withdrawName").value.trim(),
+      customer_id: document.getElementById("withdrawCustomerId").value.trim(),
+      account_number: document.getElementById("withdrawAccount").value.trim(),
+      type: "withdraw",
       amount: document.getElementById("withdrawAmount").value.trim(),
-      accountNumber: document.getElementById("withdrawAccount").value.trim(),
-      bankName: document.getElementById("withdrawBank").value.trim(),
+      from_account: document.getElementById("withdrawAccount").value.trim(),
+      to_account: document.getElementById("withdrawToAccount").value.trim(),
       date: document.getElementById("withdrawDate").value.trim(),
-      transactionId: document.getElementById("withdrawTxnId").value.trim()
+      transaction_id: document.getElementById("withdrawTxnId").value.trim(),
+      remarks: document.getElementById("withdrawRemarks").value.trim(),
+      staff_id: document.getElementById("withdrawStaffId").value.trim(),
+      staff_name: document.getElementById("withdrawStaffName").value.trim()
     };
 
-    if (Object.values(withdrawData).some(v => v === "")) {
-      alert("Please fill all Withdraw fields.");
+    // Basic validation
+    if (!withdrawData.customer_id || !withdrawData.account_number || !withdrawData.amount || !withdrawData.date || !withdrawData.transaction_id || !withdrawData.to_account) {
+      alert("Please fill all required Withdraw fields.");
       return;
     }
 
-    console.log("Withdraw Data:", withdrawData);
-    alert("Withdraw request submitted!");
+    const formData = new FormData();
+    Object.entries(withdrawData).forEach(([k, v]) => formData.append(k, v));
+
+    try {
+      const res = await fetch("/staff/api/add-transaction", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        alert("Withdraw successful! New balance: ₹" + data.balance_after);
+      } else {
+        alert("Withdraw failed: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Network error during withdraw.");
+    }
   });
 
+  // ...existing code...
 });
 </script>
-
      
       <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
@@ -1108,6 +1108,9 @@ document.addEventListener("DOMContentLoaded", function () {
       initializeFloatingBoxes();
     });
   </script>
+</body>
+</html>
+</html>
 </body>
 </html>
 </html>
