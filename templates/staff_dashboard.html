@@ -154,6 +154,10 @@
           };
         }
       }
+
+      // Show Add User section by default
+      document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById('addUser').classList.remove('hidden');
     });
   </script>
 </head>
@@ -409,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<section id="addUser" class="dynamic-section hidden bg-white p-6 rounded shadow">
+<section id="addUser" class="dynamic-section bg-white p-6 rounded shadow">
   <div class="loader hidden text-center text-blue-600">Loading...</div>
   <div class="content">
     <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
@@ -494,132 +498,177 @@ document.addEventListener('DOMContentLoaded', () => {
       <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
       <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
     </form>
-    <!-- Remove the old message box from below the form -->
   </div>
 </section>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  let emailVerified = false;
+(function() {
   let otpSent = false;
   let otpVerified = false;
 
-  const verifyBtn = document.getElementById('verifyEmailBtn');
-  const otpContainer = document.getElementById('otpContainer');
-  const otpInput = document.getElementById('otpInput');
-  const warning = document.getElementById('verifyWarning');
-  const addUserBtn = document.getElementById('addUserBtn');
-  const addUserForm = document.getElementById('addUserForm');
-  const addUserMsg = document.getElementById('addUserMsg');
-  const emailInput = document.getElementById('emailInput');
+  // Wait for DOM to be fully loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Add User script loaded');
+    
+    const verifyBtn = document.getElementById('verifyEmailBtn');
+    const otpContainer = document.getElementById('otpContainer');
+    const otpInput = document.getElementById('otpInput');
+    const warning = document.getElementById('verifyWarning');
+    const addUserBtn = document.getElementById('addUserBtn');
+    const addUserForm = document.getElementById('addUserForm');
+    const addUserMsg = document.getElementById('addUserMsg');
+    const emailInput = document.getElementById('emailInput');
 
-  // Send OTP to email
-  verifyBtn.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    if (!email) {
-      addUserMsg.textContent = "Please enter an email.";
+    if (!verifyBtn) {
+      console.error('Verify button not found!');
       return;
     }
-    verifyBtn.disabled = true;
-    addUserMsg.textContent = "Sending OTP...";
-    try {
-      // Create a FormData with only the 'email' field
-      const formData = new FormData();
-      formData.append('email', email);
-      const res = await fetch('/staff/api/add-member/send-otp', {
-        method: 'POST',
-        body: formData
-      });
-      // If response is not JSON, show error
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        addUserMsg.textContent = "Server error. Please check backend logs.";
-        verifyBtn.disabled = false;
+
+    console.log('All elements found, attaching event listeners');
+
+    // Send OTP to email
+    verifyBtn.addEventListener('click', async function() {
+      console.log('Verify button clicked');
+      
+      const email = emailInput.value.trim();
+      
+      // Show message box and set initial styling
+      addUserMsg.classList.remove('hidden');
+      addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
+      
+      if (!email) {
+        addUserMsg.textContent = "Please enter an email.";
+        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         return;
       }
-      if (data.status === 'success') {
-        otpContainer.classList.remove('hidden');
-        otpInput.focus();
-        addUserMsg.textContent = "OTP sent to email. Enter OTP to continue.";
-        otpSent = true;
-      } else {
-        addUserMsg.textContent = data.message || "Failed to send OTP.";
+      
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = "Sending...";
+      addUserMsg.textContent = "Sending OTP...";
+      
+      try {
+        const formData = new FormData();
+        formData.append('email', email);
+        
+        console.log('Sending request to /staff/api/add-member/send-otp');
+        
+        const response = await fetch('/staff/api/add-member/send-otp', {
+          method: 'POST',
+          body: formData
+        });
+        
+        console.log('Response status:', response.status);
+        
+        let data;
+        try {
+          data = await response.json();
+          console.log('Response data:', data);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          addUserMsg.textContent = "Server error. Invalid response format.";
+          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = "Verify";
+          return;
+        }
+        
+        if (data.status === 'success') {
+          otpContainer.classList.remove('hidden');
+          otpInput.focus();
+          addUserMsg.textContent = "OTP sent to email. Enter OTP to continue.";
+          addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+          otpSent = true;
+          verifyBtn.textContent = "OTP Sent";
+        } else {
+          addUserMsg.textContent = data.message || "Failed to send OTP.";
+          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = "Verify";
+        }
+      } catch (error) {
+        console.error('Network error:', error);
+        addUserMsg.textContent = "Network error. Check your connection.";
+        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         verifyBtn.disabled = false;
+        verifyBtn.textContent = "Verify";
       }
-    } catch (err) {
-      addUserMsg.textContent = "Network error.";
-      verifyBtn.disabled = false;
-    }
-  });
+    });
 
-  // OTP input handler
-  otpInput.addEventListener('input', () => {
-    if (otpInput.value.length === 6) {
-      otpVerified = true;
-      otpInput.classList.add('border-green-500');
-      addUserMsg.textContent = "";
-    } else {
-      otpVerified = false;
-      otpInput.classList.remove('border-green-500');
-    }
-  });
-
-  // Form submit handler
-  addUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!otpSent || !otpVerified) {
-      warning.classList.remove('hidden');
-      addUserMsg.textContent = "Please verify your email and enter OTP.";
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-      return;
-    }
-    warning.classList.add('hidden');
-    addUserMsg.textContent = "Submitting user...";
-    addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
-    addUserMsg.classList.remove('hidden');
-    const formData = new FormData(addUserForm);
-
-    // Combine first/middle/last name into 'name'
-    const name = [
-      formData.get('first_name') || '',
-      formData.get('middle_name') || '',
-      formData.get('last_name') || ''
-    ].filter(Boolean).join(' ');
-    formData.set('name', name);
-
-    // Remove individual name fields
-    formData.delete('first_name');
-    formData.delete('middle_name');
-    formData.delete('last_name');
-
-    try {
-      const res = await fetch('/staff/api/add-member', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        addUserMsg.textContent = "User added successfully!";
+    // OTP input handler
+    otpInput.addEventListener('input', function() {
+      if (otpInput.value.length >= 6) {
+        otpVerified = true;
+        otpInput.classList.add('border-green-500');
+        addUserMsg.textContent = "OTP verified!";
         addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
-        addUserMsg.classList.remove('hidden');
-        addUserForm.reset();
-        otpContainer.classList.add('hidden');
-        verifyBtn.disabled = false;
-        otpSent = false;
-        otpVerified = false;
       } else {
-        addUserMsg.textContent = data.message || "Failed to add user.";
+        otpVerified = false;
+        otpInput.classList.remove('border-green-500');
+      }
+    });
+
+    // Form submit handler
+    addUserForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      if (!otpSent || !otpVerified) {
+        warning.classList.remove('hidden');
+        addUserMsg.textContent = "Please verify your email and enter OTP.";
         addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         addUserMsg.classList.remove('hidden');
+        return;
       }
-    } catch (err) {
-      addUserMsg.textContent = "Network error.";
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-    }
+      
+      warning.classList.add('hidden');
+      addUserMsg.textContent = "Submitting user...";
+      addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
+      addUserBtn.disabled = true;
+      
+      const formData = new FormData(addUserForm);
+
+      // Combine first/middle/last name into 'name'
+      const name = [
+        formData.get('first_name') || '',
+        formData.get('middle_name') || '',
+        formData.get('last_name') || ''
+      ].filter(Boolean).join(' ');
+      formData.set('name', name);
+
+      // Remove individual name fields
+      formData.delete('first_name');
+      formData.delete('middle_name');
+      formData.delete('last_name');
+
+      try {
+        const response = await fetch('/staff/api/add-member', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          addUserMsg.textContent = "User added successfully!";
+          addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+          addUserForm.reset();
+          otpContainer.classList.add('hidden');
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = "Verify";
+          otpSent = false;
+          otpVerified = false;
+        } else {
+          addUserMsg.textContent = data.message || "Failed to add user.";
+          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+        }
+      } catch (error) {
+        console.error('Submit error:', error);
+        addUserMsg.textContent = "Network error during submission.";
+        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+      } finally {
+        addUserBtn.disabled = false;
+      }
+    });
   });
+})();
 </script>
 
       <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
@@ -985,7 +1034,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
       </script>
-    </main>
   </div>
 
   <!-- Add before closing body tag -->
@@ -1021,11 +1069,45 @@ document.addEventListener("DOMContentLoaded", function () {
     <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
   </div>
   
-  <script src="shared.js"></script>
   <script>
+    // Define the missing function
+    function initializeFloatingBoxes() {
+      const queryBtn = document.getElementById('queryBtn');
+      const queryBox = document.getElementById('queryBox');
+      const closeQuery = document.getElementById('closeQuery');
+      const civilBtn = document.getElementById('civilBtn');
+      const civilBox = document.getElementById('civilBox');
+      const closeCivil = document.getElementById('closeCivil');
+
+      if (queryBtn && queryBox) {
+        queryBtn.addEventListener('click', () => {
+          queryBox.classList.remove('hidden');
+          queryBox.classList.add('show');
+        });
+        
+        closeQuery.addEventListener('click', () => {
+          queryBox.classList.add('hidden');
+          queryBox.classList.remove('show');
+        });
+      }
+
+      if (civilBtn && civilBox) {
+        civilBtn.addEventListener('click', () => {
+          civilBox.classList.remove('hidden');
+          civilBox.classList.add('show');
+        });
+        
+        closeCivil.addEventListener('click', () => {
+          civilBox.classList.add('hidden');
+          civilBox.classList.remove('show');
+        });
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       initializeFloatingBoxes();
     });
   </script>
 </body>
+</html>
 </html>

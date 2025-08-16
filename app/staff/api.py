@@ -407,10 +407,4 @@ def transaction_certificate(stid):
         return html
     else:
         return html
-        return response
-    elif action == "print":
-        html += "<script>window.onload = function(){window.print();}</script>"
-        return html
-    else:
-        return html
 

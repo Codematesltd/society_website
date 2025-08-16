@@ -28,7 +28,11 @@ def create_app():
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(staff_api_bp)
-    
+
+    # Register admin blueprint
+    from .admin import admin_bp
+    app.register_blueprint(admin_bp)
+
     return app
 
 def list_routes(app):

@@ -22,6 +22,11 @@
         </form>
         <div class="mt-4 text-center">
             <button id="firstTimeBtn" class="text-blue-600 hover:underline">Sign in for the first time?</button>
+            <div class="mt-2">
+                <a href="{{ url_for('auth.first_time_signin_page') }}" class="text-xs text-gray-500 hover:text-blue-600">
+                    Or open first-time sign-in page directly
+                </a>
+            </div>
         </div>
         <div id="loginMsg" class="mt-4 text-center text-red-600"></div>
     </div>
@@ -50,7 +55,7 @@
         }
     };
     document.getElementById('firstTimeBtn').onclick = function() {
-        window.location.href = '/first_time_signin';
+        window.location.href = "{{ url_for('auth.first_time_signin_page') }}";
     };
     </script>
 </body>
