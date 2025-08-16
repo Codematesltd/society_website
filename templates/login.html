@@ -37,7 +37,14 @@
         });
         const data = await res.json();
         if (data.status === 'success') {
-            window.location.href = '/dashboard'; // Adjust as needed
+            // Redirect based on role
+            if (data.role === 'staff') {
+                window.location.href = '/staff/dashboard';
+            } else if (data.role === 'members') {
+                window.location.href = '/members/dashboard';
+            } else {
+                window.location.href = '/';
+            }
         } else {
             document.getElementById('loginMsg').textContent = data.message;
         }

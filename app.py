@@ -1,5 +1,5 @@
 import os
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, render_template
 from app import create_app
 from app.certificate import certificate_bp
 
@@ -13,6 +13,10 @@ app.jinja_loader = ChoiceLoader([
 ])
 
 app.register_blueprint(certificate_bp)
+
+@app.route('/')
+def home_redirect():
+    return render_template('landing_page.html')
 
 @app.route('/login')
 def login_redirect():

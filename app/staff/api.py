@@ -146,14 +146,12 @@ def generate_stid():
 
 @staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
-    print("Request content-type:", request.content_type)
+    photo = request.files.get('photo')
+    signature = request.files.get('signature')
+
     # Strip whitespace from form and file keys
     form = {k.strip(): v for k, v in request.form.items()}
     files = {k.strip(): v for k, v in request.files.items()}
-    print("Form keys:", list(form.keys()))
-    print("Form values:", {k: form.get(k) for k in form.keys()})
-    print("Files keys:", list(files.keys()))
-    print("Files info:", {k: (files[k].filename, files[k].mimetype) for k in files.keys()})
     required_fields = ['name', 'phone', 'email', 'aadhar_no', 'pan_no', 'salary', 'organization_name', 'address', 'otp']
     data = {field: form.get(field, '').strip() for field in required_fields}
     # Handle kgid as optional
@@ -403,6 +401,12 @@ def transaction_certificate(stid):
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
+        return response
+    elif action == "print":
+        html += "<script>window.onload = function(){window.print();}</script>"
+        return html
+    else:
+        return html
         return response
     elif action == "print":
         html += "<script>window.onload = function(){window.print();}</script>"

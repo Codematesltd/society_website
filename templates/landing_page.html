@@ -35,11 +35,10 @@
         <span class="text-2xl font-bold text-blue-700">FinanceApp</span>
       </div>
       <div class="space-x-6">
-        <a href="landing page.html" class="text-gray-700 hover:text-blue-600 transition">Home</a>
-        <a href="about.html" class="text-gray-700 hover:text-blue-600 transition">About</a>
-        <a href="services.html" class="text-gray-700 hover:text-blue-600 transition">Services</a>
-        <a href="user_login.html" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition">User Login</a>
-        <a href="staff_login.html" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Staff Login</a>
+        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
       </div>
     </div>
   </nav>
@@ -74,10 +73,10 @@
       <div>
         <h4 class="font-semibold mb-4">Quick Links</h4>
         <ul class="space-y-2 text-sm text-gray-400">
-          <li><a href="landing page.html" class="hover:text-white">Home</a></li>
-          <li><a href="about.html" class="hover:text-white">About</a></li>
-          <li><a href="services.html" class="hover:text-white">Services</a></li>
-          <li><a href="contact.html" class="hover:text-white">Contact</a></li>
+          <li><a href="{{ url_for('core.home') }}" class="hover:text-white">Home</a></li>
+          <li><a href="{{ url_for('core.about') }}" class="hover:text-white">About</a></li>
+          <li><a href="{{ url_for('core.services') }}" class="hover:text-white">Services</a></li>
+          <li><a href="{{ url_for('core.contact') }}" class="hover:text-white">Contact</a></li>
         </ul>
       </div>
       <div>
@@ -188,4 +187,5 @@
   </script>
 
 </body>
+</html>
 </html>
