@@ -181,10 +181,26 @@ def reject_loan(loan_id):
     supabase.table("sureties").update({"active": False}).eq("loan_id", loan_id).execute()
     return jsonify({"status": "success"}), 200
 
-@finance_bp.route('/surety/check/<customer_id>', methods=['GET'])
-def check_surety(customer_id):
-    active = supabase.table("sureties").select("id").eq("surety_customer_id", customer_id).eq("active", True).execute()
-    return jsonify({"status": "success", "active_loans": len(active.data)}), 200
+@finance_bp.route('/surety/check', methods=['POST'])
+def check_surety_available():
+    data = request.get_json(silent=True) or {}
+    customer_id = data.get("customer_id")
+    if not customer_id:
+        return jsonify({"available": False, "reason": "Missing customer_id"}), 400
+
+    # Check if member exists
+    member_resp = supabase.table("members").select("customer_id").eq("customer_id", customer_id).execute()
+    if not member_resp.data or len(member_resp.data) == 0:
+        return jsonify({"available": False, "reason": "Customer not found"}), 200
+
+    # Count active sureties (active loans)
+    surety_resp = supabase.table("sureties").select("id").eq("surety_customer_id", customer_id).eq("active", True).execute()
+    active_count = len(surety_resp.data) if surety_resp.data else 0
+
+    if active_count >= 2:
+        return jsonify({"available": False, "reason": "Customer is already a surety for 2 active loans"}), 200
+
+    return jsonify({"available": True}), 200
 
 @finance_bp.route('/certificate/<loan_id>')
 def loan_certificate(loan_id):
@@ -276,3 +292,46 @@ def surety_info(customer_id):
         },
         "active_loan_count": len(active_loans.data)
     }), 200
+
+@finance_bp.route('/surety/<customer_id>', methods=['GET'])
+def surety_info(customer_id):
+    """
+    Fetch surety details by customer_id: name, phone, signature_url, photo_url, and active loan count.
+    """
+    member = get_member_by_customer_id(customer_id)
+    if not member:
+        return jsonify({"status": "error", "message": "Surety not found"}), 404
+    # Count active loans backed as surety
+    active_loans = supabase.table("sureties").select("id").eq("surety_customer_id", customer_id).eq("active", True).execute()
+    return jsonify({
+        "status": "success",
+        "member": {
+            "customer_id": member.get("customer_id"),
+            "name": member.get("name"),
+            "phone": member.get("phone"),
+            "signature_url": member.get("signature_url"),
+            "photo_url": member.get("photo_url")
+        },
+        "active_loan_count": len(active_loans.data)
+    }), 200
+
+@finance_bp.route('/surety/check', methods=['POST'])
+def check_surety_available():
+    data = request.get_json(silent=True) or {}
+    customer_id = data.get("customer_id")
+    if not customer_id:
+        return jsonify({"available": False, "reason": "Missing customer_id"}), 400
+
+    # Check if member exists
+    member_resp = supabase.table("members").select("customer_id").eq("customer_id", customer_id).execute()
+    if not member_resp.data or len(member_resp.data) == 0:
+        return jsonify({"available": False, "reason": "Customer not found"}), 200
+
+    # Count active sureties (active loans)
+    surety_resp = supabase.table("sureties").select("id").eq("surety_customer_id", customer_id).eq("active", True).execute()
+    active_count = len(surety_resp.data) if surety_resp.data else 0
+
+    if active_count >= 2:
+        return jsonify({"available": False, "reason": "Customer is already a surety for 2 active loans"}), 200
+
+    return jsonify({"available": True}), 200
