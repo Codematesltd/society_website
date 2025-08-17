@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, make_response, abort
+from flask import request, jsonify, render_template, make_response, abort
 import os
 import uuid
 import re
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import pdfkit
 import inflect
 
-finance_bp = Blueprint('finance', __name__, url_prefix='/loan')
+from . import finance_bp
 
 load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -207,6 +207,11 @@ def loan_certificate(loan_id):
     staff_resp = supabase.table("staff").select("name,photo_url,signature_url").eq("email", loan["staff_email"]).execute()
     staff = staff_resp.data[0] if staff_resp.data else {}
 
+    # Fix staff signature URL if it's a local file (not a full URL)
+    if staff and staff.get("signature_url") and not staff["signature_url"].startswith("http"):
+        from flask import url_for
+        staff["signature_url"] = url_for('static', filename=staff["signature_url"], _external=True)
+
     # Society info
     society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
     taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
@@ -249,3 +254,25 @@ def loan_certificate(loan_id):
         return html
     else:
         return html
+
+@finance_bp.route('/surety/<customer_id>', methods=['GET'])
+def surety_info(customer_id):
+    """
+    Fetch surety details by customer_id: name, phone, signature_url, photo_url, and active loan count.
+    """
+    member = get_member_by_customer_id(customer_id)
+    if not member:
+        return jsonify({"status": "error", "message": "Surety not found"}), 404
+    # Count active loans backed as surety
+    active_loans = supabase.table("sureties").select("id").eq("surety_customer_id", customer_id).eq("active", True).execute()
+    return jsonify({
+        "status": "success",
+        "member": {
+            "customer_id": member.get("customer_id"),
+            "name": member.get("name"),
+            "phone": member.get("phone"),
+            "signature_url": member.get("signature_url"),
+            "photo_url": member.get("photo_url")
+        },
+        "active_loan_count": len(active_loans.data)
+    }), 200

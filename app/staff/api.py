@@ -11,7 +11,7 @@ import smtplib
 from email.mime.text import MIMEText
 from PIL import Image
 from datetime import datetime
-import pdfkit
+from xhtml2pdf import pisa
 import inflect
 
 staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
@@ -315,6 +315,9 @@ def add_transaction():
     # Optional remarks
     data["remarks"] = request.form.get("remarks", "")
 
+    # Remove all staff_name, staff_email, staff_signature logic
+    # Do not set data["staff_name"] or data["staff_email"]
+
     # Get current balance from members table using customer_id
     customer_id = data["customer_id"]
     member_row = supabase.table("members").select("balance").eq("customer_id", customer_id).execute()
@@ -408,7 +411,35 @@ def add_transaction():
 def amount_to_words(amount):
     try:
         n = int(float(amount))
-        words = p.number_to_words(n, andword='').replace(',', '')
+        # Use Indian numbering system for lakhs/crores
+        def indian_number_words(num):
+            if num < 100000:
+                return p.number_to_words(num, andword='').replace(',', '')
+            elif num < 10000000:
+                lakhs = num // 100000
+                rem = num % 100000
+                lakhs_part = p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
+                if rem:
+                    rem_part = p.number_to_words(rem, andword='').replace(',', '')
+                    return lakhs_part + " " + rem_part
+                return lakhs_part
+            else:
+                crores = num // 10000000
+                rem = num % 10000000
+                crores_part = p.number_to_words(crores, andword='').replace(',', '') + " Crore"
+                if rem:
+                    lakhs = rem // 100000
+                    rem2 = rem % 100000
+                    lakhs_part = ""
+                    if lakhs:
+                        lakhs_part = " " + p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
+                    if rem2:
+                        rem_part = " " + p.number_to_words(rem2, andword='').replace(',', '')
+                    else:
+                        rem_part = ""
+                    return crores_part + lakhs_part + rem_part
+                return crores_part
+        words = indian_number_words(n)
         return words.title() + " Rupees Only"
     except Exception:
         return str(amount)
@@ -420,30 +451,6 @@ def get_member_by_customer_id(customer_id):
 def get_staff_by_email(email):
     resp = supabase.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
     return resp.data[0] if resp.data else None
-
-@staff_bp.route('/transaction/certificate/<stid>')
-def staff_transaction_certificate(stid):
-    """
-    Proxy to the main certificate PDF route so /staff/transaction/certificate/<stid> works.
-    Supports ?action=view|download|print|json.
-    """
-    from flask import redirect, request, url_for
-    action = request.args.get('action', 'view')
-    # Build the correct URL for the certificate blueprint
-    cert_url = url_for('certificate.certificate_pdf', stid=stid)
-    # If action is not 'download', just render the HTML
-    if action == 'view':
-        # Fetch and render HTML from certificate blueprint
-        # Import and call the certificate_pdf function directly
-        from app.certificate import certificate_pdf
-        return certificate_pdf(stid)
-    elif action == 'download':
-        # Redirect to certificate PDF route (which returns PDF)
-        return redirect(cert_url)
-    else:
-        # For print or json, call certificate_pdf and pass through
-        from app.certificate import certificate_pdf
-        return certificate_pdf(stid)
 
 @staff_bp.route('/transaction/certificate/<stid>')
 def transaction_certificate(stid):
@@ -461,10 +468,6 @@ def transaction_certificate(stid):
     # Fetch member
     member = get_member_by_customer_id(tx["customer_id"])
 
-    # Fetch staff from session
-    staff_email = session.get("staff_email")
-    staff = get_staff_by_email(staff_email) if staff_email else {}
-
     # Society info
     society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
     taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
@@ -473,7 +476,6 @@ def transaction_certificate(stid):
     template_data = dict(
         transaction=tx,
         member=member,
-        staff=staff,
         society_name=society_name,
         taluk_name=taluk_name,
         district_name=district_name,
@@ -485,7 +487,6 @@ def transaction_certificate(stid):
             "status": "success",
             "transaction": tx,
             "member": member,
-            "staff": staff,
             "society_name": society_name,
             "taluk_name": taluk_name,
             "district_name": district_name,
@@ -495,8 +496,10 @@ def transaction_certificate(stid):
     html = render_template("certificate.html", **template_data)
 
     if action == "download":
-        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
-        response = make_response(pdf)
+        from xhtml2pdf import pisa
+        pdf = BytesIO()
+        pisa.CreatePDF(html, dest=pdf)
+        response = make_response(pdf.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
         return response
@@ -511,6 +514,44 @@ def staff_logout():
     """Logout staff (clears session) and redirect to manager login."""
     session.clear()
     return redirect(url_for('manager.manager_login'))
-    session.clear()
-    return redirect(url_for('manager.manager_login'))
+
+@staff_bp.route('/dashboard')
+def staff_dashboard():
+    return render_template('staff_dashboard.html')
+
+@staff_bp.route('/transaction/check/<stid>')
+def check_transaction(stid):
+    """
+    Return the rendered check_transaction.html for a given transaction STID.
+    Used for staff dashboard transaction check section.
+    """
+    # Fetch transaction by STID
+    tx_resp = supabase.table("transactions").select("*").eq("stid", stid).execute()
+    if not tx_resp.data:
+        return "<div class='text-red-600'>Transaction not found.</div>", 404
+    tx = tx_resp.data[0]
+
+    # Fetch member
+    member = get_member_by_customer_id(tx["customer_id"])
+
+    # Society info
+    society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
+    taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
+    district_name = os.environ.get("DISTRICT_NAME", "koppala")
+
+    template_data = dict(
+        transaction=tx,
+        member=member,
+        society_name=society_name,
+        taluk_name=taluk_name,
+        district_name=district_name,
+        amount_words=amount_to_words(tx["amount"]),
+        society_logo_url="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png"
+    )
+
+    html = render_template("check_transaction.html", **template_data)
+    return html
+
+
+
 

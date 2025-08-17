@@ -13,16 +13,38 @@ p = inflect.engine()
 def amount_to_words(amount):
     try:
         n = int(float(amount))
-        words = p.number_to_words(n, andword='').replace(',', '')
+        # Use Indian numbering system for lakhs/crores
+        def indian_number_words(num):
+            if num < 100000:
+                return p.number_to_words(num, andword='').replace(',', '')
+            elif num < 10000000:
+                lakhs = num // 100000
+                rem = num % 100000
+                lakhs_part = p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
+                if rem:
+                    rem_part = p.number_to_words(rem, andword='').replace(',', '')
+                    return lakhs_part + " " + rem_part
+                return lakhs_part
+            else:
+                crores = num // 10000000
+                rem = num % 10000000
+                crores_part = p.number_to_words(crores, andword='').replace(',', '') + " Crore"
+                if rem:
+                    lakhs = rem // 100000
+                    rem2 = rem % 100000
+                    lakhs_part = ""
+                    if lakhs:
+                        lakhs_part = " " + p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
+                    if rem2:
+                        rem_part = " " + p.number_to_words(rem2, andword='').replace(',', '')
+                    else:
+                        rem_part = ""
+                    return crores_part + lakhs_part + rem_part
+                return crores_part
+        words = indian_number_words(n)
         return words.title() + " Rupees Only"
     except Exception:
         return str(amount)
-
-def get_staff_by_email(email, supabase_client):
-    if not email:
-        return None
-    resp = supabase_client.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
-    return resp.data[0] if resp.data else None
 
 @certificate_bp.route('/certificate/<stid>')
 def certificate_pdf(stid):
@@ -41,26 +63,20 @@ def certificate_pdf(stid):
     member_resp = supabase.table("members").select("*").eq("customer_id", transaction["customer_id"]).execute()
     member = member_resp.data[0] if member_resp.data else {}
 
-    # 4. Fetch staff from session
-    staff_email = session.get("staff_email")
-    staff = get_staff_by_email(staff_email, supabase)
-
-    # 5. Society info
+    # 4. Society info
     society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
     taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
     district_name = os.environ.get("DISTRICT_NAME", "koppala")
 
-    # 6. Prepare template data
+    # 6. Prepare template data (no staff fields)
     template_data = dict(
         transaction=transaction,
         member=member,
-        staff=staff,
-        staff_signature_url=staff.get("signature_url") if staff else None,
-        staff_name=staff.get("name") if staff else None,
         society_name=society_name,
         taluk_name=taluk_name,
         district_name=district_name,
-        amount_words=amount_to_words(transaction["amount"])
+        amount_words=amount_to_words(transaction["amount"]),
+        society_logo_url="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png"
     )
 
     # 7. Handle action param
@@ -70,7 +86,6 @@ def certificate_pdf(stid):
             "status": "success",
             "transaction": transaction,
             "member": member,
-            "staff": staff,
             "society_name": society_name,
             "taluk_name": taluk_name,
             "district_name": district_name,
@@ -80,8 +95,10 @@ def certificate_pdf(stid):
     html = render_template("certificate.html", **template_data)
 
     if action == "download":
-        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
-        response = make_response(pdf)
+        from xhtml2pdf import pisa
+        pdf = BytesIO()
+        pisa.CreatePDF(html, dest=pdf, encoding='utf-8')
+        response = make_response(pdf.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
         return response
@@ -91,7 +108,3 @@ def certificate_pdf(stid):
     else:  # view
         return html
 
-# Example apt-get command for Render.com build process:
-# apt-get update && apt-get install -y wkhtmltopdf
-# Example apt-get command for Render.com build process:
-# apt-get update && apt-get install -y wkhtmltopdf

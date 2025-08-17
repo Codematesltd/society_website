@@ -1,5 +1,8 @@
 from flask import Blueprint
 
-finance_bp = Blueprint("finance", __name__, url_prefix="/finance")
+# Single finance blueprint used by both UI routes and API endpoints.
+# Use URL prefix '/loan' so API routes like '/loan/apply' match expectations.
+finance_bp = Blueprint("finance", __name__, url_prefix="/loan")
 
-from . import routes
+# Import submodules to register their routes on the shared blueprint.
+from . import routes, api

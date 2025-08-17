@@ -9,6 +9,18 @@
         @media print {
             .no-print { display: none !important; }
             body { margin: 0; }
+            .certificate-container {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 0 !important;
+                padding: 0.5cm !important;
+            }
+            html, body {
+                background: #fff !important;
+            }
         }
         @page { size: A4; margin: 2cm; }
         body {
@@ -21,12 +33,13 @@
         .certificate-container {
             width: 100%;
             max-width: 700px;
-            margin: 0 auto;
+            margin: 2em auto;
             background: #fff;
             padding: 2em;
             box-sizing: border-box;
             min-height: 900px;
             border: 1px solid #eee;
+            box-shadow: 0 0 16px #eee;
         }
         .header {
             text-align: center;
@@ -61,40 +74,18 @@
             justify-content: space-between;
             align-items: flex-end;
         }
-        .staff-signature-block {
-            text-align: center;
-            min-width: 200px;
-        }
-        .staff-signature-block img {
-            display: block;
-            margin: 0 auto 0.5em auto;
-            max-width: 120px;
-            max-height: 50px;
-            object-fit: contain;
-        }
-        .download-btn {
-            display: inline-block;
-            margin-bottom: 1em;
-            padding: 0.5em 1.2em;
-            background: #1976d2;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            font-size: 1em;
-            cursor: pointer;
-            text-decoration: none;
-        }
     </style>
     <script>
-        function downloadPDF() {
-            const url = new URL(window.location.href);
-            url.searchParams.set('action', 'download');
-            window.open(url.toString(), '_blank');
+        function printReceipt() {
+            window.print();
         }
     </script>
 </head>
 <body>
-    <div class="certificate-container">
+    <div class="no-print" style="text-align:right; max-width:700px; margin:2em auto 0 auto;">
+        <button class="print-btn bg-blue-500 text-white px-4 py-2 rounded mb-4" onclick="window.print()">Print</button>
+    </div>
+    <div class="certificate-container" id="receipt">
         <div class="header">
             <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Society Logo" style="height:80px; margin-bottom:0.5em; display:block; margin-left:auto; margin-right:auto;">
             <div class="society-name">{{ society_name }}</div>
@@ -140,34 +131,18 @@
             {{ amount_words }}
         </div>
 
-        <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
-        <div style="color:#b71c1c; font-size:0.95em; margin-bottom:1em;" class="no-print">
-            {% if request.args.get('action') == 'download' %}
-                {% if not pdfkit %}
-                    PDF download requires <b>wkhtmltopdf</b> to be installed on the server.<br>
-                    <a href="https://github.com/JazzCore/python-pdfkit/wiki/Installing-wkhtmltopdf" target="_blank" style="color:#1976d2;">Installation instructions</a>
-                {% endif %}
-            {% endif %}
+        <div class="footer">
+            
+            {{ amount_words }}
         </div>
 
         <div class="footer">
             <div></div>
-            {# 
-            {% if staff_signature_url %}
-                <img src="{{ staff_signature_url }}" ...>
-                <div>{{ staff_name }}</div>
-                <div style="font-size:0.9em;">Staff Signature</div>
-            {% else %}
-                <div style="margin-top: 2.5em;"></div>
-                <div style="font-size:0.9em;">Staff Signature</div>
-                <div style="font-size:0.8em; color:#999;">(No signature available)</div>
-            {% endif %}
-            #}
         </div>
     </div>
 </body>
 </html>
-        </div>
-    </div>
-</body>
-</html>
+
+
+
+
