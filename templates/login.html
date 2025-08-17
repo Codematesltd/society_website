@@ -55,7 +55,8 @@
         }
     };
     document.getElementById('firstTimeBtn').onclick = function() {
-        window.location.href = "{{ url_for('auth.first_time_signin_page') }}";
+        // Show first-time sign-in modal or redirect to page
+        window.location.href = "/auth/first_time_signin";
     };
     </script>
 </body>

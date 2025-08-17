@@ -2,7 +2,7 @@ import os
 import uuid
 import re
 import random
-from flask import Blueprint, request, jsonify, render_template, make_response, abort, session
+from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect
 from werkzeug.utils import secure_filename
 from io import BytesIO
 from supabase import create_client, Client
@@ -277,6 +277,30 @@ def staff_unblock_member():
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Failed to unblock member', 'error': str(e)}), 500
 
+def send_transaction_email(email, name, stid, tx_type, amount, balance_after, receipt_url):
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
+    subject = f"Your {tx_type.title()} Transaction Receipt (STID: {stid})"
+    body = (
+        f"Dear {name},\n\n"
+        f"Your {tx_type} transaction of Rs. {amount} has been processed.\n"
+        f"Balance after transaction: Rs. {balance_after}\n"
+        f"View/download your receipt: {receipt_url}\n\n"
+        "Thank you.\n"
+    )
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = EMAIL_USER
+    msg['To'] = email
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.send_message(msg)
+    except smtplib.SMTPException as e:
+        print(f"SMTP error: {e}")
+
 @staff_api_bp.route('/add-transaction', methods=['POST'])
 def add_transaction():
     required_fields = [
@@ -327,7 +351,57 @@ def add_transaction():
             raise Exception("Insert failed")
         # Update member's balance using customer_id
         supabase.table("members").update({"balance": new_balance}).eq("customer_id", customer_id).execute()
-        return jsonify({"status": "success", "transaction": resp.data[0], "balance_after": new_balance}), 201
+        # Generate receipt URL
+        stid = data["stid"]
+        receipt_url = f"{os.environ.get('BASE_URL', 'http://127.0.0.1:5000')}/staff/transaction/certificate/{stid}?action=view"
+        # Get member info for email
+        member_row = supabase.table("members").select("email,name").eq("customer_id", customer_id).execute()
+        if member_row.data and member_row.data[0].get("email"):
+            member_email = member_row.data[0]["email"]
+            member_name = member_row.data[0].get("name", "")
+            try:
+                send_transaction_email(
+                    member_email,
+                    member_name,
+                    stid,
+                    data["type"],
+                    data["amount"],
+                    new_balance,
+                    receipt_url
+                )
+            except Exception as e:
+                print(f"Failed to send transaction email: {e}")
+        # Generate certificate HTML for immediate display
+        tx_resp = supabase.table("transactions").select("*").eq("stid", stid).execute()
+        tx = tx_resp.data[0] if tx_resp.data else {}
+        member = get_member_by_customer_id(tx.get("customer_id", "")) if tx else None
+        staff_email = session.get("staff_email")
+        staff = get_staff_by_email(staff_email) if staff_email else {}
+        # Add staff_signature_url and staff_name for template compatibility
+        staff_signature_url = staff.get("signature_url") if staff else None
+        staff_name = staff.get("name") if staff else None
+        society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
+        taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
+        district_name = os.environ.get("DISTRICT_NAME", "koppala")
+        template_data = dict(
+            transaction=tx,
+            member=member,
+            staff=staff,
+            staff_signature_url=staff_signature_url,
+            staff_name=staff_name,
+            society_name=society_name,
+            taluk_name=taluk_name,
+            district_name=district_name,
+            amount_words=amount_to_words(tx.get("amount", 0))
+        )
+        certificate_html = render_template("certificate.html", **template_data)
+        return jsonify({
+            "status": "success",
+            "transaction": resp.data[0],
+            "balance_after": new_balance,
+            "receipt_url": receipt_url,
+            "certificate_html": certificate_html
+        }), 201
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -346,6 +420,30 @@ def get_member_by_customer_id(customer_id):
 def get_staff_by_email(email):
     resp = supabase.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
     return resp.data[0] if resp.data else None
+
+@staff_bp.route('/transaction/certificate/<stid>')
+def staff_transaction_certificate(stid):
+    """
+    Proxy to the main certificate PDF route so /staff/transaction/certificate/<stid> works.
+    Supports ?action=view|download|print|json.
+    """
+    from flask import redirect, request, url_for
+    action = request.args.get('action', 'view')
+    # Build the correct URL for the certificate blueprint
+    cert_url = url_for('certificate.certificate_pdf', stid=stid)
+    # If action is not 'download', just render the HTML
+    if action == 'view':
+        # Fetch and render HTML from certificate blueprint
+        # Import and call the certificate_pdf function directly
+        from app.certificate import certificate_pdf
+        return certificate_pdf(stid)
+    elif action == 'download':
+        # Redirect to certificate PDF route (which returns PDF)
+        return redirect(cert_url)
+    else:
+        # For print or json, call certificate_pdf and pass through
+        from app.certificate import certificate_pdf
+        return certificate_pdf(stid)
 
 @staff_bp.route('/transaction/certificate/<stid>')
 def transaction_certificate(stid):
@@ -407,4 +505,12 @@ def transaction_certificate(stid):
         return html
     else:
         return html
+
+@staff_api_bp.route('/logout', methods=['GET'])
+def staff_logout():
+    """Logout staff (clears session) and redirect to manager login."""
+    session.clear()
+    return redirect(url_for('manager.manager_login'))
+    session.clear()
+    return redirect(url_for('manager.manager_login'))
 

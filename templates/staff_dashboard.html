@@ -171,7 +171,7 @@
       </div>
       <div class="flex items-center space-x-4">
         <span class="text-gray-700">Welcome, Staff</span>
-        <a href="landing page.html" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
+        <a href="{{ url_for('staff_api.staff_logout') }}" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
       </div>
     </div>
   </header>
@@ -412,6 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
+
+<!-- Place this above the customer info/search section -->
+<div id="customerMsg" class="mb-4 text-center text-sm font-semibold" style="display:none;"></div>
 
 <section id="addUser" class="dynamic-section bg-white p-6 rounded shadow">
   <div class="loader hidden text-center text-blue-600">Loading...</div>
@@ -762,6 +765,8 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
       <button id="withdrawBtn" class="bg-red-500 text-white px-6 py-2 rounded w-full shadow hover:bg-red-600 transition">Withdraw</button>
     </div>
 
+    <!-- Add this somewhere inside the deposit/withdraw section for messages -->
+    <div id="transactionMsg" class="mb-4 text-center text-sm font-semibold" style="display:none;"></div>
   </div>
 </section>
 <script>
@@ -773,6 +778,20 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("depositStaffName").value = staffName;
   document.getElementById("withdrawStaffId").value = staffId;
   document.getElementById("withdrawStaffName").value = staffName;
+
+  function showTransactionMsg(msg, type) {
+    const el = document.getElementById("transactionMsg");
+    el.textContent = msg;
+    el.className = "mb-4 text-center text-sm font-semibold " +
+      (type === "success" ? "text-green-600 bg-green-100" :
+       type === "error" ? "text-red-600 bg-red-100" :
+       "text-blue-600 bg-blue-100");
+    el.style.display = "block";
+    setTimeout(() => {
+      el.style.display = "none";
+      el.textContent = "";
+    }, 4000); // Hide after 4 seconds
+  }
 
   // Deposit
   document.getElementById("depositBtn").addEventListener("click", async () => {
@@ -806,12 +825,16 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       const data = await res.json();
       if (data.status === "success") {
-        alert("Deposit successful! New balance: ₹" + data.balance_after);
+        showTransactionMsg("Deposit successful! New balance: ₹" + data.balance_after, "success");
+        // Redirect to certificate page
+        if (data.receipt_url) {
+          window.location.href = data.receipt_url;
+        }
       } else {
-        alert("Deposit failed: " + (data.message || "Unknown error"));
+        showTransactionMsg("Deposit failed: " + (data.message || "Unknown error"), "error");
       }
     } catch (err) {
-      alert("Network error during deposit.");
+      showTransactionMsg("Network error during deposit.", "error");
     }
   });
 
@@ -847,16 +870,94 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       const data = await res.json();
       if (data.status === "success") {
-        alert("Withdraw successful! New balance: ₹" + data.balance_after);
+        showTransactionMsg("Withdraw successful! New balance: ₹" + data.balance_after, "success");
+        // Redirect to certificate page
+        if (data.receipt_url) {
+          window.location.href = data.receipt_url;
+        }
       } else {
-        alert("Withdraw failed: " + (data.message || "Unknown error"));
+        showTransactionMsg("Withdraw failed: " + (data.message || "Unknown error"), "error");
       }
     } catch (err) {
-      alert("Network error during withdraw.");
+      showTransactionMsg("Network error during withdraw.", "error");
     }
   });
 
-  // ...existing code...
+  // Toggle Deposit/Withdraw forms
+  const depositBtnToggle = document.getElementById("showDepositBtn");
+  const withdrawBtnToggle = document.getElementById("showWithdrawBtn");
+  const depositForm = document.getElementById("depositForm");
+  const withdrawForm = document.getElementById("withdrawForm");
+
+  depositBtnToggle.addEventListener("click", function () {
+    depositForm.classList.remove("hidden");
+    withdrawForm.classList.add("hidden");
+    depositBtnToggle.classList.add("bg-green-500", "text-white");
+    depositBtnToggle.classList.remove("bg-gray-300");
+    withdrawBtnToggle.classList.remove("bg-red-500", "text-white");
+    withdrawBtnToggle.classList.add("bg-gray-300");
+  });
+
+  withdrawBtnToggle.addEventListener("click", function () {
+    withdrawForm.classList.remove("hidden");
+    depositForm.classList.add("hidden");
+    withdrawBtnToggle.classList.add("bg-red-500", "text-white");
+    withdrawBtnToggle.classList.remove("bg-gray-300");
+    depositBtnToggle.classList.remove("bg-green-500", "text-white");
+    depositBtnToggle.classList.add("bg-gray-300");
+  });
+
+  // Search Customer functionality (replace with actual API call)
+  document.getElementById("searchCustomerBtn").addEventListener("click", async function () {
+    const customerId = document.getElementById("customerIdInput").value.trim();
+    if (!customerId) {
+      showCustomerMsg("Please enter a Customer ID or KGID", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/staff/api/get-customer?customer_id=${encodeURIComponent(customerId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.name) {
+          document.getElementById("customerName").innerText = data.name;
+          document.getElementById("customerBalance").innerText = data.balance;
+          document.getElementById("customerInfo").classList.remove("hidden");
+          document.getElementById("depositCustomerId").value = customerId;
+          document.getElementById("withdrawCustomerId").value = customerId;
+          showCustomerMsg("Customer found.", "success");
+        } else {
+          showCustomerMsg("Customer ID not found!", "error");
+          document.getElementById("customerInfo").classList.add("hidden");
+        }
+      } else {
+        if (res.status === 404) {
+          showCustomerMsg("Customer ID not found!", "error");
+          document.getElementById("customerInfo").classList.add("hidden");
+        } else {
+          showCustomerMsg("Error fetching customer info.", "error");
+          document.getElementById("customerInfo").classList.add("hidden");
+        }
+      }
+    } catch (err) {
+      showCustomerMsg("Network error while searching customer.", "error");
+      document.getElementById("customerInfo").classList.add("hidden");
+    }
+  });
+
+  function showCustomerMsg(msg, type) {
+    const el = document.getElementById("customerMsg");
+    el.textContent = msg;
+    el.className = "mb-4 text-center text-sm font-semibold " +
+      (type === "success" ? "text-green-600 bg-green-100" :
+       type === "error" ? "text-red-600 bg-red-100" :
+       "text-blue-600 bg-blue-100");
+    el.style.display = "block";
+    setTimeout(() => {
+      el.style.display = "none";
+      el.textContent = "";
+    }, 5000);
+  }
 });
 </script>
      
@@ -1112,5 +1213,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </html>
 </html>
 </body>
+</html>
 </html>
 </html>

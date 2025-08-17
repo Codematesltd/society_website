@@ -37,6 +37,18 @@ def send_reset_email(email, token):
         server.login(EMAIL_USER, EMAIL_PASSWORD)
         server.send_message(msg)
 
+def send_set_password_email(email, token):
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    set_link = f"http://127.0.0.1:5000/auth/set_password?token={token}"
+    msg = MIMEText(f"Click the following link to set your password:\n{set_link}")
+    msg['Subject'] = "Set Your Password"
+    msg['From'] = EMAIL_USER
+    msg['To'] = email
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(EMAIL_USER, EMAIL_PASSWORD)
+        server.send_message(msg)
+
 def find_role(email):
     staff = supabase.table("staff").select("id,email").eq("email", email).execute()
     if staff.data and len(staff.data) > 0:
@@ -106,58 +118,30 @@ def first_time_signin():
         user_status = supabase.table("members").select("status").eq("email", email).execute()
         if not user_status.data or user_status.data[0].get("status") != "approved":
             return jsonify({'status': 'error', 'message': 'Account not approved by manager'}), 403
-    otp = str(uuid.uuid4().int)[-6:]
-    # Store OTP in table
-    supabase.table(role).update({"otp": otp}).eq("email", email).execute()
-    send_otp_email(email, otp)
-    session['otp_email'] = email
-    session['otp_role'] = role
-    return jsonify({'status': 'success', 'message': 'OTP sent', 'next': 'otp_verification'}), 200
-
-@auth_bp.route('/otp_verification', methods=['GET', 'POST'])
-def otp_verification():
-    if request.method == 'GET':
-        return render_template('otp_verification.html')
-    email = session.get('otp_email')
-    role = session.get('otp_role')
-    otp = request.form.get('otp')
-    if not email or not role or not otp:
-        return jsonify({'status': 'error', 'message': 'Session expired or missing data'}), 400
-    user = supabase.table(role).select("otp").eq("email", email).execute()
-    if not user.data or user.data[0].get("otp") != otp:
-        return jsonify({'status': 'error', 'message': 'Invalid OTP'}), 401
-    # Clear OTP after use
-    supabase.table(role).update({"otp": None}).eq("email", email).execute()
-    session['otp_verified'] = True
-    return jsonify({'status': 'success', 'next': 'set_password'}), 200
-
-def valid_password(pw):
-    if not pw:
-        return False
-    return (len(pw) >= 8 and
-            re.search(r'[A-Za-z]', pw) and
-            re.search(r'\d', pw) and
-            re.search(r'[^A-Za-z0-9]', pw))
+    # Generate token and store in DB
+    token = str(uuid.uuid4())
+    supabase.table(role).update({"reset_token": token}).eq("email", email).execute()
+    send_set_password_email(email, token)
+    return jsonify({'status': 'success', 'message': 'Set password link sent to email'}), 200
 
 @auth_bp.route('/set_password', methods=['GET', 'POST'])
 def set_password():
     if request.method == 'GET':
-        return render_template('set_password.html')
-    email = session.get('otp_email')
-    role = session.get('otp_role')
-    otp_verified = session.get('otp_verified')
+        token = request.args.get('token')
+        return render_template('set_password.html', token=token)
+    token = request.args.get('token') or request.form.get('token')
     password = request.form.get('password')
-    if not email or not role or not otp_verified:
-        return jsonify({'status': 'error', 'message': 'Session expired or not verified'}), 400
-    if not valid_password(password):
-        return jsonify({'status': 'error', 'message': 'Password must be at least 8 chars, include letters, numbers, and special chars'}), 400
-    hashed = generate_password_hash(password)
-    supabase.table(role).update({"password": hashed}).eq("email", email).execute()
-    # Clear session
-    session.pop('otp_email', None)
-    session.pop('otp_role', None)
-    session.pop('otp_verified', None)
-    return jsonify({'status': 'success', 'message': 'Password set. You can now login.'}), 200
+    # Find user by token in both tables
+    for role in ["staff", "members"]:
+        user = supabase.table(role).select("email").eq("reset_token", token).execute()
+        if user.data and len(user.data) > 0:
+            email = user.data[0]["email"]
+            if not valid_password(password):
+                return jsonify({'status': 'error', 'message': 'Password must be at least 8 chars, include letters, numbers, and special chars'}), 400
+            hashed = generate_password_hash(password)
+            supabase.table(role).update({"password": hashed, "reset_token": None}).eq("email", email).execute()
+            return jsonify({'status': 'success', 'message': 'Password set. You can now login.'}), 200
+    return jsonify({'status': 'error', 'message': 'Invalid or expired token'}), 400
 
 @auth_bp.route('/forgot_password', methods=['POST'])
 def forgot_password():
@@ -187,5 +171,6 @@ def reset_password():
             supabase.table(role).update({"password": hashed, "reset_token": None}).eq("email", email).execute()
             return jsonify({'status': 'success', 'message': 'Password reset successful'}), 200
     return jsonify({'status': 'error', 'message': 'Invalid or expired token'}), 400
+
 
 

@@ -147,9 +147,11 @@
 {
   "status": "success",
   "transaction": { ... },
-  "balance_after": 2500
+  "balance_after": 2500,
+  "receipt_url": "http://127.0.0.1:5000/staff/transaction/certificate/STID0001?action=view"
 }
 ```
+- The API will send a transaction receipt email to the member/customer with a link to view/download the receipt.
 
 ---
 
@@ -163,6 +165,7 @@
 - Use `type` as either `deposit` (to add funds) or `withdraw` (to remove funds).
 - `balance_after` shows the member's balance after the transaction.
 - All fields except `remarks` are required.
+- After a successful deposit/withdraw, a receipt URL is returned and an email is sent to the member/customer.
 
 
 

@@ -1,5 +1,4 @@
-from flask import Blueprint, render_template, abort, make_response
-from flask import current_app
+from flask import Blueprint, render_template, abort, make_response, request, jsonify, current_app, session
 from io import BytesIO
 from supabase import create_client
 import os
@@ -19,6 +18,12 @@ def amount_to_words(amount):
     except Exception:
         return str(amount)
 
+def get_staff_by_email(email, supabase_client):
+    if not email:
+        return None
+    resp = supabase_client.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
+    return resp.data[0] if resp.data else None
+
 @certificate_bp.route('/certificate/<stid>')
 def certificate_pdf(stid):
     # 1. Setup Supabase client
@@ -36,49 +41,57 @@ def certificate_pdf(stid):
     member_resp = supabase.table("members").select("*").eq("customer_id", transaction["customer_id"]).execute()
     member = member_resp.data[0] if member_resp.data else {}
 
-    # 4. Fetch staff signature and name by staff_id (if available)
-    staff_name = None
-    staff_signature_url = None
-    staff_id = transaction.get("staff_id")
-    if staff_id:
-        staff_resp = supabase.table("staff").select("name,signature_url").eq("id", staff_id).execute()
-        if staff_resp.data:
-            staff_name = staff_resp.data[0].get("name")
-            staff_signature_url = staff_resp.data[0].get("signature_url")
+    # 4. Fetch staff from session
+    staff_email = session.get("staff_email")
+    staff = get_staff_by_email(staff_email, supabase)
 
-    # 5. Society info (customize as needed)
-    society_name = current_app.config.get(
-        "SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277"
-    )
-    taluk_name = current_app.config.get("TALUK_NAME", "Kushtagi")
-    district_name = current_app.config.get("DISTRICT_NAME", "koppala")
+    # 5. Society info
+    society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
+    taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
+    district_name = os.environ.get("DISTRICT_NAME", "koppala")
 
-    # 6. Render HTML template with all required data
-    html = render_template(
-        "certificate.html",
+    # 6. Prepare template data
+    template_data = dict(
         transaction=transaction,
         member=member,
-        staff_signature_url=staff_signature_url,
-        staff_name=staff_name,
+        staff=staff,
+        staff_signature_url=staff.get("signature_url") if staff else None,
+        staff_name=staff.get("name") if staff else None,
         society_name=society_name,
         taluk_name=taluk_name,
         district_name=district_name,
         amount_words=amount_to_words(transaction["amount"])
     )
 
-    # 7. Generate PDF from HTML using pdfkit
-    #    - Ensure wkhtmltopdf is installed and available in PATH
-    #    - For Render.com, see apt-get command below
-    pdf = pdfkit.from_string(html, False, options={
-        'enable-local-file-access': None  # Allow loading local/static files
-    })
+    # 7. Handle action param
+    action = request.args.get("action", "view")
+    if action == "json":
+        return jsonify({
+            "status": "success",
+            "transaction": transaction,
+            "member": member,
+            "staff": staff,
+            "society_name": society_name,
+            "taluk_name": taluk_name,
+            "district_name": district_name,
+            "amount_words": template_data["amount_words"]
+        }), 200
 
-    # 8. Return PDF as HTTP response with correct headers
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename={stid}.pdf'
-    return response
+    html = render_template("certificate.html", **template_data)
+
+    if action == "download":
+        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
+        return response
+    elif action == "print":
+        html += "<script>window.onload = function(){window.print();}</script>"
+        return html
+    else:  # view
+        return html
 
 # Example apt-get command for Render.com build process:
 # apt-get update && apt-get install -y wkhtmltopdf
-    
+# Example apt-get command for Render.com build process:
+# apt-get update && apt-get install -y wkhtmltopdf
