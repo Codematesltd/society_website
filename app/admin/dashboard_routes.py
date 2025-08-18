@@ -21,25 +21,25 @@ def dashboard():
 
 @admin_bp.route("/account_requests")
 def admin_account_requests():
-    # Fetch all pending member requests
-    resp = supabase.table("members").select("*").eq("status", "pending").execute()
+    # Fetch all pending member requests - INCLUDE customer_id
+    resp = supabase.table("members").select("id, name, kgid, email, phone, customer_id").eq("status", "pending").execute()
     requests = resp.data if resp.data else []
     return render_template("admin/account_requests.html", requests=requests)
 
-@admin_bp.route("/account_requests/approve/<member_id>", methods=["POST"])
-def approve_member(member_id):
-    # Approve member by id
-    resp = supabase.table("members").update({"status": "approved"}).eq("id", member_id).execute()
+@admin_bp.route("/account_requests/approve/<customer_id>", methods=["POST"])
+def approve_member(customer_id):
+    # Approve member by customer_id
+    resp = supabase.table("members").update({"status": "approved"}).eq("customer_id", customer_id).execute()
     if resp.data:
         flash("Member approved!", "success")
     else:
         flash("Member not found.", "error")
     return redirect(url_for("admin.admin_account_requests"))
 
-@admin_bp.route("/account_requests/reject/<member_id>", methods=["POST"])
-def reject_member(member_id):
-    # Reject member by id
-    resp = supabase.table("members").update({"status": "rejected"}).eq("id", member_id).execute()
+@admin_bp.route("/account_requests/reject/<customer_id>", methods=["POST"])
+def reject_member(customer_id):
+    # Reject member by customer_id
+    resp = supabase.table("members").update({"status": "rejected"}).eq("customer_id", customer_id).execute()
     if resp.data:
         flash("Member rejected.", "success")
     else:

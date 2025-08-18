@@ -3,38 +3,177 @@
 {% block title %}Account Requests - Chit Fund Management{% endblock %}
 {% block header %}Account Requests{% endblock %}
 {% block content %}
+<!-- Back Button -->
+<a href="javascript:history.back()" class="inline-block mb-6 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+  &larr; Back
+</a>
 <h2 class="text-2xl font-bold mb-6 text-blue-700">Pending Account Requests</h2>
-{% if requests %}
-<table class="min-w-full bg-white rounded shadow">
-    <thead class="bg-blue-100">
-        <tr>
-            <th class="py-3 px-4 border">Name</th>
-            <th class="py-3 px-4 border">KGID</th>
-            <th class="py-3 px-4 border">Email</th>
-            <th class="py-3 px-4 border">Phone</th>
-            <th class="py-3 px-4 border">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for req in requests %}
-        <tr>
-            <td class="py-2 px-4 border">{{ req.name }}</td>
-            <td class="py-2 px-4 border">{{ req.kgid }}</td>
-            <td class="py-2 px-4 border">{{ req.email }}</td>
-            <td class="py-2 px-4 border">{{ req.phone }}</td>
-            <td class="py-2 px-4 border">
-                <form method="post" action="{{ url_for('admin.approve_member', member_id=req.id) }}" style="display:inline;">
-                    <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded">Approve</button>
-                </form>
-                <form method="post" action="{{ url_for('admin.reject_member', member_id=req.id) }}" style="display:inline;">
-                    <button type="submit" class="bg-red-500 text-white px-3 py-1 rounded">Reject</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p class="text-gray-600">No pending account requests.</p>
-{% endif %}
+<div id="accountCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for req in requests %}
+  <div class="bg-white rounded-xl shadow p-6 flex flex-col justify-between">
+    <div>
+      <div class="font-bold text-lg text-blue-700 mb-2">{{ req.name }}</div>
+      <div class="mb-1"><span class="font-semibold">KGID:</span> {{ req.kgid }}</div>
+      <div class="mb-1"><span class="font-semibold">Email:</span> {{ req.email }}</div>
+      <div class="mb-1"><span class="font-semibold">Phone:</span> {{ req.phone }}</div>
+    </div>
+    <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition view-details-btn"
+      data-customer-id="{{ req.customer_id or req.email or req.kgid }}">View Full Details</button>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal for full details -->
+<div id="memberModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-xl shadow-2xl p-8 max-w-3xl w-full relative" style="min-width:480px;">
+    <button id="closeModalBtn" class="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-700">&times;</button>
+    <div id="modalContent">
+      <!-- Details will be injected here -->
+    </div>
+    <div class="flex gap-4 mt-6 justify-end">
+      <form id="approveForm" method="post">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Approve</button>
+      </form>
+      <form id="rejectForm" method="post">
+        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('memberModal');
+  const modalContent = document.getElementById('modalContent');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  let currentCustomerId = null;
+
+  // Show modal with member details
+  document.querySelectorAll('.view-details-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const customerId = btn.getAttribute('data-customer-id');
+      currentCustomerId = customerId;
+      fetch(`/api/member-details/${customerId}`)
+        .then(res => {
+          console.log('Response status:', res.status);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log('API response:', data);
+          if (data.status === 'success') {
+            const m = data.member;
+            modalContent.innerHTML = `
+              <div class="flex gap-8 mb-6 items-start justify-between">
+                <div class="flex-1">
+                  <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-base">
+                    <div class="font-semibold">Name:</div><div>${m.name || 'N/A'}</div>
+                    <div class="font-semibold">Customer ID:</div><div>${m.customer_id || 'N/A'}</div>
+                    <div class="font-semibold">KGID:</div><div>${m.kgid || 'N/A'}</div>
+                    <div class="font-semibold">Email:</div><div>${m.email || 'N/A'}</div>
+                    <div class="font-semibold">Phone:</div><div>${m.phone || 'N/A'}</div>
+                    <div class="font-semibold">Father's Name:</div><div>${m.father_name || 'N/A'}</div>
+                    <div class="font-semibold">Aadhar:</div><div>${m.aadhar_no || 'N/A'}</div>
+                    <div class="font-semibold">PAN:</div><div>${m.pan_no || 'N/A'}</div>
+                    <div class="font-semibold">Salary:</div><div>${m.salary || 'N/A'}</div>
+                    <div class="font-semibold">Organization:</div><div>${m.organization_name || 'N/A'}</div>
+                    <div class="font-semibold">Address:</div><div>${m.address || 'N/A'}</div>
+                    <div class="font-semibold">Status:</div>
+                      <div>
+                        <span class="px-2 py-1 rounded text-sm ${m.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : m.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${m.status || 'N/A'}</span>
+                      </div>
+                    <div class="font-semibold">Balance:</div><div>₹${m.balance || '0'}</div>
+                    <div class="font-semibold">Created:</div><div>${m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A'}</div>
+                  </div>
+                </div>
+                <div class="flex flex-col items-center gap-6">
+                  <img src="${m.photo_url || ''}" alt="Photo" class="h-40 w-40 rounded-full border object-cover cursor-pointer enlargeable-img" style="object-fit:cover;" />
+                  <img src="${m.signature_url || ''}" alt="Signature" class="h-40 w-64 border object-contain cursor-pointer enlargeable-img" style="object-fit:contain;" />
+                </div>
+              </div>
+            `;
+            // Add enlarge image click handlers
+            setTimeout(() => {
+              document.querySelectorAll('.enlargeable-img').forEach(img => {
+                img.addEventListener('click', function() {
+                  showImageOverlay(this.src, this.alt);
+                });
+              });
+            }, 10);
+            modal.classList.remove('hidden');
+          } else {
+            modalContent.innerHTML = `<div class="text-red-600">Failed to fetch details: ${data.message || 'Unknown error'}</div>`;
+            modal.classList.remove('hidden');
+          }
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          modalContent.innerHTML = `<div class="text-red-600">Network error: ${error.message}. Please check console for details.</div>`;
+          modal.classList.remove('hidden');
+        });
+    });
+  });
+
+  closeModalBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+    modalContent.innerHTML = '';
+    currentCustomerId = null;
+  });
+
+  // Approve member
+  document.getElementById('approveForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!currentCustomerId) return;
+    fetch(`/admin/account_requests/approve/${currentCustomerId}`, {
+      method: 'POST'
+    }).then(res => {
+      if (res.ok) {
+        modalContent.innerHTML += `<div class="mt-4 text-green-600 font-semibold">Member approved!</div>`;
+        setTimeout(() => { modal.classList.add('hidden'); location.reload(); }, 1200);
+      } else {
+        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to approve.</div>`;
+      }
+    });
+  });
+
+  // Reject member
+  document.getElementById('rejectForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!currentCustomerId) return;
+    fetch(`/admin/account_requests/reject/${currentCustomerId}`, {
+      method: 'POST'
+    }).then(res => {
+      if (res.ok) {
+        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Member rejected.</div>`;
+        setTimeout(() => { modal.classList.add('hidden'); location.reload(); }, 1200);
+      } else {
+        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to reject.</div>`;
+      }
+    });
+  });
+
+  // Image overlay logic
+  function showImageOverlay(src, alt) {
+    let overlay = document.getElementById('imgOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'imgOverlay';
+      overlay.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50';
+      overlay.innerHTML = `
+        <img src="${src}" alt="${alt}" class="max-h-[80vh] max-w-[90vw] rounded-xl shadow-2xl border-4 border-white" style="background:#fff;" />
+        <button id="closeImgOverlay" class="absolute top-6 right-10 text-white text-4xl font-bold">&times;</button>
+      `;
+      document.body.appendChild(overlay);
+      document.getElementById('closeImgOverlay').onclick = () => {
+        overlay.remove();
+      };
+      overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+      };
+    }
+  }
+});
+</script>
 {% endblock %}
