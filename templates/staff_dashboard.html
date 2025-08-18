@@ -17,6 +17,41 @@
     }
   </style>
   <script>
+    // Ensure Loan Repayment, Next Installment, and Check Transaction buttons work
+    document.addEventListener('DOMContentLoaded', function() {
+      const sections = document.querySelectorAll('.dynamic-section');
+      const repaymentBtn = document.querySelector('[data-target="loanRepayment"]');
+      const installmentBtn = document.querySelector('[data-target="nextInstallment"]');
+      const transactionBtn = document.querySelector('[data-target="checkTransaction"]');
+      if (repaymentBtn) {
+        repaymentBtn.addEventListener('click', function() {
+          sections.forEach(sec => sec.classList.add('hidden'));
+          const target = document.getElementById('loanRepayment');
+          if (target) target.classList.remove('hidden');
+
+        });
+      }
+    });
+    // Ensure Check Expense and Deposit/Withdraw buttons work
+    document.addEventListener('DOMContentLoaded', function() {
+      const sections = document.querySelectorAll('.dynamic-section');
+      const expenseBtn = document.querySelector('[data-target="checkExpense"]');
+      const depositBtn = document.querySelector('[data-target="depositWithdraw"]');
+      if (expenseBtn) {
+        expenseBtn.addEventListener('click', function() {
+          sections.forEach(sec => sec.classList.add('hidden'));
+          const target = document.getElementById('checkExpense');
+          if (target) target.classList.remove('hidden');
+        });
+      }
+      if (depositBtn) {
+        depositBtn.addEventListener('click', function() {
+          sections.forEach(sec => sec.classList.add('hidden'));
+          const target = document.getElementById('depositWithdraw');
+          if (target) target.classList.remove('hidden');
+        });
+      }
+    });
     document.addEventListener('DOMContentLoaded', () => {
       const sections = document.querySelectorAll('.dynamic-section');
       const buttons = document.querySelectorAll('.nav-button');
@@ -1155,6 +1190,7 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
 });
 </script>
 
+      <!-- Deposit/Withdraw Section -->
       <section id="depositWithdraw" class="dynamic-section hidden bg-white p-6 rounded shadow">
   <div class="loader hidden text-center text-blue-600">Loading...</div>
   <div class="content space-y-6">
@@ -1465,135 +1501,129 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Add Next Installment functionality
-    document.addEventListener('DOMContentLoaded', () => {
-      const searchBtn = document.querySelector('#nextInstallment button');
-      const searchInput = document.querySelector('#nextInstallment input');
-      
-      if (searchBtn) {
-        searchBtn.addEventListener('click', () => {
-          // Example values from backend (replace with API call)
-          let loanAmount = 50000;
-          let paidAmount = 20000;
-          let remainingAmount = loanAmount - paidAmount;
-          let interestRate = 0.02; // 2% interest
-          let monthlyInstallment = 5000;
-          let nextMonthWithInterest = monthlyInstallment + (monthlyInstallment * interestRate);
-
-          // Populate values
-          document.getElementById("loanAmount").textContent = `₹${loanAmount.toLocaleString()}`;
-          document.getElementById("paidAmount").textContent = `₹${paidAmount.toLocaleString()}`;
-          document.getElementById("remainingAmount").textContent = `₹${remainingAmount.toLocaleString()}`;
-          document.getElementById("nextMonthAmount").textContent = `₹${nextMonthWithInterest.toLocaleString()}`;
-        });
-      }
-    });
-  </script>
-
-  <!-- Add Check Transaction Section -->
-  <!-- Check Transaction Section -->
-  <div>
-    <section id="checkTransaction" class="dynamic-section hidden bg-white p-6 rounded shadow">
-      <div class="loader hidden text-center text-blue-600">Loading...</div>
-      <div class="content">
-        <h2 class="text-xl font-bold text-blue-700 mb-4">Check Transaction</h2>
-        <form id="transactionSearchForm" class="mb-4 flex gap-2">
-          <input type="text" id="transactionIdInput" placeholder="Enter Transaction ID (STID)" class="border p-2 w-full rounded" required />
-          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
-        </form>
-        <div id="transactionResult"></div>
-      </div>
-    </section>
-
-    <!-- Floating Query Button -->
-  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
-    📩 Query
-  </button>
-
-  <!-- Floating Query Box -->
-  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
-    <div class="flex justify-between items-center mb-3">
-      <h3 class="text-lg font-bold">Send Us a Query</h3>
-      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-    </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
-    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
-    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
-  </div>
-
-  <!-- Floating Civil Score Button -->
-  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
-    📊 Civil Score
-  </button>
-
-  <!-- Floating Civil Score Box -->
-  <div id="civilBox" class="floating-box hidden fixed bottom-36 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
-    <div class="flex justify-between items-center mb-3">
-      <h3 class="text-lg font-bold">Check Civil Score</h3>
-      <button id="closeCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-    </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
-    <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
-  </div>
-  
-  <!-- FIX: Move this script to the end of the body so all elements exist before it runs, and add null checks for closeQuery/closeCivil -->
-  <script>
-    function initializeFloatingBoxes() {
-      const queryBtn = document.getElementById('queryBtn');
-      const queryBox = document.getElementById('queryBox');
-      const closeQuery = document.getElementById('closeQuery');
-      const civilBtn = document.getElementById('civilBtn');
-      const civilBox = document.getElementById('civilBox');
-      const closeCivil = document.getElementById('closeCivil');
-
-      if (queryBtn && queryBox) {
-        queryBtn.addEventListener('click', () => {
-          queryBox.classList.remove('hidden');
-          queryBox.classList.add('show');
-        });
-        if (closeQuery) {
-          closeQuery.addEventListener('click', () => {
-            queryBox.classList.add('hidden');
-            queryBox.classList.remove('show');
+  // Loan Repayment logic
+  document.addEventListener('DOMContentLoaded', () => {
+    const loanRepaymentForm = document.getElementById('loanRepaymentForm');
+    if (loanRepaymentForm) {
+      loanRepaymentForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const loan_id = document.getElementById('repayLoanIdInput').value.trim();
+        const amount = document.getElementById('repayAmountInput').value.trim();
+        const resultDiv = document.getElementById('loanRepaymentResult');
+        resultDiv.innerHTML = '<div class="text-blue-600">Processing...</div>';
+        try {
+          const res = await fetch('/api/loan/repay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loan_id, amount })
           });
+          const data = await res.json();
+          if (res.ok) {
+            resultDiv.innerHTML = `<div class="text-green-600">${data.message}</div>`;
+          } else {
+            resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Repayment failed.'}</div>`;
+          }
+        } catch {
+          resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
         }
-      }
-
-      if (civilBtn && civilBox) {
-        civilBtn.addEventListener('click', () => {
-          civilBox.classList.remove('hidden');
-          civilBox.classList.add('show');
-        });
-        if (closeCivil) {
-          closeCivil.addEventListener('click', () => {
-            civilBox.classList.add('hidden');
-            civilBox.classList.remove('show');
-          });
-        }
-      }
+      });
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeFloatingBoxes();
-    });
-  </script>
+    // Next Installment logic
+    const nextInstallmentForm = document.getElementById('nextInstallmentForm');
+    if (nextInstallmentForm) {
+      nextInstallmentForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const loan_id = document.getElementById('nextInstallmentLoanIdInput').value.trim();
+        const resultDiv = document.getElementById('nextInstallmentResult');
+        resultDiv.innerHTML = '<div class="text-blue-600">Checking...</div>';
+        try {
+          const res = await fetch(`/api/loan/next-installment?loan_id=${encodeURIComponent(loan_id)}`);
+          const data = await res.json();
+          if (res.ok) {
+            resultDiv.innerHTML = `
+              <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
+                <p><strong>Next Installment:</strong> ₹${data.next_installment}</p>
+                <p><strong>Due Date:</strong> ${data.due_date}</p>
+                <p><strong>Status:</strong> ${data.status}</p>
+              </div>
+            `;
+          } else {
+            resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Error fetching installment.'}</div>`;
+          }
+        } catch {
+          resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+        }
+      });
+    }
+  });
 
-  <input id="password" name="password" type="password" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500" required autocomplete="current-password">
-
-  <script>
-document.addEventListener('DOMContentLoaded', () => {
   // Check Transaction logic
   const transactionForm = document.getElementById('transactionSearchForm');
   if (transactionForm) {
     transactionForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const stid = document.getElementById('transactionIdInput').value.trim();
-      // Open the receipt in a new window
-      window.open(`/staff/transaction/check/${encodeURIComponent(stid)}`, '_blank');
+      const resultDiv = document.getElementById('transactionResult');
+      resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
+      try {
+        const res = await fetch(`/staff/transaction/check/${encodeURIComponent(stid)}`);
+        const data = await res.json();
+        if (res.ok) {
+          resultDiv.innerHTML = `
+            <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
+              <p><strong>Transaction ID:</strong> ${data.transaction_id}</p>
+              <p><strong>Amount:</strong> ₹${data.amount}</p>
+              <p><strong>Status:</strong> ${data.status}</p>
+              <p><strong>Date:</strong> ${data.date}</p>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Transaction not found.'}</div>`;
+        }
+      } catch {
+        resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
+      }
     });
   }
-});
+</script>
+<script>
+  // Dedicated fix for Loan Repayment, Next Installment, and Check Transaction buttons
+  document.addEventListener('DOMContentLoaded', function() {
+    function showSection(sectionId) {
+      document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.classList.remove('hidden');
+        // Also show content and hide loader if present
+        const content = section.querySelector('.content');
+        const loader = section.querySelector('.loader');
+        if (content) content.classList.remove('hidden');
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+    const repaymentBtn = document.querySelector('[data-target="loanRepayment"]');
+    const installmentBtn = document.querySelector('[data-target="nextInstallment"]');
+    const transactionBtn = document.querySelector('[data-target="checkTransaction"]');
+    if (repaymentBtn) {
+      repaymentBtn.addEventListener('click', function(e) {
+        e.stopImmediatePropagation();
+        showSection('loanRepayment');
+      });
+    }
+    if (installmentBtn) {
+      installmentBtn.addEventListener('click', function(e) {
+        e.stopImmediatePropagation();
+        showSection('nextInstallment');
+      });
+    }
+    if (transactionBtn) {
+      transactionBtn.addEventListener('click', function(e) {
+        e.stopImmediatePropagation();
+        showSection('checkTransaction');
+      });
+    }
+  });
 </script>
 </body>
 </html>

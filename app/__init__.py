@@ -24,6 +24,7 @@ def create_app():
     app.register_blueprint(members_bp)
     app.register_blueprint(staff_bp)
     app.register_blueprint(manager_bp)
+    # Only register finance_bp once:
     app.register_blueprint(finance_bp)
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)

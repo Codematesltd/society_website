@@ -47,6 +47,17 @@ try:
 except ImportError as e:
     print(f"Failed to import staff blueprint: {e}")
 
+# Register finance blueprint only if not already registered
+try:
+    from app.finance import finance_bp
+    if 'finance' not in app.blueprints:
+        app.register_blueprint(finance_bp)
+        print("Finance blueprint registered successfully")
+    else:
+        print("Finance blueprint already registered (skipped)")
+except ImportError as e:
+    print(f"Failed to import finance blueprint: {e}")
+
 @app.route("/first_time_signin")
 def first_time_signin_root():
     # Redirect legacy /first_time_signin to the auth blueprint page
