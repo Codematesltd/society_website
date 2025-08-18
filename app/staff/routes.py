@@ -51,14 +51,6 @@ def add_transaction():
         return jsonify({"status": "success", "transaction": resp.data[0], "balance_after": txn_data["balance_after"]}), 201
     else:
         return jsonify({"status": "error", "message": "Failed to store transaction"}), 500
-    # ...existing code to calculate balance_after and update txn_data...
-
-    # Insert into transactions table
-    resp = supabase.table("transactions").insert(txn_data).execute()
-    if resp.data:
-        return jsonify({"status": "success", "transaction": resp.data[0], "balance_after": txn_data["balance_after"]}), 201
-    else:
-        return jsonify({"status": "error", "message": "Failed to store transaction"}), 500
 
 @staff_bp.route('/api/get-customer')
 def get_customer():
