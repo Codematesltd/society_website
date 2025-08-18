@@ -47,16 +47,16 @@ try:
 except ImportError as e:
     print(f"Failed to import staff blueprint: {e}")
 
-# Register admin API blueprint if not already registered
+# Register finance blueprint only if not already registered
 try:
-    from app.admin.api import admin_api_bp
-    if 'admin_api' not in app.blueprints:
-        app.register_blueprint(admin_api_bp)
-        print("Admin API blueprint registered successfully")
+    from app.finance import finance_bp
+    if 'finance' not in app.blueprints:
+        app.register_blueprint(finance_bp)
+        print("Finance blueprint registered successfully")
     else:
-        print("Admin API blueprint already registered (skipped)")
+        print("Finance blueprint already registered (skipped)")
 except ImportError as e:
-    print(f"Failed to import admin API blueprint: {e}")
+    print(f"Failed to import finance blueprint: {e}")
 
 @app.route("/first_time_signin")
 def first_time_signin_root():
