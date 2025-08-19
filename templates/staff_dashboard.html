@@ -17,62 +17,65 @@
     }
   </style>
   <script>
-    // Ensure Loan Repayment, Next Installment, and Check Transaction buttons work
-    document.addEventListener('DOMContentLoaded', function() {
-      const sections = document.querySelectorAll('.dynamic-section');
-      const repaymentBtn = document.querySelector('[data-target="loanRepayment"]');
-      const installmentBtn = document.querySelector('[data-target="nextInstallment"]');
-      const transactionBtn = document.querySelector('[data-target="checkTransaction"]');
-      if (repaymentBtn) {
-        repaymentBtn.addEventListener('click', function() {
-          sections.forEach(sec => sec.classList.add('hidden'));
-          const target = document.getElementById('loanRepayment');
-          if (target) target.classList.remove('hidden');
-
-        });
-      }
-    });
-    // Ensure Check Expense and Deposit/Withdraw buttons work
-    document.addEventListener('DOMContentLoaded', function() {
-      const sections = document.querySelectorAll('.dynamic-section');
-      const expenseBtn = document.querySelector('[data-target="checkExpense"]');
-      const depositBtn = document.querySelector('[data-target="depositWithdraw"]');
-      if (expenseBtn) {
-        expenseBtn.addEventListener('click', function() {
-          sections.forEach(sec => sec.classList.add('hidden'));
-          const target = document.getElementById('checkExpense');
-          if (target) target.classList.remove('hidden');
-        });
-      }
-      if (depositBtn) {
-        depositBtn.addEventListener('click', function() {
-          sections.forEach(sec => sec.classList.add('hidden'));
-          const target = document.getElementById('depositWithdraw');
-          if (target) target.classList.remove('hidden');
-        });
-      }
-    });
     document.addEventListener('DOMContentLoaded', () => {
+  // ...existing code...
+    
       const sections = document.querySelectorAll('.dynamic-section');
       const buttons = document.querySelectorAll('.nav-button');
+      const homeBtn = document.getElementById('homeBtn');
 
-      buttons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          sections.forEach((sec) => sec.classList.add('hidden'));
-          const target = document.getElementById(btn.dataset.target);
-          if (target) {
-            target.classList.remove('hidden');
-            const content = target.querySelector('.content');
-            const loader = target.querySelector('.loader');
+      // Show section helper
+      function showSection(sectionId) {
+        sections.forEach(sec => sec.classList.add('hidden'));
+        const section = document.getElementById(sectionId);
+        if (section) {
+          section.classList.remove('hidden');
+          const content = section.querySelector('.content');
+          const loader = section.querySelector('.loader');
+          if (content && loader) {
             content.classList.add('hidden');
             loader.classList.remove('hidden');
             setTimeout(() => {
               loader.classList.add('hidden');
               content.classList.remove('hidden');
-            }, 800);
+            }, 400);
+          } else if (content) {
+            content.classList.remove('hidden');
           }
+        }
+      }
+
+      // Sidebar nav buttons
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          showSection(btn.dataset.target);
         });
       });
+
+      // Home button always shows dashboard summary
+      if (homeBtn) {
+        homeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          showSection('dashboardSummary');
+        });
+      }
+
+      // Show dashboard summary by default on page load
+      showSection('dashboardSummary');
+
+      // Fetch dashboard stats (replace with real API call)
+      function fetchDashboardStats() {
+        // Simulated data; replace with fetch('/api/dashboard-stats')...
+        const stats = {
+          totalCustomers: 1234,
+          activeLoans: 87,
+          totalAmount: 12500000
+        };
+        document.getElementById('totalCustomers').textContent = stats.totalCustomers;
+        document.getElementById('activeLoans').textContent = stats.activeLoans;
+        document.getElementById('totalAmount').textContent = '₹' + stats.totalAmount.toLocaleString();
+      }
+      fetchDashboardStats();
 
       // Customer Account Info search logic
       const form = document.getElementById('customerSearchForm');
@@ -190,242 +193,437 @@
         }
       }
 
-      /* -------- Loan Type Toggle Logic -------- */
-      const normalLoanBtn = document.getElementById("normalLoanBtn");
-      const emergencyLoanBtn = document.getElementById("emergencyLoanBtn");
-      const normalLoanForm = document.getElementById("normalLoanForm");
-      const emergencyLoanForm = document.getElementById("emergencyLoanForm");
+      // --- Fix for Apply Loan step navigation ---
+      // Move step2 to visible when clicking Next in step1
+      const toStep2Btn = document.getElementById('toStep2Btn');
+      const step1 = document.getElementById('step1');
+      const step2 = document.getElementById('step2');
+      const step3 = document.getElementById('step3');
+      const loanFormError = document.getElementById('loanFormError');
 
-      if (normalLoanBtn && emergencyLoanBtn && normalLoanForm && emergencyLoanForm) {
-        normalLoanBtn.addEventListener("click", () => {
-          normalLoanForm.style.display = "block";
-          emergencyLoanForm.style.display = "none";
-          normalLoanBtn.classList.add("bg-blue-600", "text-white");
-          normalLoanBtn.classList.remove("bg-gray-300", "text-black");
-          emergencyLoanBtn.classList.add("bg-gray-300", "text-black");
-          emergencyLoanBtn.classList.remove("bg-blue-600", "text-white");
-        });
-
-        emergencyLoanBtn.addEventListener("click", () => {
-          normalLoanForm.style.display = "none";
-          emergencyLoanForm.style.display = "block";
-          emergencyLoanBtn.classList.add("bg-blue-600", "text-white");
-          emergencyLoanBtn.classList.remove("bg-gray-300", "text-black");
-          normalLoanBtn.classList.add("bg-gray-300", "text-black");
-          normalLoanBtn.classList.remove("bg-blue-600", "text-white");
+      if (toStep2Btn && step1 && step2) {
+        toStep2Btn.addEventListener('click', function () {
+          const selectedLoanType = document.querySelector('input[name="loanType"]:checked');
+          if (!selectedLoanType) {
+            if (loanFormError) loanFormError.textContent = "Please select a loan type.";
+            return;
+          }
+          if (loanFormError) loanFormError.textContent = "";
+          step1.classList.add('hidden');
+          step2.classList.remove('hidden');
+          // Hide step3 in case user is retrying
+          if (step3) step3.classList.add('hidden');
         });
       }
 
-      /* -------- Loan Apply Section Integration -------- */
-      // Normal Loan/Emergency Loan form selectors
-      // (already declared above)
+      // Fetch customer data for loan application (dummy implementation)
+      const loanAccountNumberInput = document.getElementById('loanAccountNumber');
+      const fetchAccountBtn = document.getElementById('fetchAccountBtn');
+      const accountFetchMsg = document.getElementById('accountFetchMsg');
 
-      // Helper to fetch surety details and show in UI
-      async function fetchSuretyDetails(customerId, displayDiv) {
-        if (!customerId) {
-          displayDiv.innerHTML = '';
-          return;
-        }
-        displayDiv.innerHTML = '<span class="text-blue-600">Checking...</span>';
-        try {
-          const res = await fetch(`/loan/surety/${encodeURIComponent(customerId)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.status === "success") {
-              const m = data.member;
-              displayDiv.innerHTML = `
-                <div class="text-green-700 text-sm flex items-center gap-2">
-                  <img src="${m.photo_url || ''}" alt="Photo" style="height:32px;width:32px;border-radius:50%;border:1px solid #ccc;">
-                  <img src="${m.signature_url || ''}" alt="Signature" style="height:32px;width:64px;border:1px solid #ccc;">
-                  <div>
-                    <div><b>${m.name || ''}</b> (${m.customer_id || ''})</div>
-                    <div>Phone: ${m.phone || ''}</div>
-                    <div>Active Loans Backed: <b>${data.active_loan_count}</b></div>
-                  </div>
-                </div>
-              `;
+      if (fetchAccountBtn) {
+        fetchAccountBtn.addEventListener('click', async () => {
+          const accountNumber = loanAccountNumberInput.value.trim();
+          if (!accountNumber) {
+            accountFetchMsg.textContent = "Please enter an account number.";
+            return;
+          }
+          accountFetchMsg.textContent = "Fetching details...";
+          try {
+            const res = await fetch(`/api/fetch-account?accountNumber=${encodeURIComponent(accountNumber)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.name) {
+                document.getElementById('loanName').value = data.name;
+                document.getElementById('loanKGID').value = data.kgid;
+                document.getElementById('loanAccount').value = accountNumber;
+                loanAccountNumberInput.value = accountNumber; // Preload input
+                accountFetchMsg.textContent = "";
+                // Hide Next button after fetching account details
+                const nextBtn = document.getElementById('toStep2Btn');
+                if (nextBtn) nextBtn.classList.add('hidden');
+                // Show step 3 and loan type if not already visible
+                if (step3.classList.contains('hidden')) {
+                  step3.classList.remove('hidden');
+                  step2.classList.add('hidden');
+                  document.getElementById('step1').classList.remove('hidden');
+                }
+              } else {
+                accountFetchMsg.textContent = "Account not found.";
+              }
             } else {
-              displayDiv.innerHTML = `<span class="text-red-600 text-sm">Surety not found or error.</span>`;
+              accountFetchMsg.textContent = "Error fetching account details.";
             }
+          } catch {
+            accountFetchMsg.textContent = "Network error.";
+          }
+        });
+      }
+
+      // Surety check logic (dummy implementation)
+      function setupSuretyCheck(suretyBtnId, suretyKGIDInputId, suretyMsgId) {
+        const checkBtn = document.getElementById(suretyBtnId);
+        const kgidInput = document.getElementById(suretyKGIDInputId);
+        const msgDiv = document.getElementById(suretyMsgId);
+        const removeBtn = document.getElementById(suretyBtnId.replace('check', 'remove'));
+        // Helper to preload name/phone in separate fields
+        function preloadSurety(data) {
+          const fieldsDiv = document.getElementById(suretyBtnId === 'checkSurety1Btn' ? 'surety1Fields' : 'surety2Fields');
+          fieldsDiv.innerHTML = '';
+          if (data.found) {
+            msgDiv.textContent = '';
+            // Create separate entry fields with labels
+            fieldsDiv.innerHTML = `
+              <div>
+                <label class="block font-medium mb-1">KGID</label>
+                <input type="text" value="${kgidInput.value}" class="w-full px-4 py-2 border rounded bg-gray-100" readonly />
+              </div>
+              <div>
+                <label class="block font-medium mb-1">Name</label>
+                <input type="text" value="${data.name}" class="w-full px-4 py-2 border rounded bg-gray-100" readonly />
+              </div>
+              <div>
+                <label class="block font-medium mb-1">Phone Number</label>
+                <input type="text" value="${data.phone}" class="w-full px-4 py-2 border rounded bg-gray-100" readonly />
+              </div>
+            `;
+          } else if (data.alreadyBacking) {
+            msgDiv.textContent = "This surety is already backing another loan.";
+            fieldsDiv.innerHTML = '';
           } else {
-            displayDiv.innerHTML = `<span class="text-red-600 text-sm">Surety not found or error.</span>`;
+            msgDiv.textContent = "Surety not found.";
+            fieldsDiv.innerHTML = '';
           }
-        } catch {
-          displayDiv.innerHTML = `<span class="text-red-600 text-sm">Network error.</span>`;
+        }
+        if (checkBtn) {
+          checkBtn.addEventListener('click', async () => {
+            const kgid = kgidInput.value.trim();
+            if (!kgid) {
+              msgDiv.textContent = "Please enter a KGID.";
+              return;
+            }
+            msgDiv.textContent = "Checking surety...";
+            try {
+              const res = await fetch(`/api/check-surety?kgid=${encodeURIComponent(kgid)}`);
+              if (res.ok) {
+                const data = await res.json();
+                preloadSurety(data);
+                if (data.found) {
+                  checkBtn.disabled = true;
+                  kgidInput.disabled = true;
+                  if (removeBtn) removeBtn.classList.remove('hidden');
+                }
+              } else {
+                msgDiv.textContent = "Error checking surety.";
+              }
+            } catch {
+              msgDiv.textContent = "Network error.";
+            }
+          });
+        }
+        if (removeBtn) {
+          removeBtn.addEventListener('click', () => {
+            // Reset fields and re-enable check
+            msgDiv.textContent = "";
+            kgidInput.value = "";
+            kgidInput.disabled = false;
+            checkBtn.disabled = false;
+            removeBtn.classList.add('hidden');
+          });
         }
       }
 
-      // Attach listeners to Normal Loan form
-      if (normalLoanForm) {
-        // Remove old surety fields, add only customer_id fields and info display
-        const suretyFields = normalLoanForm.querySelectorAll('input[placeholder^="Surety"], input[placeholder="Phone Number"]');
-        suretyFields.forEach(f => f.parentElement.remove());
+      setupSuretyCheck('checkSurety1Btn', 'surety1KGID', 'surety1Msg');
+      setupSuretyCheck('checkSurety2Btn', 'surety2KGID', 'surety2Msg');
 
-        // Add new surety customer_id fields and info
-        const suretySection = document.createElement('div');
-        suretySection.className = "mb-4";
-        suretySection.innerHTML = `
-          <label class="block mb-1 font-medium">Surety 1 Customer ID</label>
-          <input type="text" id="normalSurety1Input" placeholder="Surety 1 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="normalSurety1Info" class="mb-2"></div>
-          <label class="block mb-1 font-medium">Surety 2 Customer ID (optional)</label>
-          <input type="text" id="normalSurety2Input" placeholder="Surety 2 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="normalSurety2Info" class="mb-2"></div>
-        `;
-        normalLoanForm.appendChild(suretySection);
-
-        const surety1Input = document.getElementById('normalSurety1Input');
-        const surety2Input = document.getElementById('normalSurety2Input');
-        const surety1Div = document.getElementById('normalSurety1Info');
-        const surety2Div = document.getElementById('normalSurety2Info');
-        const applyBtn = normalLoanForm.querySelector('button');
-
-        surety1Input && surety1Input.addEventListener('blur', () => fetchSuretyDetails(surety1Input.value, surety1Div));
-        surety2Input && surety2Input.addEventListener('blur', () => fetchSuretyDetails(surety2Input.value, surety2Div));
-
-        applyBtn && applyBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          // Collect form data
-          const name = normalLoanForm.querySelector('input[placeholder="Name"]').value.trim();
-          const kgid = normalLoanForm.querySelector('input[placeholder="KGID"]').value.trim();
-          const interest_rate = normalLoanForm.querySelector('input[placeholder="Interest Rate"]').value.trim();
-          const account_number = normalLoanForm.querySelector('input[placeholder="Account Number"]').value.trim();
-          const loan_purpose = normalLoanForm.querySelector('input[placeholder="Loan Purpose"]').value.trim();
-          const loan_amount = normalLoanForm.querySelector('input[placeholder="Loan Amount"]').value.trim();
-          const loan_tenure = normalLoanForm.querySelector('input[placeholder="Loan Tenure"]').value.trim();
-          const surety1 = surety1Input.value.trim();
-          const surety2 = surety2Input.value.trim();
-
-          if (!name || !kgid || !interest_rate || !account_number || !loan_purpose || !loan_amount || !loan_tenure || !surety1) {
-            alert("Please fill all required fields including at least one surety.");
-            return;
+      // Terms and conditions toggle (for demo, auto-checking)
+      // Terms and conditions: keep enabled and required, do not auto-check
+      const termsCheckbox = document.getElementById('termsCheckbox');
+      const applyLoanBtn = document.getElementById('applyLoanBtn');
+      if (termsCheckbox && applyLoanBtn) {
+        termsCheckbox.checked = false;
+        termsCheckbox.disabled = false;
+        termsCheckbox.required = true;
+        // Helper to check if all required fields are filled
+        function checkFormReady() {
+          const requiredIds = [
+            'loanName', 'loanAccount', 'loanKGID', 'loanAmount', 'loanInterest', 'loanTenure', 'loanPurpose',
+            'surety1KGID', 'surety2KGID'
+          ];
+          let allFilled = requiredIds.every(id => {
+            const el = document.getElementById(id);
+            return el && el.value.trim() !== '';
+          });
+          applyLoanBtn.disabled = !(allFilled && termsCheckbox.checked);
+        }
+        // Listen to changes on all required fields and checkbox
+        const requiredIds = [
+          'loanName', 'loanAccount', 'loanKGID', 'loanAmount', 'loanInterest', 'loanTenure', 'loanPurpose',
+          'surety1KGID', 'surety2KGID'
+        ];
+        requiredIds.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('input', checkFormReady);
           }
+        });
+        termsCheckbox.addEventListener('change', checkFormReady);
+        // Initial state
+        checkFormReady();
+      }
 
-          const payload = {
-            name,
-            kgid,
-            interest_rate,
-            account_number,
-            loan_purpose,
-            loan_amount,
-            loan_tenure,
-            sureties: surety2 ? [surety1, surety2] : [surety1]
+      // Loan application form submission (step 3)
+      const loanStepForm = document.getElementById('loanStepForm');
+      if (loanStepForm) {
+        loanStepForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const formData = new FormData(loanStepForm);
+
+          const loanData = {
+            loanType: formData.get('loanType'),
+            accountNumber: formData.get('accountNumber'),
+            kgid: formData.get('kgid'),
+            loanAmount: formData.get('loanAmount'),
+            interestRate: formData.get('interestRate'),
+            loanTenure: formData.get('loanTenure'),
+            loanPurpose: formData.get('loanPurpose'),
+            surety1: formData.get('surety1KGID'),
+            surety2: formData.get('surety2KGID')
           };
+          const errorDiv = document.getElementById('loanFormError');
+          errorDiv.textContent = '';
+          let valid = true;
 
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Applying...";
+          // All fields including surety1 and surety2 are mandatory
+          const requiredFields = [
+            'loanType',
+            'accountNumber',
+            'kgid',
+            'loanAmount',
+            'interestRate',
+            'loanTenure',
+            'loanPurpose',
+            'surety1',
+            'surety2'
+          ];
+          // Use actual input values for surety1 and surety2
+          for (const key of requiredFields) {
+            let value = loanData[key];
+            // For surety1 and surety2, check the input field value directly
+            if (key === 'surety1') {
+              const el = document.getElementById('surety1KGID');
+              value = el ? el.value.trim() : '';
+            }
+            if (key === 'surety2') {
+              const el = document.getElementById('surety2KGID');
+              value = el ? el.value.trim() : '';
+            }
+            if (!value) {
+              errorDiv.textContent += `Please fill ${key.replace(/([A-Z])/g, ' $1').toLowerCase()}. `;
+              valid = false;
+            }
+          }
+          if (!valid) return;
 
+          // Simulated loan application submission
           try {
-            const res = await fetch('/loan/apply', {
+            const res = await fetch('/api/apply-loan', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
+              body: JSON.stringify(loanData)
             });
-            const data = await res.json();
-            if (data.status === 'success') {
-              alert("Loan application submitted successfully!");
-              normalLoanForm.reset();
-              surety1Div.innerHTML = '';
-              surety2Div.innerHTML = '';
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success) {
+                // Show success popup with application ID
+                const successPopup = document.getElementById('loanSuccessPopup');
+                if (successPopup) {
+                  // Add application ID to popup
+                  const popupContent = successPopup.querySelector('div.text-lg.font-bold.mb-2');
+                  if (popupContent) {
+                    popupContent.innerHTML = `Loan Application Submitted Successfully!<br><span class='text-blue-600'>Application ID: ${data.applicationId || 'N/A'}</span>`;
+                  }
+                  successPopup.classList.remove('hidden');
+                  // Auto-close after 3 seconds
+                  setTimeout(() => {
+                    successPopup.classList.add('hidden');
+                    // Reset form after success
+                    loanStepForm.reset();
+                    step1.classList.remove('hidden');
+                    step2.classList.add('hidden');
+                    step3.classList.add('hidden');
+                  }, 3000);
+                }
+              } else {
+                errorDiv.textContent = data.message || 'Loan application failed.';
+              }
             } else {
-              alert("Loan application failed: " + (data.message || "Unknown error"));
+              errorDiv.textContent = 'Error submitting loan application.';
             }
           } catch {
-            alert("Network error during loan application.");
-          } finally {
-            applyBtn.disabled = false;
-            applyBtn.textContent = "Apply Normal Loan";
+            errorDiv.textContent = 'Network error.';
           }
         });
       }
-
-      // Attach listeners to Emergency Loan form (similar logic)
-      if (emergencyLoanForm) {
-        // Remove old surety fields, add only customer_id fields and info display
-        const suretyFields = emergencyLoanForm.querySelectorAll('input[placeholder^="Surety"], input[placeholder="Phone Number"]');
-        suretyFields.forEach(f => f.parentElement.remove());
-
-        const suretySection = document.createElement('div');
-        suretySection.className = "mb-4";
-        suretySection.innerHTML = `
-          <label class="block mb-1 font-medium">Surety 1 Customer ID</label>
-          <input type="text" id="emergencySurety1Input" placeholder="Surety 1 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="emergencySurety1Info" class="mb-2"></div>
-          <label class="block mb-1 font-medium">Surety 2 Customer ID (optional)</label>
-          <input type="text" id="emergencySurety2Input" placeholder="Surety 2 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="emergencySurety2Info" class="mb-2"></div>
-        `;
-        emergencyLoanForm.appendChild(suretySection);
-
-        const surety1Input = document.getElementById('emergencySurety1Input');
-        const surety2Input = document.getElementById('emergencySurety2Input');
-        const surety1Div = document.getElementById('emergencySurety1Info');
-        const surety2Div = document.getElementById('emergencySurety2Info');
-        const applyBtn = emergencyLoanForm.querySelector('button');
-
-        surety1Input && surety1Input.addEventListener('blur', () => fetchSuretyDetails(surety1Input.value, surety1Div));
-        surety2Input && surety2Input.addEventListener('blur', () => fetchSuretyDetails(surety2Input.value, surety2Div));
-
-        applyBtn && applyBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          // Collect form data
-          const name = emergencyLoanForm.querySelector('input[placeholder="Name"]').value.trim();
-          const kgid = emergencyLoanForm.querySelector('input[placeholder="KGID"]').value.trim();
-          const interest_rate = emergencyLoanForm.querySelector('input[placeholder="Interest Rate"]').value.trim();
-          const account_number = emergencyLoanForm.querySelector('input[placeholder="Account Number"]').value.trim();
-          const loan_purpose = emergencyLoanForm.querySelector('input[placeholder="Loan Purpose"]').value.trim();
-          const loan_amount = emergencyLoanForm.querySelector('input[placeholder="Loan Amount"]').value.trim();
-          const loan_tenure = emergencyLoanForm.querySelector('input[placeholder="Loan Tenure"]').value.trim();
-          const surety1 = surety1Input.value.trim();
-          const surety2 = surety2Input.value.trim();
-
-          if (!name || !kgid || !interest_rate || !account_number || !loan_purpose || !loan_amount || !loan_tenure || !surety1) {
-            alert("Please fill all required fields including at least one surety.");
+      // Fix for Get Transaction modal
+      // Add event listener for Fetch button in Get Transaction modal
+      const fetchTransBtn = document.getElementById('fetchTransBtn');
+      const transAccountInput = document.getElementById('transAccount');
+      const transResultDiv = document.getElementById('transResult');
+      const transInputPanel = document.getElementById('transInputPanel');
+      if (fetchTransBtn) {
+        fetchTransBtn.addEventListener('click', () => {
+          const account = transAccountInput.value.trim();
+          if (!account) {
+            transResultDiv.innerHTML = '<div class="text-red-600">Enter valid number</div>';
             return;
           }
-
-          const payload = {
-            name,
-            kgid,
-            interest_rate,
-            account_number,
-            loan_purpose,
-            loan_amount,
-            loan_tenure,
-            sureties: surety2 ? [surety1, surety2] : [surety1]
-          };
-
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Applying...";
-
-          try {
-            const res = await fetch('/loan/apply', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-              alert("Loan application submitted successfully!");
-              emergencyLoanForm.reset();
-              surety1Div.innerHTML = '';
-              surety2Div.innerHTML = '';
-            } else {
-              alert("Loan application failed: " + (data.message || "Unknown error"));
-            }
-          } catch {
-            alert("Network error during loan application.");
-          } finally {
-            applyBtn.disabled = false;
-            applyBtn.textContent = "Apply Emergency Loan";
+          const filteredTransactions = dummyTransactions.filter(txn => txn.fromAccount === account || txn.toAccount === account);
+          if (!filteredTransactions.length) {
+            transResultDiv.innerHTML = '<div class="text-red-600">Enter valid number</div>';
+            return;
           }
+          // Hide the modal and show a full dashboard overlay with the table
+          document.getElementById('transactionModal').classList.add('hidden');
+          let overlay = document.getElementById('transactionTableOverlay');
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'transactionTableOverlay';
+            overlay.className = 'fixed inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-start z-50 overflow-auto';
+            document.body.appendChild(overlay);
+          }
+          overlay.innerHTML = `
+            <div class="w-full max-w-6xl mx-auto mt-12 p-8 bg-white rounded-2xl shadow-2xl border border-blue-200">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-extrabold text-blue-700">Transactions for <span class="text-blue-500">${account}</span></h3>
+                <button id="closeTransTableOverlay" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow ml-2">Close</button>
+              </div>
+              <div class="flex justify-end items-center mb-4 gap-2">
+                <label class="text-sm">Start Date:</label>
+                <input type="date" id="sortStartDate" class="border border-blue-300 rounded px-2 py-1 text-sm" />
+                <label class="text-sm">End Date:</label>
+                <input type="date" id="sortEndDate" class="border border-blue-300 rounded px-2 py-1 text-sm" />
+                <button id="sortTransBtn" class="bg-blue-500 text-white px-3 py-1 rounded text-sm shadow hover:bg-blue-600">Sort</button>
+                <button id="downloadTransTableBtn" class="bg-green-500 text-white px-3 py-1 rounded text-sm shadow hover:bg-green-600">Download</button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-blue-400 rounded-xl shadow-lg">
+                  <thead>
+                    <tr class="bg-blue-200 text-blue-900">
+                      <th class="px-4 py-2 border border-blue-400 font-bold">Txn ID</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">To Account</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">From Account</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">Date</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">Debit</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">Credit</th>
+                      <th class="px-4 py-2 border border-blue-400 font-bold">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${filteredTransactions.map((txn, idx) => `
+                      <tr class="${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-blue-50 transition">
+                        <td class="px-4 py-2 border border-blue-300">${txn.txnId}</td>
+                        <td class="px-4 py-2 border border-blue-300">${txn.toAccount}</td>
+                        <td class="px-4 py-2 border border-blue-300">${txn.fromAccount}</td>
+                        <td class="px-4 py-2 border border-blue-300">${txn.date}</td>
+                        <td class="px-4 py-2 border border-blue-300">${txn.debit ? '₹' + txn.debit : ''}</td>
+                        <td class="px-4 py-2 border border-blue-300">${txn.credit ? '₹' + txn.credit : ''}</td>
+                        <td class="px-4 py-2 border border-blue-300">₹${txn.balance}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          // Add sorting and download functionality
+          document.getElementById('sortTransBtn').onclick = () => {
+            const start = document.getElementById('sortStartDate').value;
+            const end = document.getElementById('sortEndDate').value;
+            const sorted = filteredTransactions.filter(txn => {
+              return (!start || txn.date >= start) && (!end || txn.date <= end);
+            });
+            // Re-render table with sorted data and Excel style
+            overlay.querySelector('.overflow-x-auto').innerHTML = `
+              <table class="min-w-full bg-white border border-blue-400 rounded-xl shadow-lg">
+                <thead>
+                  <tr class="bg-blue-200 text-blue-900">
+                    <th class="px-4 py-2 border border-blue-400 font-bold">Txn ID</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">To Account</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">From Account</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">Date</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">Debit</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">Credit</th>
+                    <th class="px-4 py-2 border border-blue-400 font-bold">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sorted.map((txn, idx) => `
+                    <tr class="${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-blue-50 transition">
+                      <td class="px-4 py-2 border border-blue-300">${txn.txnId}</td>
+                      <td class="px-4 py-2 border border-blue-300">${txn.toAccount}</td>
+                      <td class="px-4 py-2 border border-blue-300">${txn.fromAccount}</td>
+                      <td class="px-4 py-2 border border-blue-300">${txn.date}</td>
+                      <td class="px-4 py-2 border border-blue-300">${txn.debit ? '₹' + txn.debit : ''}</td>
+                      <td class="px-4 py-2 border border-blue-300">${txn.credit ? '₹' + txn.credit : ''}</td>
+                      <td class="px-4 py-2 border border-blue-300">₹${txn.balance}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          };
+          document.getElementById('downloadTransTableBtn').onclick = () => {
+            let csv = 'Txn ID,To Account,From Account,Date,Debit,Credit,Balance\n';
+            filteredTransactions.forEach(txn => {
+              csv += `${txn.txnId},${txn.toAccount},${txn.fromAccount},${txn.date},${txn.debit},${txn.credit},${txn.balance}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'transactions.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          };
+          document.getElementById('closeTransTableOverlay').onclick = () => {
+            overlay.remove();
+          };
+        });
+        getTransactionBtn.addEventListener('click', () => {
+          transactionModal.classList.remove('hidden');
+          transInputPanel.style.display = 'block';
+          transResultDiv.innerHTML = '';
         });
       }
-
-      // Show Add User section by default
-      document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
-      document.getElementById('addUser').classList.remove('hidden');
+      // Add close button logic for transaction modal
+      const closeTransModal = document.getElementById('closeTransModal');
+      if (closeTransModal && transactionModal) {
+        closeTransModal.addEventListener('click', () => {
+          transactionModal.classList.add('hidden');
+        });
+      }
+      // Fix for Mail Notification modal
+      const mailNotificationBtn = document.getElementById('mailNotificationBtn');
+      const mailModal = document.getElementById('mailModal');
+      if (mailNotificationBtn && mailModal) {
+        mailNotificationBtn.addEventListener('click', () => {
+          mailModal.classList.remove('hidden');
+        });
+      }
+      // Add close button logic for mail modal
+      const closeMailModal = document.getElementById('closeMailModal');
+      if (closeMailModal && mailModal) {
+        closeMailModal.addEventListener('click', () => {
+          mailModal.classList.add('hidden');
+        });
+      }
     });
+    // ✅ Dummy Data for Apply Loan Testing
+// Dummy data and fetch overrides removed. Ready for backend integration.
+
   </script>
 </head>
 <body class="bg-gray-50">
@@ -433,12 +631,13 @@
   <header class="w-full bg-white shadow-lg">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
-        <span class="text-2xl font-bold text-blue-700">FinanceApp</span>
+        <!-- Logo -->
+        <img src="logo.png" alt="Logo" class="w-12 h-12 rounded-full border border-blue-200" />
+        <span class="text-2xl font-bold text-blue-700">KSTHST coof society </span>
       </div>
       <div class="flex items-center space-x-4">
         <span class="text-gray-700">Welcome, Staff</span>
-        <a href="{{ url_for('staff_api.staff_logout') }}" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
+        <a href="landing page.html" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
       </div>
     </div>
   </header>
@@ -448,77 +647,206 @@
     <aside class="w-64 bg-white shadow-lg p-6 space-y-4">
       <h2 class="font-bold text-xl text-blue-700 mb-6">Staff Dashboard</h2>
       <nav class="space-y-3">
-        <a href="landing page.html" class="block w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">🏠 Home</a>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Check Expense</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
-        <button type="button" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkTransaction">🔎 Check Transaction</button>
+        <button type="button" id="homeBtn" class="w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">🏠 Home</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Check Expense</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
+        <!-- New Buttons -->
+        <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
+        <button id="mailNotificationBtn" class="w-full text-left px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">📧 Mail Notification</button>
       </nav>
+      <!-- Transaction Modal -->
+      <div id="transactionModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md">
+          <h3 class="text-lg font-bold mb-4 text-blue-700">Get Transactions</h3>
+          <div id="transInputPanel">
+            <label class="block mb-2">Account Number</label>
+            <input type="text" id="transAccount" class="w-full px-4 py-2 border rounded mb-3" placeholder="Enter Account Number" />
+            <button id="fetchTransBtn" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Fetch</button>
+            <button id="closeTransModal" class="bg-gray-300 text-gray-700 px-4 py-2 rounded shadow ml-2">Close</button>
+          </div>
+          <div id="transResult" class="mt-4"></div>
+        </div>
+      </div>
+      <!-- Mail Notification Modal -->
+      <div id="mailModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-lg">
+          <h3 class="text-lg font-bold mb-4 text-yellow-700">Mail Notifications</h3>
+          <div id="mailList" class="space-y-4">
+            <!-- Dummy mail notifications for testing -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <p class="font-semibold">Subject: Loan Application Approved</p>
+              <p>To: user1@domain.com</p>
+              <p>Date: 2025-08-19</p>
+              <p>Message: Your loan application (ID: 123456) has been approved.</p>
+            </div>
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-2">
+              <p class="font-semibold">Subject: Payment Reminder</p>
+              <p>To: user2@domain.com</p>
+              <p>Date: 2025-08-18</p>
+              <p>Message: Your next loan installment is due on 2025-08-25.</p>
+            </div>
+          </div>
+          <button id="closeMailModal" class="mt-4 px-6 py-2 bg-gray-300 text-gray-700 rounded shadow">Close</button>
+        </div>
+      </div>
     </aside>
 
     <!-- Main content area - Updated style -->
     <main class="flex-1 p-8 space-y-6">
-      <section id="applyLoan" class="dynamic-section hidden bg-white p-6 rounded shadow">
-        <div class="loader hidden text-center text-blue-600">Loading...</div>
-        <div class="content space-y-8">
-          <h2 class="text-xl font-bold text-blue-700 mb-4">Apply for Loan</h2>
-          <!-- Switch buttons side by side -->
-          <div class="flex flex-row space-x-4 mb-6">
-            <button id="normalLoanBtn" class="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition">Normal Loan</button>
-            <button id="emergencyLoanBtn" class="px-4 py-2 bg-gray-300 text-black rounded shadow hover:bg-gray-400 transition">Emergency Loan</button>
+      <!-- DASHBOARD SUMMARY SECTION -->
+      <section id="dashboardSummary" class="dynamic-section bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-bold text-blue-700 mb-6">Dashboard Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="flex items-center bg-blue-100 rounded-lg p-6 shadow">
+            <div class="bg-blue-500 text-white rounded-full p-4 mr-4">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M12 12a4 4 0 100-8 4 4 0 000 8zm0 0v4m0 0v4m0-4h4m-4 0H8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-2xl font-bold" id="totalCustomers">0</div>
+              <div class="text-gray-700">Total Customers</div>
+            </div>
           </div>
-          <!-- Loan Containers, only one visible at a time -->
-          <div id="normalLoanForm" class="bg-white p-6 rounded-xl shadow text-center">
-            <h3 class="text-lg font-semibold mb-4 text-blue-700">Normal Loan</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="KGID" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Interest Rate" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Account Number" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Loan Purpose" class="w-full px-4 py-2 border rounded" />
-              <input type="number" placeholder="Loan Amount" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Loan Tenure" class="w-full px-4 py-2 border rounded" />
+          <div class="flex items-center bg-green-100 rounded-lg p-6 shadow">
+            <div class="bg-green-500 text-white rounded-full p-4 mr-4">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-            <div class="mt-4 text-left">
-              <h4 class="font-semibold mb-2 text-gray-700">Sureties (Max 2)</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Surety 1" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="text" placeholder="Surety 2" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
-              </div>
+            <div>
+              <div class="text-2xl font-bold" id="activeLoans">0</div>
+              <div class="text-gray-700">Active Loans</div>
             </div>
-            <button class="mt-6 bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Apply Normal Loan</button>
           </div>
-          <div id="emergencyLoanForm" class="bg-white p-6 rounded-xl shadow text-center" style="display:none;">
-            <h3 class="text-lg font-semibold mb-4 text-blue-700">Emergency Loan</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="KGID" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Interest Rate" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Account Number" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Loan Purpose" class="w-full px-4 py-2 border rounded" />
-              <input type="number" placeholder="Loan Amount" class="w-full px-4 py-2 border rounded" />
-              <input type="text" placeholder="Loan Tenure" class="w-full px-4 py-2 border rounded" />
+          <div class="flex items-center bg-yellow-100 rounded-lg p-6 shadow">
+            <div class="bg-yellow-500 text-white rounded-full p-4 mr-4">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 0V4m0 16v-4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-            <div class="mt-4 text-left">
-              <h4 class="font-semibold mb-2 text-gray-700">Sureties (Max 2)</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Surety 1" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="text" placeholder="Surety 2" class="w-full px-4 py-2 border rounded mb-2" />
-                <input type="number" placeholder="Phone Number" class="w-full px-4 py-2 border rounded mb-2" />
-              </div>
+            <div>
+              <div class="text-2xl font-bold" id="totalAmount">₹0</div>
+              <div class="text-gray-700">Total Amount</div>
             </div>
-            <button class="mt-6 bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Apply Emergency Loan</button>
           </div>
         </div>
       </section>
-
+      <section id="applyLoan" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content space-y-8" id="applyLoanContent">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Apply for Loan</h2>
+          <form id="loanStepForm" class="w-full space-y-6 bg-white p-6 rounded-xl shadow">
+            <!-- Step 1: Select Loan Type -->
+            <div id="step1" class="space-y-4">
+              <label class="block font-semibold mb-2">Select Loan Type:</label>
+              <div class="flex gap-6">
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="loanType" value="normal" class="form-radio" required>
+                  Normal Loan
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="loanType" value="emergency" class="form-radio" required>
+                  Emergency Loan
+                </label>
+              </div>
+              <button type="button" id="toStep2Btn" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded shadow">Next</button>
+            </div>
+            <!-- Step 2: Enter Account Number -->
+            <div id="step2" class="space-y-4 hidden">
+              <label class="block font-semibold mb-2">Enter Account Number:</label>
+              <input type="text" id="loanAccountNumber" name="accountNumber" class="w-full px-4 py-2 border rounded" required>
+              <button type="button" id="fetchAccountBtn" class="px-4 py-2 bg-blue-500 text-white rounded shadow">Fetch Details</button>
+              <div id="accountFetchMsg" class="text-sm mt-2"></div>
+            </div>
+            <!-- Step 3: Preloaded and Manual Fields -->
+            <div id="step3" class="space-y-4 hidden">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block font-medium">Name</label>
+                  <input type="text" id="loanName" name="name" class="w-full px-4 py-2 border rounded bg-gray-100" readonly>
+                </div>
+                <div>
+                  <label class="block font-medium">Account Number</label>
+                  <input type="text" id="loanAccount" name="account" class="w-full px-4 py-2 border rounded bg-gray-100" readonly>
+                </div>
+                <div>
+                  <label class="block font-medium">KGID</label>
+                  <input type="text" id="loanKGID" name="kgid" class="w-full px-4 py-2 border rounded bg-gray-100" readonly>
+                </div>
+                <div>
+                  <label class="block font-medium">Loan Amount</label>
+                  <input type="number" id="loanAmount" name="loanAmount" class="w-full px-4 py-2 border rounded" required>
+                </div>
+                <div>
+                  <label class="block font-medium">Rate of Interest (%)</label>
+                  <input type="number" id="loanInterest" name="interestRate" class="w-full px-4 py-2 border rounded" required>
+                </div>
+                <div>
+                  <label class="block font-medium">Loan Tenure (months)</label>
+                  <input type="number" id="loanTenure" name="loanTenure" class="w-full px-4 py-2 border rounded" required>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block font-medium">Purpose of Loan</label>
+                  <input type="text" id="loanPurpose" name="loanPurpose" class="w-full px-4 py-2 border rounded" required>
+                </div>
+              </div>
+              <!-- Sureties Section -->
+              <div class="mt-6">
+                <label class="block font-semibold mb-2">Add Sureties (Max 2):</label>
+                <div id="suretiesContainer" class="space-y-4">
+                  <!-- Surety 1 -->
+                  <div class="bg-gray-50 p-4 rounded-xl shadow mb-2" id="surety1Box">
+                    <div class="flex gap-2 mb-2">
+                      <input type="text" id="surety1KGID" placeholder="Enter Surety 1 KGID" class="px-4 py-2 border rounded flex-1" required>
+                      <button type="button" id="checkSurety1Btn" class="bg-blue-500 text-white px-3 py-1 rounded">Check</button>
+                      <button type="button" id="removeSurety1Btn" class="bg-red-500 text-white px-3 py-1 rounded hidden">Remove</button>
+                    </div>
+                    <span id="surety1Msg" class="text-sm mb-2 block"></span>
+                    <div id="surety1Fields" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+                  </div>
+                  <!-- Surety 2 -->
+                  <div class="bg-gray-50 p-4 rounded-xl shadow" id="surety2Box">
+                    <div class="flex gap-2 mb-2">
+                      <input type="text" id="surety2KGID" placeholder="Enter Surety 2 KGID (optional)" class="px-4 py-2 border rounded flex-1">
+                      <button type="button" id="checkSurety2Btn" class="bg-blue-500 text-white px-3 py-1 rounded">Check</button>
+                      <button type="button" id="removeSurety2Btn" class="bg-red-500 text-white px-3 py-1 rounded hidden">Remove</button>
+                    </div>
+                    <span id="surety2Msg" class="text-sm mb-2 block"></span>
+                    <div id="surety2Fields" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- Terms and Conditions -->
+              <div class="mt-6">
+                <label class="flex items-start gap-2">
+                  <input type="checkbox" id="termsCheckbox" class="mt-1" required>
+                  <span>
+                    We have agreed to be surety for the loan taken by the said person. We are members of the association, and if he defaults, we have given our consent to the wage payment officers to deduct 50% of our salary or share money to repay the loan.
+                  </span>
+                </label>
+              </div>
+              <!-- Error Message -->
+              <div id="loanFormError" class="text-red-600 font-semibold mb-2"></div>
+              <!-- Apply Button -->
+              <button type="submit" id="applyLoanBtn" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded shadow w-full" disabled>Apply</button>
+            </div>
+          </form>
+          <!-- Success Popup -->
+          <div id="loanSuccessPopup" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+            <div class="bg-white p-8 rounded-xl shadow-xl text-center">
+              <div class="text-green-600 text-3xl mb-4">✔</div>
+              <div class="text-lg font-bold mb-2">Loan Application Submitted Successfully!</div>
+              <button id="closeLoanSuccess" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded shadow">Close</button>
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="accountInfo" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
         <div class="content">
@@ -531,100 +859,68 @@
         </div>
       </section>
       <script>
+        
 document.addEventListener('DOMContentLoaded', () => {
   let editing = false;
   let currentData = null;
 
   const form = document.getElementById('customerSearchForm');
   if (form) {
-    form.addEventListener('submit', async function(e) {
+    form.addEventListener('submit'), async function(e) {
       e.preventDefault();
       editing = false;
-      const kgid = document.getElementById('kgidInput').value.trim();
-      const resultDiv = document.getElementById('customerInfoResult');
-      resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
-      try {
-        const res = await fetch(`/api/customer?kgid=${encodeURIComponent(kgid)}`);
-        if (res.ok) {
-          const data = await res.json();
-          currentData = data;
-          if (data && data.name) {
-            resultDiv.innerHTML = renderCustomerInfo(data, false);
-            attachEditHandler(data);
+        const checkBtn = document.getElementById(suretyBtnId);
+        const kgidInput = document.getElementById(suretyKGIDInputId);
+        const msgDiv = document.getElementById(suretyMsgId);
+        const removeBtn = document.getElementById(suretyBtnId.replace('check', 'remove'));
+        function ensureFields(boxId) {
+          const box = document.getElementById(boxId);
+          } else if (data.alreadyBacking) {
+            msgDiv.textContent = "This surety is already backing another loan.";
+            msgDiv.style.display = '';
           } else {
-            resultDiv.innerHTML = `
-              <div class="text-red-600 font-semibold mb-4">No account found for KGID: ${kgid}</div>
-              <button onclick="window.location.href='landing page.html'" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Create Account</button>
-            `;
+            msgDiv.textContent = "Surety not found.";
+            msgDiv.style.display = '';
           }
-        } else {
-          resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
         }
-      } catch {
-        resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
-      }
-    });
-  }
-
-  function renderCustomerInfo(data, editable) {
-    if (!editable) {
-      return `
-        <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
-          <div class="mb-4">
-            <p><strong>Name:</strong> ${data.name}</p>
-            <p><strong>KGID:</strong> ${data.kgid}</p>
-            <p><strong>Phone:</strong> ${data.phone}</p>
-            <p><strong>Email:</strong> ${data.email}</p>
-            <p><strong>Address:</strong> ${data.address}</p>
-          </div>
-          <button id="editProfileBtn" class="bg-blue-500 text-white px-4 py-2 rounded shadow">Edit Profile</button>
-        </div>
-      `;
-    } else {
-      return `
-        <form id="editProfileForm" class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
-          <div class="mb-4">
-            <label class="block mb-1 font-medium">Name</label>
-            <input type="text" name="name" value="${data.name}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">KGID</label>
-            <input type="text" name="kgid" value="${data.kgid}" class="w-full px-4 py-2 border rounded mb-2" disabled />
-            <label class="block mb-1 font-medium">Phone</label>
-            <input type="text" name="phone" value="${data.phone}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">Email</label>
-            <input type="text" name="Adhar " value="${data.dhar}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">Email</label>
-            <input type="text" name="Pan" value="${data.pan}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">Email</label>
-            <input type="email" name="email" value="${data.email}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">Address</label>
-            <input type="text" name="address" value="${data.address}" class="w-full px-4 py-2 border rounded mb-2" />
-            <input type="text" name="Current Balance " value="${data.balance}" class="w-full px-4 py-2 border rounded mb-2" />
-            <label class="block mb-1 font-medium">Email</label>
-          </div>
-          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded shadow">Update</button>
-        </form>
-      `;
-    }
-  }
-
-  function attachEditHandler(data) {
-    const editBtn = document.getElementById('editProfileBtn');
-    if (editBtn) {
-      editBtn.onclick = function() {
-        editing = true;
-        const resultDiv = document.getElementById('customerInfoResult');
-        resultDiv.innerHTML = renderCustomerInfo(data, true);
-        attachUpdateHandler();
-      };
-    }
-  }
-
-  function attachUpdateHandler() {
-    const editForm = document.getElementById('editProfileForm');
-    if (editForm) {
-      editForm.onsubmit = async function(e) {
-        e.preventDefault();
-        const formData = new FormData(editForm);
+        if (checkBtn) {
+          checkBtn.addEventListener('click', async () => {
+            const kgid = kgidInput.value.trim();
+            if (!kgid) {
+              msgDiv.textContent = "Please enter a KGID.";
+              return;
+            }
+            msgDiv.textContent = "Checking surety...";
+            try {
+              const res = await fetch(`/api/check-surety?kgid=${encodeURIComponent(kgid)}`);
+              if (res.ok) {
+                const data = await res.json();
+                preloadSurety(data, checkBtn.id === 'checkSurety1Btn' ? 'surety1Box' : 'surety2Box');
+                if (data.found) {
+                  checkBtn.disabled = true;
+                  kgidInput.disabled = true;
+                  if (removeBtn) removeBtn.classList.remove('hidden');
+                }
+              } else {
+                msgDiv.textContent = "Error checking surety.";
+              }
+            } catch {
+              msgDiv.textContent = "Network error.";
+            }
+          });
+        }
+        if (removeBtn) {
+          removeBtn.addEventListener('click', () => {
+            msgDiv.textContent = "";
+            kgidInput.value = "";
+            kgidInput.disabled = false;
+            checkBtn.disabled = false;
+            removeBtn.classList.add('hidden');
+            ensureFields(checkBtn.id === 'checkSurety1Btn' ? 'surety1Box' : 'surety2Box');
+            nameField.value = '';
+            phoneField.value = '';
+          });
+        }
         const updatedData = {
           name: formData.get('name'),
           kgid: formData.get('kgid'),
@@ -651,505 +947,258 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       };
     }
+  
+
+  /* -------- Loan Type Toggle Logic -------- */
+  const normalLoanBtn = document.getElementById("normalLoanBtn");
+  const emergencyLoanBtn = document.getElementById("emergencyLoanBtn");
+  const normalLoanForm = document.getElementById("normalLoanForm");
+  const emergencyLoanForm = document.getElementById("emergencyLoanForm");
+
+  if (normalLoanBtn && emergencyLoanBtn && normalLoanForm && emergencyLoanForm) {
+    normalLoanBtn.addEventListener("click", () => {
+      normalLoanForm.style.display = "block";
+      emergencyLoanForm.style.display = "none";
+      normalLoanBtn.classList.add("bg-blue-600", "text-white");
+      normalLoanBtn.classList.remove("bg-gray-300", "text-black");
+      emergencyLoanBtn.classList.add("bg-gray-300", "text-black");
+      emergencyLoanBtn.classList.remove("bg-blue-600", "text-white");
+    });
+
+    emergencyLoanBtn.addEventListener("click", () => {
+      normalLoanForm.style.display = "none";
+      emergencyLoanForm.style.display = "block";
+      emergencyLoanBtn.classList.add("bg-blue-600", "text-white");
+      emergencyLoanBtn.classList.remove("bg-gray-300", "text-black");
+      normalLoanBtn.classList.add("bg-gray-300", "text-black");
+      normalLoanBtn.classList.remove("bg-blue-600", "text-white");
+    });
   }
 
-      /* -------- Loan Type Toggle Logic -------- */
-      const normalLoanBtn = document.getElementById("normalLoanBtn");
-      const emergencyLoanBtn = document.getElementById("emergencyLoanBtn");
-      const normalLoanForm = document.getElementById("normalLoanForm");
-      const emergencyLoanForm = document.getElementById("emergencyLoanForm");
+  // Dummy data used in the Apply Loan section:
 
-      if (normalLoanBtn && emergencyLoanBtn && normalLoanForm && emergencyLoanForm) {
-        normalLoanBtn.addEventListener("click", () => {
-          normalLoanForm.style.display = "block";
-          emergencyLoanForm.style.display = "none";
-          normalLoanBtn.classList.add("bg-blue-600", "text-white");
-          normalLoanBtn.classList.remove("bg-gray-300", "text-black");
-          emergencyLoanBtn.classList.add("bg-gray-300", "text-black");
-          emergencyLoanBtn.classList.remove("bg-blue-600", "text-white");
-        });
+  // For account number fetch (step 2):
+  // - If account number is "123456" => Name: "Ramesh Kumar", KGID: "KGID123"
+  // - If account number is "654321" => Name: "Suresh Reddy", KGID: "KGID456"
+  // Any other account number => "Account not found."
 
-        emergencyLoanBtn.addEventListener("click", () => {
-          normalLoanForm.style.display = "none";
-          emergencyLoanForm.style.display = "block";
-          emergencyLoanBtn.classList.add("bg-blue-600", "text-white");
-          emergencyLoanBtn.classList.remove("bg-gray-300", "text-black");
-          normalLoanBtn.classList.add("bg-gray-300", "text-black");
-          normalLoanBtn.classList.remove("bg-blue-600", "text-white");
-        });
-      }
+  // For surety verification (step 3):
+  // - If KGID is "KGID789" => Surety found: Name: "Mahesh", Phone: "9876543210"
+  // - If KGID is "KGID000" => "This surety is already backing another loan."
+  // Any other KGID => "Surety not found."
+</script>
 
-      /* -------- Loan Apply Section Integration -------- */
-      // Normal Loan/Emergency Loan form selectors
-      // (already declared above)
-
-      // Helper to fetch surety details and show in UI
-      async function fetchSuretyDetails(customerId, displayDiv) {
-        if (!customerId) {
-          displayDiv.innerHTML = '';
-          return;
-        }
-        displayDiv.innerHTML = '<span class="text-blue-600">Checking...</span>';
-        try {
-          const res = await fetch(`/loan/surety/${encodeURIComponent(customerId)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.status === "success") {
-              const m = data.member;
-              displayDiv.innerHTML = `
-                <div class="text-green-700 text-sm flex items-center gap-2">
-                  <img src="${m.photo_url || ''}" alt="Photo" style="height:32px;width:32px;border-radius:50%;border:1px solid #ccc;">
-                  <img src="${m.signature_url || ''}" alt="Signature" style="height:32px;width:64px;border:1px solid #ccc;">
-                  <div>
-                    <div><b>${m.name || ''}</b> (${m.customer_id || ''})</div>
-                    <div>Phone: ${m.phone || ''}</div>
-                    <div>Active Loans Backed: <b>${data.active_loan_count}</b></div>
-                  </div>
-                </div>
-              `;
-            } else {
-              displayDiv.innerHTML = `<span class="text-red-600 text-sm">Surety not found or error.</span>`;
-            }
-          } else {
-            displayDiv.innerHTML = `<span class="text-red-600 text-sm">Surety not found or error.</span>`;
-          }
-        } catch {
-          displayDiv.innerHTML = `<span class="text-red-600 text-sm">Network error.</span>`;
-        }
-      }
-
-      // Attach listeners to Normal Loan form
-      if (normalLoanForm) {
-        // Remove old surety fields, add only customer_id fields and info display
-        const suretyFields = normalLoanForm.querySelectorAll('input[placeholder^="Surety"], input[placeholder="Phone Number"]');
-        suretyFields.forEach(f => f.parentElement.remove());
-
-        // Add new surety customer_id fields and info
-        const suretySection = document.createElement('div');
-        suretySection.className = "mb-4";
-        suretySection.innerHTML = `
-          <label class="block mb-1 font-medium">Surety 1 Customer ID</label>
-          <input type="text" id="normalSurety1Input" placeholder="Surety 1 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="normalSurety1Info" class="mb-2"></div>
-          <label class="block mb-1 font-medium">Surety 2 Customer ID (optional)</label>
-          <input type="text" id="normalSurety2Input" placeholder="Surety 2 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="normalSurety2Info" class="mb-2"></div>
-        `;
-        normalLoanForm.appendChild(suretySection);
-
-        const surety1Input = document.getElementById('normalSurety1Input');
-        const surety2Input = document.getElementById('normalSurety2Input');
-        const surety1Div = document.getElementById('normalSurety1Info');
-        const surety2Div = document.getElementById('normalSurety2Info');
-        const applyBtn = normalLoanForm.querySelector('button');
-
-        surety1Input && surety1Input.addEventListener('blur', () => fetchSuretyDetails(surety1Input.value, surety1Div));
-        surety2Input && surety2Input.addEventListener('blur', () => fetchSuretyDetails(surety2Input.value, surety2Div));
-
-        applyBtn && applyBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          // Collect form data
-          const name = normalLoanForm.querySelector('input[placeholder="Name"]').value.trim();
-          const kgid = normalLoanForm.querySelector('input[placeholder="KGID"]').value.trim();
-          const interest_rate = normalLoanForm.querySelector('input[placeholder="Interest Rate"]').value.trim();
-          const account_number = normalLoanForm.querySelector('input[placeholder="Account Number"]').value.trim();
-          const loan_purpose = normalLoanForm.querySelector('input[placeholder="Loan Purpose"]').value.trim();
-          const loan_amount = normalLoanForm.querySelector('input[placeholder="Loan Amount"]').value.trim();
-          const loan_tenure = normalLoanForm.querySelector('input[placeholder="Loan Tenure"]').value.trim();
-          const surety1 = surety1Input.value.trim();
-          const surety2 = surety2Input.value.trim();
-
-          if (!name || !kgid || !interest_rate || !account_number || !loan_purpose || !loan_amount || !loan_tenure || !surety1) {
-            alert("Please fill all required fields including at least one surety.");
-            return;
-          }
-
-          const payload = {
-            name,
-            kgid,
-            interest_rate,
-            account_number,
-            loan_purpose,
-            loan_amount,
-            loan_tenure,
-            sureties: surety2 ? [surety1, surety2] : [surety1]
-          };
-
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Applying...";
-
-          try {
-            const res = await fetch('/loan/apply', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-              alert("Loan application submitted successfully!");
-              normalLoanForm.reset();
-              surety1Div.innerHTML = '';
-              surety2Div.innerHTML = '';
-            } else {
-              alert("Loan application failed: " + (data.message || "Unknown error"));
-            }
-          } catch {
-            alert("Network error during loan application.");
-          } finally {
-            applyBtn.disabled = false;
-            applyBtn.textContent = "Apply Normal Loan";
-          }
-        });
-      }
-
-      // Attach listeners to Emergency Loan form (similar logic)
-      if (emergencyLoanForm) {
-        // Remove old surety fields, add only customer_id fields and info display
-        const suretyFields = emergencyLoanForm.querySelectorAll('input[placeholder^="Surety"], input[placeholder="Phone Number"]');
-        suretyFields.forEach(f => f.parentElement.remove());
-
-        const suretySection = document.createElement('div');
-        suretySection.className = "mb-4";
-        suretySection.innerHTML = `
-          <label class="block mb-1 font-medium">Surety 1 Customer ID</label>
-          <input type="text" id="emergencySurety1Input" placeholder="Surety 1 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="emergencySurety1Info" class="mb-2"></div>
-          <label class="block mb-1 font-medium">Surety 2 Customer ID (optional)</label>
-          <input type="text" id="emergencySurety2Input" placeholder="Surety 2 Customer ID" class="w-full px-4 py-2 border rounded mb-2" />
-          <div id="emergencySurety2Info" class="mb-2"></div>
-        `;
-        emergencyLoanForm.appendChild(suretySection);
-
-        const surety1Input = document.getElementById('emergencySurety1Input');
-        const surety2Input = document.getElementById('emergencySurety2Input');
-        const surety1Div = document.getElementById('emergencySurety1Info');
-        const surety2Div = document.getElementById('emergencySurety2Info');
-        const applyBtn = emergencyLoanForm.querySelector('button');
-
-        surety1Input && surety1Input.addEventListener('blur', () => fetchSuretyDetails(surety1Input.value, surety1Div));
-        surety2Input && surety2Input.addEventListener('blur', () => fetchSuretyDetails(surety2Input.value, surety2Div));
-
-        applyBtn && applyBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          // Collect form data
-          const name = emergencyLoanForm.querySelector('input[placeholder="Name"]').value.trim();
-          const kgid = emergencyLoanForm.querySelector('input[placeholder="KGID"]').value.trim();
-          const interest_rate = emergencyLoanForm.querySelector('input[placeholder="Interest Rate"]').value.trim();
-          const account_number = emergencyLoanForm.querySelector('input[placeholder="Account Number"]').value.trim();
-          const loan_purpose = emergencyLoanForm.querySelector('input[placeholder="Loan Purpose"]').value.trim();
-          const loan_amount = emergencyLoanForm.querySelector('input[placeholder="Loan Amount"]').value.trim();
-          const loan_tenure = emergencyLoanForm.querySelector('input[placeholder="Loan Tenure"]').value.trim();
-          const surety1 = surety1Input.value.trim();
-          const surety2 = surety2Input.value.trim();
-
-          if (!name || !kgid || !interest_rate || !account_number || !loan_purpose || !loan_amount || !loan_tenure || !surety1) {
-            alert("Please fill all required fields including at least one surety.");
-            return;
-          }
-
-          const payload = {
-            name,
-            kgid,
-            interest_rate,
-            account_number,
-            loan_purpose,
-            loan_amount,
-            loan_tenure,
-            sureties: surety2 ? [surety1, surety2] : [surety1]
-          };
-
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Applying...";
-
-          try {
-            const res = await fetch('/loan/apply', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-              alert("Loan application submitted successfully!");
-              emergencyLoanForm.reset();
-              surety1Div.innerHTML = '';
-              surety2Div.innerHTML = '';
-            } else {
-              alert("Loan application failed: " + (data.message || "Unknown error"));
-            }
-          } catch {
-            alert("Network error during loan application.");
-          } finally {
-            applyBtn.disabled = false;
-            applyBtn.textContent = "Apply Emergency Loan";
-          }
-        });
-      }
-
-      // Show Add User section by default
-      document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
-      document.getElementById('addUser').classList.remove('hidden');
-    });
-  </script>
-
-  <!-- Place this above the customer info/search section -->
-  <div id="customerMsg" class="mb-4 text-center text-sm font-semibold" style="display:none;"></div>
-
-  <section id="addUser" class="dynamic-section bg-white p-6 rounded shadow">
-    <div class="loader hidden text-center text-blue-600">Loading...</div>
-    <div class="content">
-      <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
-      <!-- Move message box here, styled as alert -->
-      <div id="addUserMsg" class="mb-4 text-center hidden"></div>
-      <form id="addUserForm">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- First / Middle / Last Name -->
-          <div>
-            <label class="block text-sm font-medium mb-1">First Name</label>
-            <input type="text" name="first_name" placeholder="First Name" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Middle Name</label>
-            <input type="text" name="middle_name" placeholder="Middle Name" class="border p-2 rounded w-full" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Last Name</label>
-            <input type="text" name="last_name" placeholder="Last Name" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">KGID</label>
-            <input type="text" name="kgid" placeholder="KGID" class="border p-2 rounded w-full" required />
-          </div>
-          <!-- Phone & Email Row -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Phone Number</label>
-            <input type="text" name="phone" placeholder="Phone Number" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Email</label>
-            <div class="flex gap-2">
-              <input type="email" name="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" required />
-              <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">
-                Verify
-              </button>
-            </div>
-          </div>
-          <!-- OTP Input -->
-          <div id="otpContainer" class="col-span-1 md:col-span-2 hidden">
-            <label class="block text-sm font-medium mb-1">Enter OTP</label>
-            <input type="text" id="otpInput" name="otp" placeholder="Enter OTP" class="border p-2 rounded w-full" />
-          </div>
-          <!-- More User Details -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Father's Name</label>
-            <input type="text" name="father_name" placeholder="Father's Name" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Salary</label>
-            <input type="text" name="salary" placeholder="Salary" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Organization Name</label>
-            <input type="text" name="organization_name" placeholder="Organization Name" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Aadhar Number</label>
-            <input type="text" name="aadhar_no" placeholder="Aadhar Number" class="border p-2 rounded w-full" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">PAN Number</label>
-            <input type="text" name="pan_no" placeholder="PAN Number" class="border p-2 rounded w-full" required />
-          </div>
-          <!-- Address -->
-          <div class="col-span-1 md:col-span-2">
-            <label class="block text-sm font-medium mb-1">Address</label>
-            <textarea name="address" placeholder="Address" class="border p-2 rounded w-full" required></textarea>
-          </div>
-          <!-- Photo Upload -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
-            <input type="file" name="photo" class="border p-2 rounded w-full" accept="image/*" required />
-          </div>
-          <!-- Signature Upload -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
-            <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" required />
+<section id="addUser" class="dynamic-section hidden bg-white p-6 rounded shadow">
+  <div class="loader hidden text-center text-blue-600">Loading...</div>
+  <div class="content">
+    <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
+    <!-- Move message box here, styled as alert -->
+    <div id="addUserMsg" class="mb-4 text-center hidden"></div>
+    <form id="addUserForm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- First / Middle / Last Name -->
+        <div>
+          <label class="block text-sm font-medium mb-1">First Name</label>
+          <input type="text" name="first_name" placeholder="First Name" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Middle Name</label>
+          <input type="text" name="middle_name" placeholder="Middle Name" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Last Name</label>
+          <input type="text" name="last_name" placeholder="Last Name" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">KGID</label>
+          <input type="text" name="kgid" placeholder="KGID" class="border p-2 rounded w-full" required />
+        </div>
+        <!-- Phone & Email Row -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Phone Number</label>
+          <input type="text" name="phone" placeholder="Phone Number" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Email</label>
+          <div class="flex gap-2">
+            <input type="email" name="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" required />
+            <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">
+              Verify
+            </button>
           </div>
         </div>
-        <!-- Warning Message -->
-        <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
-        <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
-      </form>
-    </div>
-  </section>
-  <script>
-(function() {
+        <!-- OTP Input -->
+        <div id="otpContainer" class="col-span-1 md:col-span-2 hidden">
+          <label class="block text-sm font-medium mb-1">Enter OTP</label>
+          <input type="text" id="otpInput" name="otp" placeholder="Enter OTP" class="border p-2 rounded w-full" />
+        </div>
+        <!-- More User Details -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Father's Name</label>
+          <input type="text" name="father_name" placeholder="Father's Name" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Salary</label>
+          <input type="text" name="salary" placeholder="Salary" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Organization Name</label>
+          <input type="text" name="organization_name" placeholder="Organization Name" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Aadhar Number</label>
+          <input type="text" name="aadhar_no" placeholder="Aadhar Number" class="border p-2 rounded w-full" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">PAN Number</label>
+          <input type="text" name="pan_no" placeholder="PAN Number" class="border p-2 rounded w-full" required />
+        </div>
+        <!-- Address -->
+        <div class="col-span-1 md:col-span-2">
+          <label class="block text-sm font-medium mb-1">Address</label>
+          <textarea name="address" placeholder="Address" class="border p-2 rounded w-full" required></textarea>
+        </div>
+        <!-- Photo Upload -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+          <input type="file" name="photo" class="border p-2 rounded w-full" accept="image/*" required />
+        </div>
+        <!-- Signature Upload -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+          <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" required />
+        </div>
+      </div>
+      <!-- Warning Message -->
+      <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
+      <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
+    </form>
+    <!-- Remove the old message box from below the form -->
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  let emailVerified = false;
   let otpSent = false;
   let otpVerified = false;
 
-  // Wait for DOM to be fully loaded
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('Add User script loaded');
-    
-    const verifyBtn = document.getElementById('verifyEmailBtn');
-    const otpContainer = document.getElementById('otpContainer');
-    const otpInput = document.getElementById('otpInput');
-    const warning = document.getElementById('verifyWarning');
-    const addUserBtn = document.getElementById('addUserBtn');
-    const addUserForm = document.getElementById('addUserForm');
-    const addUserMsg = document.getElementById('addUserMsg');
-    const emailInput = document.getElementById('emailInput');
+  const verifyBtn = document.getElementById('verifyEmailBtn');
+  const otpContainer = document.getElementById('otpContainer');
+  const otpInput = document.getElementById('otpInput');
+  const warning = document.getElementById('verifyWarning');
+  const addUserBtn = document.getElementById('addUserBtn');
+  const addUserForm = document.getElementById('addUserForm');
+  const addUserMsg = document.getElementById('addUserMsg');
+  const emailInput = document.getElementById('emailInput');
 
-    if (!verifyBtn) {
-      console.error('Verify button not found!');
+  // Send OTP to email
+  verifyBtn.addEventListener('click', async () => {
+    const email = emailInput.value.trim();
+    if (!email) {
+      addUserMsg.textContent = "Please enter an email.";
       return;
     }
-
-    console.log('All elements found, attaching event listeners');
-
-    // Send OTP to email
-    verifyBtn.addEventListener('click', async function() {
-      console.log('Verify button clicked');
-      
-      const email = emailInput.value.trim();
-      
-      // Show message box and set initial styling
-      addUserMsg.classList.remove('hidden');
-      addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
-      
-      if (!email) {
-        addUserMsg.textContent = "Please enter an email.";
-        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+    verifyBtn.disabled = true;
+    addUserMsg.textContent = "Sending OTP...";
+    try {
+      // Create a FormData with only the 'email' field
+      const formData = new FormData();
+      formData.append('email', email);
+      const res = await fetch('/staff/api/add-member/send-otp', {
+        method: 'POST',
+        body: formData
+      });
+      // If response is not JSON, show error
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        addUserMsg.textContent = "Server error. Please check backend logs.";
+        verifyBtn.disabled = false;
         return;
       }
-      
-      verifyBtn.disabled = true;
-      verifyBtn.textContent = "Sending...";
-      addUserMsg.textContent = "Sending OTP...";
-      
-      try {
-        const formData = new FormData();
-        formData.append('email', email);
-        
-        console.log('Sending request to /staff/api/add-member/send-otp');
-        
-        const response = await fetch('/staff/api/add-member/send-otp', {
-          method: 'POST',
-          body: formData
-        });
-        
-        console.log('Response status:', response.status);
-        
-        let data;
-        try {
-          data = await response.json();
-          console.log('Response data:', data);
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          addUserMsg.textContent = "Server error. Invalid response format.";
-          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-          verifyBtn.disabled = false;
-          verifyBtn.textContent = "Verify";
-          return;
-        }
-        
-        if (data.status === 'success') {
-          otpContainer.classList.remove('hidden');
-          otpInput.focus();
-          addUserMsg.textContent = "OTP sent to email. Enter OTP to continue.";
-          addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
-          otpSent = true;
-          verifyBtn.textContent = "OTP Sent";
-        } else {
-          addUserMsg.textContent = data.message || "Failed to send OTP.";
-          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-          verifyBtn.disabled = false;
-          verifyBtn.textContent = "Verify";
-        }
-      } catch (error) {
-        console.error('Network error:', error);
-        addUserMsg.textContent = "Network error. Check your connection.";
-        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-        verifyBtn.disabled = false;
-        verifyBtn.textContent = "Verify";
-      }
-    });
-
-    // OTP input handler
-    otpInput.addEventListener('input', function() {
-      if (otpInput.value.length >= 6) {
-        otpVerified = true;
-        otpInput.classList.add('border-green-500');
-        addUserMsg.textContent = "OTP verified!";
-        addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+      if (data.status === 'success') {
+        otpContainer.classList.remove('hidden');
+        otpInput.focus();
+        addUserMsg.textContent = "OTP sent to email. Enter OTP to continue.";
+        otpSent = true;
       } else {
-        otpVerified = false;
-        otpInput.classList.remove('border-green-500');
+        addUserMsg.textContent = data.message || "Failed to send OTP.";
+        verifyBtn.disabled = false;
       }
-    });
+    } catch (err) {
+      addUserMsg.textContent = "Network error.";
+      verifyBtn.disabled = false;
+    }
+  });
 
-    // Form submit handler
-    addUserForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      if (!otpSent || !otpVerified) {
-        warning.classList.remove('hidden');
-        addUserMsg.textContent = "Please verify your email and enter OTP.";
+  // OTP input handler
+  otpInput.addEventListener('input', () => {
+    if (otpInput.value.length === 6) {
+      otpVerified = true;
+      otpInput.classList.add('border-green-500');
+      addUserMsg.textContent = "";
+    } else {
+      otpVerified = false;
+      otpInput.classList.remove('border-green-500');
+    }
+  });
+
+  // Form submit handler
+  addUserForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!otpSent || !otpVerified) {
+      warning.classList.remove('hidden');
+      addUserMsg.textContent = "Please verify your email and enter OTP.";
+      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+      addUserMsg.classList.remove('hidden');
+      return;
+    }
+    warning.classList.add('hidden');
+    addUserMsg.textContent = "Submitting user...";
+    addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
+    addUserMsg.classList.remove('hidden');
+    const formData = new FormData(addUserForm);
+
+    // Combine first/middle/last name into 'name'
+    const name = [
+      formData.get('first_name') || '',
+      formData.get('middle_name') || '',
+      formData.get('last_name') || ''
+    ].filter(Boolean).join(' ');
+    formData.set('name', name);
+
+    // Remove individual name fields
+    formData.delete('first_name');
+    formData.delete('middle_name');
+    formData.delete('last_name');
+
+    try {
+      const res = await fetch('/staff/api/add-member', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        addUserMsg.textContent = "User added successfully!";
+        addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+        addUserMsg.classList.remove('hidden');
+        addUserForm.reset();
+        otpContainer.classList.add('hidden');
+        verifyBtn.disabled = false;
+        otpSent = false;
+        otpVerified = false;
+      } else {
+        addUserMsg.textContent = data.message || "Failed to add user.";
         addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         addUserMsg.classList.remove('hidden');
-        return;
       }
-      
-      warning.classList.add('hidden');
-      addUserMsg.textContent = "Submitting user...";
-      addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
-      addUserBtn.disabled = true;
-      
-      const formData = new FormData(addUserForm);
-
-      // Combine first/middle/last name into 'name'
-      const name = [
-        formData.get('first_name') || '',
-        formData.get('middle_name') || '',
-        formData.get('last_name') || ''
-      ].filter(Boolean).join(' ');
-      formData.set('name', name);
-
-      // Remove individual name fields
-      formData.delete('first_name');
-      formData.delete('middle_name');
-      formData.delete('last_name');
-
-      try {
-        const response = await fetch('/staff/api/add-member', {
-          method: 'POST',
-          body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-          addUserMsg.textContent = "User added successfully!";
-          addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
-          addUserForm.reset();
-          otpContainer.classList.add('hidden');
-          verifyBtn.disabled = false;
-          verifyBtn.textContent = "Verify";
-          otpSent = false;
-          otpVerified = false;
-        } else {
-          addUserMsg.textContent = data.message || "Failed to add user.";
-          addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-        }
-      } catch (error) {
-        console.error('Submit error:', error);
-        addUserMsg.textContent = "Network error during submission.";
-        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      } finally {
-        addUserBtn.disabled = false;
-      }
-    });
+    } catch (err) {
+      addUserMsg.textContent = "Network error.";
+      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+      addUserMsg.classList.remove('hidden');
+    }
   });
-})();
 </script>
 
       <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
@@ -1190,13 +1239,22 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
 });
 </script>
 
-      <!-- Deposit/Withdraw Section -->
       <section id="depositWithdraw" class="dynamic-section hidden bg-white p-6 rounded shadow">
   <div class="loader hidden text-center text-blue-600">Loading...</div>
   <div class="content space-y-6">
     <h2 class="text-xl font-bold text-blue-700 mb-4">Deposit / Withdraw</h2>
 
- 
+    <!-- Search Customer -->
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="customerIdInput" placeholder="Enter Customer ID / KGID" class="flex-1 border p-2 rounded" />
+      <button id="searchCustomerBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Search Customer</button>
+    </div>
+
+    <!-- Customer Info -->
+    <div id="customerInfo" class="hidden p-3 bg-gray-100 rounded border">
+      <p><strong>Name:</strong> <span id="customerName">-</span></p>
+      <p><strong>Current Balance:</strong> ₹<span id="customerBalance">0</span></p>
+    </div>
 
     <!-- Toggle Buttons -->
     <div class="flex gap-2 mb-4">
@@ -1207,423 +1265,270 @@ document.getElementById('downloadReportBtn').addEventListener('click', () => {
     <!-- Deposit Form -->
     <div id="depositForm" class="bg-white p-6 rounded-xl shadow">
       <h3 class="text-lg font-semibold mb-4 text-green-700 text-center">Deposit</h3>
-      <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="depositCustomerId" />
-      <input type="text" placeholder="Account Number (To Account)" class="w-full px-4 py-2 border rounded mb-3" id="depositAccount" />
-      <input type="text" placeholder="From Account (e.g. CASH, Bank)" class="w-full px-4 py-2 border rounded mb-3" id="depositFromAccount" />
+      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="depositName" />
       <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="depositAmount" />
       <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="depositDate" />
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="from Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositBank" />
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="To Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositBank" />
+      </div>
       <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="depositTxnId" />
-      <input type="text" placeholder="Remarks (optional)" class="w-full px-4 py-2 border rounded mb-3" id="depositRemarks" />
-      <input type="hidden" id="depositStaffId" />
-      <input type="hidden" id="depositStaffName" />
       <button id="depositBtn" class="bg-green-500 text-white px-6 py-2 rounded w-full shadow hover:bg-green-600 transition">Deposit</button>
     </div>
 
     <!-- Withdraw Form -->
     <div id="withdrawForm" class="bg-white p-6 rounded-xl shadow hidden">
       <h3 class="text-lg font-semibold mb-4 text-red-700 text-center">Withdraw</h3>
-      <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawCustomerId" />
-      <input type="text" placeholder="Account Number (From Account)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAccount" />
-      <input type="text" placeholder="To Account (e.g. CASH, Bank)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawToAccount" />
+      <input type="text" placeholder="Name" class="w-full px-4 py-2 border rounded mb-3" id="withdrawName" />
       <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAmount" />
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="from Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawBank" />
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" placeholder="To Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawAccount" />
+        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawBank" />
+      </div>
       <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="withdrawDate" />
       <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawTxnId" />
-      <input type="text" placeholder="Remarks (optional)" class="w-full px-4 py-2 border rounded mb-3" id="withdrawRemarks" />
-      <input type="hidden" id="withdrawStaffId" />
-      <input type="hidden" id="withdrawStaffName" />
       <button id="withdrawBtn" class="bg-red-500 text-white px-6 py-2 rounded w-full shadow hover:bg-red-600 transition">Withdraw</button>
     </div>
 
-    <!-- Add this somewhere inside the deposit/withdraw section for messages -->
-    <div id="transactionMsg" class="mb-4 text-center text-sm font-semibold" style="display:none;"></div>
   </div>
 </section>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  // Set staff info (replace with actual values from session/backend)
-  const staffId = window.staffId || ""; // e.g. set from backend/session
-  const staffName = window.staffName || ""; // e.g. set from backend/session
-  document.getElementById("depositStaffId").value = staffId;
-  document.getElementById("depositStaffName").value = staffName;
-  document.getElementById("withdrawStaffId").value = staffId;
-  document.getElementById("withdrawStaffName").value = staffName;
 
-  function showTransactionMsg(msg, type) {
-    const el = document.getElementById("transactionMsg");
-    el.textContent = msg;
-    el.className = "mb-4 text-center text-sm font-semibold " +
-      (type === "success" ? "text-green-600 bg-green-100" :
-       type === "error" ? "text-red-600 bg-red-100" :
-       "text-blue-600 bg-blue-100");
-    el.style.display = "block";
-    setTimeout(() => {
-      el.style.display = "none";
-      el.textContent = "";
-    }, 4000); // Hide after 4 seconds
+  const depositForm = document.getElementById("depositForm");
+  const withdrawForm = document.getElementById("withdrawForm");
+  const depositBtnToggle = document.getElementById("showDepositBtn");
+  const withdrawBtnToggle = document.getElementById("showWithdrawBtn");
+
+  // Toggle Deposit/Withdraw
+  function toggleForms(showDeposit) {
+    if (showDeposit) {
+      depositForm.classList.remove("hidden");
+      withdrawForm.classList.add("hidden");
+      depositBtnToggle.classList.add("bg-green-500", "text-white");
+      depositBtnToggle.classList.remove("bg-gray-300");
+      withdrawBtnToggle.classList.add("bg-gray-300");
+      withdrawBtnToggle.classList.remove("bg-red-500", "text-white");
+    } else {
+      withdrawForm.classList.remove("hidden");
+      depositForm.classList.add("hidden");
+      withdrawBtnToggle.classList.add("bg-red-500", "text-white");
+      withdrawBtnToggle.classList.remove("bg-gray-300");
+      depositBtnToggle.classList.add("bg-gray-300");
+      depositBtnToggle.classList.remove("bg-green-500", "text-white");
+    }
   }
 
-  // Deposit
-  document.getElementById("depositBtn").addEventListener("click", async () => {
-    const depositData = {
-      customer_id: document.getElementById("depositCustomerId").value.trim(),
-      account_number: document.getElementById("depositAccount").value.trim(),
-      type: "deposit",
-      amount: document.getElementById("depositAmount").value.trim(),
-      from_account: document.getElementById("depositFromAccount").value.trim(),
-      to_account: document.getElementById("depositAccount").value.trim(),
-      date: document.getElementById("depositDate").value.trim(),
-      transaction_id: document.getElementById("depositTxnId").value.trim(),
-      remarks: document.getElementById("depositRemarks").value.trim(),
-      staff_id: document.getElementById("depositStaffId").value.trim(),
-      staff_name: document.getElementById("depositStaffName").value.trim()
-    };
+  depositBtnToggle.addEventListener("click", () => toggleForms(true));
+  withdrawBtnToggle.addEventListener("click", () => toggleForms(false));
 
-    // Basic validation
-    if (!depositData.customer_id || !depositData.account_number || !depositData.amount || !depositData.date || !depositData.transaction_id || !depositData.from_account) {
-      alert("Please fill all required Deposit fields.");
+  // Search Customer (Demo Data)
+  document.getElementById("searchCustomerBtn").addEventListener("click", () => {
+    const customerId = document.getElementById("customerIdInput").value.trim();
+
+    if (!customerId) {
+      alert("Please enter a Customer ID or KGID");
       return;
     }
 
-    const formData = new FormData();
-    Object.entries(depositData).forEach(([k, v]) => formData.append(k, v));
+    // Simulated fetch from DB
+    const dummyData = {
+      "KGID123": { name: "Ramesh Kumar", balance: 45000 },
+      "KGID456": { name: "Suresh Reddy", balance: 32000 }
+    };
 
-    try {
-      const res = await fetch("/staff/api/add-transaction", {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        showTransactionMsg("Deposit successful! New balance: ₹" + data.balance_after, "success");
-        // Redirect to certificate page
-        if (data.receipt_url) {
-          window.location.href = data.receipt_url;
-        }
-      } else {
-        showTransactionMsg("Deposit failed: " + (data.message || "Unknown error"), "error");
-      }
-    } catch (err) {
-      showTransactionMsg("Network error during deposit.", "error");
+    if (dummyData[customerId]) {
+      document.getElementById("customerName").innerText = dummyData[customerId].name;
+      document.getElementById("customerBalance").innerText = dummyData[customerId].balance;
+      document.getElementById("customerInfo").classList.remove("hidden");
+    } else {
+      alert("Customer not found!");
     }
+  });
+
+  // Deposit
+  document.getElementById("depositBtn").addEventListener("click", () => {
+    const depositData = {
+      name: document.getElementById("depositName").value.trim(),
+      amount: document.getElementById("depositAmount").value.trim(),
+      date: document.getElementById("depositDate").value.trim(),
+      accountNumber: document.getElementById("depositAccount").value.trim(),
+      bankName: document.getElementById("depositBank").value.trim(),
+      transactionId: document.getElementById("depositTxnId").value.trim()
+    };
+
+    if (Object.values(depositData).some(v => v === "")) {
+      alert("Please fill all Deposit fields.");
+      return;
+    }
+
+    console.log("Deposit Data:", depositData);
+    alert("Deposit request submitted!");
   });
 
   // Withdraw
-  document.getElementById("withdrawBtn").addEventListener("click", async () => {
+  document.getElementById("withdrawBtn").addEventListener("click", () => {
     const withdrawData = {
-      customer_id: document.getElementById("withdrawCustomerId").value.trim(),
-      account_number: document.getElementById("withdrawAccount").value.trim(),
-      type: "withdraw",
+      name: document.getElementById("withdrawName").value.trim(),
       amount: document.getElementById("withdrawAmount").value.trim(),
-      from_account: document.getElementById("withdrawAccount").value.trim(),
-      to_account: document.getElementById("withdrawToAccount").value.trim(),
+      accountNumber: document.getElementById("withdrawAccount").value.trim(),
+      bankName: document.getElementById("withdrawBank").value.trim(),
       date: document.getElementById("withdrawDate").value.trim(),
-      transaction_id: document.getElementById("withdrawTxnId").value.trim(),
-      remarks: document.getElementById("withdrawRemarks").value.trim(),
-      staff_id: document.getElementById("withdrawStaffId").value.trim(),
-      staff_name: document.getElementById("withdrawStaffName").value.trim()
+      transactionId: document.getElementById("withdrawTxnId").value.trim()
     };
 
-    // Basic validation
-    if (!withdrawData.customer_id || !withdrawData.account_number || !withdrawData.amount || !withdrawData.date || !withdrawData.transaction_id || !withdrawData.to_account) {
-      alert("Please fill all required Withdraw fields.");
+    if (Object.values(withdrawData).some(v => v === "")) {
+      alert("Please fill all Withdraw fields.");
       return;
     }
 
-    const formData = new FormData();
-    Object.entries(withdrawData).forEach(([k, v]) => formData.append(k, v));
-
-    try {
-      const res = await fetch("/staff/api/add-transaction", {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        showTransactionMsg("Withdraw successful! New balance: ₹" + data.balance_after, "success");
-        // Redirect to certificate page
-        if (data.receipt_url) {
-          window.location.href = data.receipt_url;
-        }
-      } else {
-        showTransactionMsg("Withdraw failed: " + (data.message || "Unknown error"), "error");
-      }
-    } catch (err) {
-      showTransactionMsg("Network error during withdraw.", "error");
-    }
+    console.log("Withdraw Data:", withdrawData);
+    alert("Withdraw request submitted!");
   });
 
-  // Toggle Deposit/Withdraw forms
-  const depositBtnToggle = document.getElementById("showDepositBtn");
-  const withdrawBtnToggle = document.getElementById("showWithdrawBtn");
-  const depositForm = document.getElementById("depositForm");
-  const withdrawForm = document.getElementById("withdrawForm");
-
-  depositBtnToggle.addEventListener("click", function () {
-    depositForm.classList.remove("hidden");
-    withdrawForm.classList.add("hidden");
-    depositBtnToggle.classList.add("bg-green-500", "text-white");
-    depositBtnToggle.classList.remove("bg-gray-300");
-    withdrawBtnToggle.classList.remove("bg-red-500", "text-white");
-    withdrawBtnToggle.classList.add("bg-gray-300");
-  });
-
-  withdrawBtnToggle.addEventListener("click", function () {
-    withdrawForm.classList.remove("hidden");
-    depositForm.classList.add("hidden");
-    withdrawBtnToggle.classList.add("bg-red-500", "text-white");
-    withdrawBtnToggle.classList.remove("bg-gray-300");
-    depositBtnToggle.classList.remove("bg-green-500", "text-white");
-    depositBtnToggle.classList.add("bg-gray-300");
-  });
-
-  // Search Customer functionality (replace with actual API call)
-  const searchCustomerBtn = document.getElementById("searchCustomerBtn");
-  if (searchCustomerBtn) {
-    searchCustomerBtn.addEventListener("click", async function () {
-      const customerId = document.getElementById("customerIdInput").value.trim();
-      if (!customerId) {
-        showCustomerMsg("Please enter a Customer ID or KGID", "error");
-        return;
-      }
-
-      try {
-        const res = await fetch(`/staff/api/get-customer?customer_id=${encodeURIComponent(customerId)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.name) {
-            document.getElementById("customerName").innerText = data.name;
-            document.getElementById("customerBalance").innerText = data.balance;
-            document.getElementById("customerInfo").classList.remove("hidden");
-            document.getElementById("depositCustomerId").value = customerId;
-            document.getElementById("withdrawCustomerId").value = customerId;
-            showCustomerMsg("Customer found.", "success");
-          } else {
-            showCustomerMsg("Customer ID not found!", "error");
-            document.getElementById("customerInfo").classList.add("hidden");
-          }
-        } else {
-          if (res.status === 404) {
-            showCustomerMsg("Customer ID not found!", "error");
-            document.getElementById("customerInfo").classList.add("hidden");
-          } else {
-            showCustomerMsg("Error fetching customer info.", "error");
-            document.getElementById("customerInfo").classList.add("hidden");
-          }
-        }
-      } catch (err) {
-        showCustomerMsg("Network error while searching customer.", "error");
-        document.getElementById("customerInfo").classList.add("hidden");
-      }
-    });
-  }
-
-  // Loan Repayment search logic
-  const loanSearchForm = document.getElementById('loanSearchForm');
-  if (loanSearchForm) {
-    loanSearchForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const type = document.getElementById('loanSearchType').value;
-      const value = document.getElementById('loanSearchInput').value.trim();
-      const resultDiv = document.getElementById('loanInfoResult');
-      const autoTxnDiv = document.getElementById('autoTransactionFormContainer');
-      resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
-      autoTxnDiv.innerHTML = '';
-      try {
-        const res = await fetch(`/api/loan?${type}=${encodeURIComponent(value)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.loanAmount) {
-            resultDiv.innerHTML = `
-              <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
-                <p><strong>Loan Amount:</strong> ₹${data.loanAmount}</p>
-                <p><strong>Recovered:</strong> ₹${data.recovered}</p>
-                <p><strong>Pending:</strong> ₹${data.pending}</p>
-                <p><strong>Term:</strong> ${data.term} months</p>
-              </div>
-            `;
-            autoTxnDiv.innerHTML = `
-              <div class="bg-white p-6 rounded-xl shadow mt-4">
-                <h3 class="text-lg font-semibold mb-4 text-blue-700">Auto Transaction to Another Person</h3>
-                <form id="autoTransactionForm" class="space-y-3">
-                  <input type="text" name="holderName" placeholder="Account Holder Name" class="w-full px-4 py-2 border rounded" required />
-                  <input type="text" name="bankName" placeholder="Bank Name" class="w-full px-4 py-2 border rounded" required />
-                  <input type="text" name="accountNo" placeholder="Account Number" class="w-full px-4 py-2 border rounded" required />
-                  <input type="text" name="transactionId" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded" required />
-                  <input type="date" name="date" class="w-full px-4 py-2 border rounded" required />
-                  <input type="number" name="amount" placeholder="Amount" class="w-full px-4 py-2 border rounded" required />
-                  <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded w-full shadow hover:bg-blue-600 transition">Submit</button>
-                </form>
-                <div id="autoTxnResult" class="mt-2"></div>
-              </div>
-            `;
-            // Handle auto transaction submit
-            const autoTxnForm = document.getElementById('autoTransactionForm');
-            if (autoTxnForm) {
-              autoTxnForm.onsubmit = async function(ev) {
-                ev.preventDefault();
-                const formData = new FormData(autoTxnForm);
-                const payload = {
-                  holderName: formData.get('holderName'),
-                  bankName: formData.get('bankName'),
-                  accountNo: formData.get('accountNo'),
-                  transactionId: formData.get('transactionId'),
-                  date: formData.get('date'),
-                  amount: formData.get('amount'),
-                  loanId: data.loanId
-                };
-                const result = document.getElementById('autoTxnResult');
-                result.innerHTML = '<div class="text-blue-600">Processing...</div>';
-                try {
-                  const resp = await fetch('/api/loan/auto-transaction', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                  });
-                  if (resp.ok) {
-                    result.innerHTML = '<div class="text-green-600">Transaction submitted successfully!</div>';
-                  } else {
-                    result.innerHTML = '<div class="text-red-600">Transaction failed.</div>';
-                  }
-                } catch {
-                  result.innerHTML = '<div class="text-red-600">Network error.</div>';
-                }
-              };
-            }
-          } else {
-            resultDiv.innerHTML = `<div class="text-red-600">No loan found.</div>`;
-          }
-        } else {
-          resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
-        }
-      } catch {
-        resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
-      }
-    });
-  }
-
-  // Loan Repayment logic
-  document.addEventListener('DOMContentLoaded', () => {
-    const loanRepaymentForm = document.getElementById('loanRepaymentForm');
-    if (loanRepaymentForm) {
-      loanRepaymentForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const loan_id = document.getElementById('repayLoanIdInput').value.trim();
-        const amount = document.getElementById('repayAmountInput').value.trim();
-        const resultDiv = document.getElementById('loanRepaymentResult');
-        resultDiv.innerHTML = '<div class="text-blue-600">Processing...</div>';
-        try {
-          const res = await fetch('/api/loan/repay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ loan_id, amount })
-          });
-          const data = await res.json();
-          if (res.ok) {
-            resultDiv.innerHTML = `<div class="text-green-600">${data.message}</div>`;
-          } else {
-            resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Repayment failed.'}</div>`;
-          }
-        } catch {
-          resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
-        }
-      });
-    }
-
-    // Next Installment logic
-    const nextInstallmentForm = document.getElementById('nextInstallmentForm');
-    if (nextInstallmentForm) {
-      nextInstallmentForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const loan_id = document.getElementById('nextInstallmentLoanIdInput').value.trim();
-        const resultDiv = document.getElementById('nextInstallmentResult');
-        resultDiv.innerHTML = '<div class="text-blue-600">Checking...</div>';
-        try {
-          const res = await fetch(`/api/loan/next-installment?loan_id=${encodeURIComponent(loan_id)}`);
-          const data = await res.json();
-          if (res.ok) {
-            resultDiv.innerHTML = `
-              <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
-                <p><strong>Next Installment:</strong> ₹${data.next_installment}</p>
-                <p><strong>Due Date:</strong> ${data.due_date}</p>
-                <p><strong>Status:</strong> ${data.status}</p>
-              </div>
-            `;
-          } else {
-            resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Error fetching installment.'}</div>`;
-          }
-        } catch {
-          resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
-        }
-      });
-    }
-  });
-
-  // Check Transaction logic
-  const transactionForm = document.getElementById('transactionSearchForm');
-  if (transactionForm) {
-    transactionForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const stid = document.getElementById('transactionIdInput').value.trim();
-      const resultDiv = document.getElementById('transactionResult');
-      resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
-      try {
-        const res = await fetch(`/staff/transaction/check/${encodeURIComponent(stid)}`);
-        const data = await res.json();
-        if (res.ok) {
-          resultDiv.innerHTML = `
-            <div class="bg-gray-50 p-4 rounded shadow mb-2 text-left">
-              <p><strong>Transaction ID:</strong> ${data.transaction_id}</p>
-              <p><strong>Amount:</strong> ₹${data.amount}</p>
-              <p><strong>Status:</strong> ${data.status}</p>
-              <p><strong>Date:</strong> ${data.date}</p>
-            </div>
-          `;
-        } else {
-          resultDiv.innerHTML = `<div class="text-red-600">${data.message || 'Transaction not found.'}</div>`;
-        }
-      } catch {
-        resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
-      }
-    });
-  }
+});
 </script>
+      <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Loan Repayment</h2>
+          <!-- Search Type Selection -->
+          <div class="mb-4">
+            <label class="font-semibold mr-2">Search By:</label>
+            <select id="loanSearchType" class="border p-2 rounded">
+              <option value="loanId">Loan ID</option>
+              <option value="accountNumber">Account Number</option>
+            </select>
+          </div>
+          <!-- Search Bar -->
+          <form id="loanSearchForm" class="mb-4 flex gap-2">
+            <input type="text" id="loanSearchInput" placeholder="Enter Loan ID or Account Number" class="border p-2 w-full rounded" />
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+          </form>
+          <!-- Loan Info Result -->
+          <div id="loanInfoResult"></div>
+          <!-- Auto Transaction Form -->
+          <div id="autoTransactionFormContainer" class="mt-6"></div>
+        </div>
+      </section>
+      <section id="nextInstallment" class="dynamic-section hidden bg-white p-6 rounded shadow">
+  <div class="loader hidden text-center text-blue-600">Loading...</div>
+  <div class="content space-y-6">
+    <h2 class="text-xl font-bold text-blue-700 mb-4">Next Installment Details</h2>
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="nextInstallmentAccount" placeholder="Enter Account Number" class="border p-2 w-full rounded" />
+      <button id="nextInstallmentSearchBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+    </div>
+    <div id="nextInstallmentResult" class="space-y-4">
+      <div><strong>Loan Amount:</strong> <span id="loanAmount">-</span></div>
+      <div><strong>Paid Amount:</strong> <span id="paidAmount">-</span></div>
+      <div><strong>Remaining Amount:</strong> <span id="remainingAmount">-</span></div>
+      <div><strong>Next Month Installment:</strong> <span id="nextMonthAmount">-</span></div>
+    </div>
+  </div>
+</section>
 <script>
-  // Dedicated fix for Loan Repayment, Next Installment, and Check Transaction buttons
-  document.addEventListener('DOMContentLoaded', function() {
-    function showSection(sectionId) {
-      document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
-      const section = document.getElementById(sectionId);
-      if (section) {
-        section.classList.remove('hidden');
-        // Also show content and hide loader if present
-        const content = section.querySelector('.content');
-        const loader = section.querySelector('.loader');
-        if (content) content.classList.remove('hidden');
-        if (loader) loader.classList.add('hidden');
-      }
-    }
-    const repaymentBtn = document.querySelector('[data-target="loanRepayment"]');
-    const installmentBtn = document.querySelector('[data-target="nextInstallment"]');
-    const transactionBtn = document.querySelector('[data-target="checkTransaction"]');
-    if (repaymentBtn) {
-      repaymentBtn.addEventListener('click', function(e) {
-        e.stopImmediatePropagation();
-        showSection('loanRepayment');
+document.addEventListener('DOMContentLoaded', () => {
+  // Next Installment functionality
+  const nextInstallmentSection = document.getElementById('nextInstallment');
+  if (nextInstallmentSection) {
+    const searchBtn = document.getElementById('nextInstallmentSearchBtn');
+    const searchInput = document.getElementById('nextInstallmentAccount');
+    const loanAmountEl = document.getElementById('loanAmount');
+    const paidAmountEl = document.getElementById('paidAmount');
+    const remainingAmountEl = document.getElementById('remainingAmount');
+    const nextMonthAmountEl = document.getElementById('nextMonthAmount');
+    if (searchBtn && searchInput && loanAmountEl && paidAmountEl && remainingAmountEl && nextMonthAmountEl) {
+      searchBtn.addEventListener('click', async () => {
+        nextInstallmentSection.querySelector('.error-msg')?.remove();
+        const account = searchInput.value.trim();
+        if (!account) {
+          const err = document.createElement('div');
+          err.className = 'error-msg text-red-600 mb-2';
+          err.textContent = 'Please enter a valid account number.';
+          nextInstallmentSection.prepend(err);
+          loanAmountEl.textContent = '-';
+          paidAmountEl.textContent = '-';
+          remainingAmountEl.textContent = '-';
+          nextMonthAmountEl.textContent = '-';
+          return;
+        }
+        loanAmountEl.textContent = 'Loading...';
+        paidAmountEl.textContent = 'Loading...';
+        remainingAmountEl.textContent = 'Loading...';
+        nextMonthAmountEl.textContent = 'Loading...';
+        try {
+          const res = await fetch(`/api/next-installment?account=${encodeURIComponent(account)}`);
+          if (!res.ok) throw new Error('Network error');
+          const data = await res.json();
+          // Expected: { loanAmount, paidAmount, remainingAmount, nextMonthAmount }
+          loanAmountEl.textContent = data.loanAmount ? `₹${Number(data.loanAmount).toLocaleString()}` : '-';
+          paidAmountEl.textContent = data.paidAmount ? `₹${Number(data.paidAmount).toLocaleString()}` : '-';
+          remainingAmountEl.textContent = data.remainingAmount ? `₹${Number(data.remainingAmount).toLocaleString()}` : '-';
+          nextMonthAmountEl.textContent = data.nextMonthAmount ? `₹${Number(data.nextMonthAmount).toLocaleString()}` : '-';
+        } catch {
+          const err = document.createElement('div');
+          err.className = 'error-msg text-red-600 mb-2';
+          err.textContent = 'Error fetching installment details.';
+          nextInstallmentSection.prepend(err);
+          loanAmountEl.textContent = '-';
+          paidAmountEl.textContent = '-';
+          remainingAmountEl.textContent = '-';
+          nextMonthAmountEl.textContent = '-';
+        }
       });
     }
-    if (installmentBtn) {
-      installmentBtn.addEventListener('click', function(e) {
-        e.stopImmediatePropagation();
-        showSection('nextInstallment');
-      });
-    }
-    if (transactionBtn) {
-      transactionBtn.addEventListener('click', function(e) {
-        e.stopImmediatePropagation();
-        showSection('checkTransaction');
-      });
-    }
-  });
+  }
+});
 </script>
+  </div>
+
+  <!-- Add before closing body tag -->
+  <!-- Floating Query Button -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+    📩 Query
+  </button>
+
+  <!-- Floating Query Box -->
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
+    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+  </div>
+
+  <!-- Floating Civil Score Button -->
+  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
+    📊 Civil Score
+  </button>
+
+  <!-- Floating Civil Score Box -->
+  <div id="civilBox" class="floating-box hidden fixed bottom-36 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Check Civil Score</h3>
+      <button id="closeCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
+    <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
+  </div>
+  
+  <script src="shared.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
 </body>
 </html>
