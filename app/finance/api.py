@@ -292,19 +292,4 @@ def surety_info(customer_id):
         },
         "active_loan_count": len(active_loans.data)
     }), 200
-<<<<<<< HEAD
-
-    return jsonify({
-        "status": "success",
-        "member": {
-            "customer_id": member.get("customer_id"),
-            "name": member.get("name"),
-            "phone": member.get("phone"),
-            "signature_url": member.get("signature_url"),
-            "photo_url": member.get("photo_url")
-        },
-        "active_loan_count": len(active_loans.data)
-    }), 200
-
-=======
->>>>>>> 161a95462e1f806ea0e01eee74d8e51264f2f0c8
+    

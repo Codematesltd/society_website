@@ -18,7 +18,8 @@
       <div class="mb-1"><span class="font-semibold">Phone:</span> {{ req.phone }}</div>
     </div>
     <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition view-details-btn"
-      data-customer-id="{{ req.customer_id or req.email or req.kgid }}">View Full Details</button>
+      data-email="{{ req.email or '' }}"
+    >View Full Details</button>
   </div>
   {% endfor %}
 </div>
@@ -46,14 +47,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('memberModal');
   const modalContent = document.getElementById('modalContent');
   const closeModalBtn = document.getElementById('closeModalBtn');
-  let currentCustomerId = null;
+  let currentEmail = null;
 
   // Show modal with member details
   document.querySelectorAll('.view-details-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const customerId = btn.getAttribute('data-customer-id');
-      currentCustomerId = customerId;
-      fetch(`/api/member-details/${customerId}`)
+      const email = btn.getAttribute('data-email');
+      currentEmail = email;
+      console.log('Email being sent:', email);
+      if (!email) {
+        modalContent.innerHTML = `<div class="text-red-600">No email available.</div>`;
+        modal.classList.remove('hidden');
+        return;
+      }
+      fetch(`/admin/api/member-details/${encodeURIComponent(email)}`)
         .then(res => {
           console.log('Response status:', res.status);
           if (!res.ok) {
@@ -62,7 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
           return res.json();
         })
         .then(data => {
-          console.log('API response:', data);
           if (data.status === 'success') {
             const m = data.member;
             modalContent.innerHTML = `
@@ -74,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="font-semibold">KGID:</div><div>${m.kgid || 'N/A'}</div>
                     <div class="font-semibold">Email:</div><div>${m.email || 'N/A'}</div>
                     <div class="font-semibold">Phone:</div><div>${m.phone || 'N/A'}</div>
-                    <div class="font-semibold">Father's Name:</div><div>${m.father_name || 'N/A'}</div>
                     <div class="font-semibold">Aadhar:</div><div>${m.aadhar_no || 'N/A'}</div>
                     <div class="font-semibold">PAN:</div><div>${m.pan_no || 'N/A'}</div>
                     <div class="font-semibold">Salary:</div><div>${m.salary || 'N/A'}</div>
@@ -94,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
               </div>
             `;
-            // Add enlarge image click handlers
             setTimeout(() => {
               document.querySelectorAll('.enlargeable-img').forEach(img => {
                 img.addEventListener('click', function() {
@@ -119,14 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
   closeModalBtn.addEventListener('click', () => {
     modal.classList.add('hidden');
     modalContent.innerHTML = '';
-    currentCustomerId = null;
+    currentEmail = null;
   });
 
   // Approve member
   document.getElementById('approveForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!currentCustomerId) return;
-    fetch(`/admin/account_requests/approve/${currentCustomerId}`, {
+    if (!currentEmail) return;
+    fetch(`/admin/account_requests/approve/${currentEmail}`, {
       method: 'POST'
     }).then(res => {
       if (res.ok) {
@@ -141,8 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reject member
   document.getElementById('rejectForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!currentCustomerId) return;
-    fetch(`/admin/account_requests/reject/${currentCustomerId}`, {
+    if (!currentEmail) return;
+    fetch(`/admin/account_requests/reject/${currentEmail}`, {
       method: 'POST'
     }).then(res => {
       if (res.ok) {

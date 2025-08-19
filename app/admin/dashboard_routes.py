@@ -26,22 +26,42 @@ def admin_account_requests():
     requests = resp.data if resp.data else []
     return render_template("admin/account_requests.html", requests=requests)
 
-@admin_bp.route("/account_requests/approve/<customer_id>", methods=["POST"])
-def approve_member(customer_id):
-    # Approve member by customer_id
-    resp = supabase.table("members").update({"status": "approved"}).eq("customer_id", customer_id).execute()
-    if resp.data:
-        flash("Member approved!", "success")
-    else:
-        flash("Member not found.", "error")
+@admin_bp.route("/account_requests/approve/<email>", methods=["POST"])
+def approve_member(email):
+    # Approve member by email
+    try:
+        resp = supabase.table("members").update({"status": "approved"}).eq("email", email).execute()
+        if resp.data:
+            # Send approval email
+            try:
+                from app.manager.api import send_status_email
+                send_status_email(email, "approved")
+            except Exception as e:
+                print(f"Error sending approval email: {e}")
+            flash("Member approved!", "success")
+        else:
+            flash("Member not found.", "error")
+    except Exception as e:
+        print(f"Error approving member: {e}")
+        flash("Failed to approve member.", "error")
     return redirect(url_for("admin.admin_account_requests"))
 
-@admin_bp.route("/account_requests/reject/<customer_id>", methods=["POST"])
-def reject_member(customer_id):
-    # Reject member by customer_id
-    resp = supabase.table("members").update({"status": "rejected"}).eq("customer_id", customer_id).execute()
-    if resp.data:
-        flash("Member rejected.", "success")
-    else:
-        flash("Member not found.", "error")
+@admin_bp.route("/account_requests/reject/<email>", methods=["POST"])
+def reject_member(email):
+    # Reject member by email
+    try:
+        resp = supabase.table("members").update({"status": "rejected"}).eq("email", email).execute()
+        if resp.data:
+            # Send rejection email
+            try:
+                from app.manager.api import send_status_email
+                send_status_email(email, "rejected")
+            except Exception as e:
+                print(f"Error sending rejection email: {e}")
+            flash("Member rejected.", "success")
+        else:
+            flash("Member not found.", "error")
+    except Exception as e:
+        print(f"Error rejecting member: {e}")
+        flash("Failed to reject member.", "error")
     return redirect(url_for("admin.admin_account_requests"))

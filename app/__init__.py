@@ -19,6 +19,8 @@ def create_app():
     from .notification import notification_bp
     from .core import core_bp
     from app.staff.api import staff_api_bp
+    from .admin import admin_bp
+    from .admin.api import admin_api_bp  # Add this import
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(members_bp)
@@ -29,10 +31,8 @@ def create_app():
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(staff_api_bp)
-
-    # Register admin blueprint
-    from .admin import admin_bp
     app.register_blueprint(admin_bp)
+    app.register_blueprint(admin_api_bp)  # Add this registration
 
     return app
 
