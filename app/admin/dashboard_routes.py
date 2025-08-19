@@ -65,3 +65,11 @@ def reject_member(email):
         print(f"Error rejecting member: {e}")
         flash("Failed to reject member.", "error")
     return redirect(url_for("admin.admin_account_requests"))
+
+@admin_bp.route("/staff_expense")
+def admin_staff_expense():
+    return render_template("admin/staff_expense.html")
+
+@admin_bp.route("/add_staff")
+def admin_add_staff():
+    return render_template("admin/add_staff.html")

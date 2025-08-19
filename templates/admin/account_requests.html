@@ -3,10 +3,6 @@
 {% block title %}Account Requests - Chit Fund Management{% endblock %}
 {% block header %}Account Requests{% endblock %}
 {% block content %}
-<!-- Back Button -->
-<a href="javascript:history.back()" class="inline-block mb-6 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
-  &larr; Back
-</a>
 <h2 class="text-2xl font-bold mb-6 text-blue-700">Pending Account Requests</h2>
 <div id="accountCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {% for req in requests %}
