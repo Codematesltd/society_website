@@ -3,6 +3,7 @@ from supabase import create_client
 import os
 import inflect
 import pdfkit
+from datetime import datetime
 
 loan_cert_bp = Blueprint('loan_cert', __name__)
 
@@ -67,3 +68,63 @@ def loan_certificate(loan_id):
         return html
     else:
         return html
+
+def register_certificate_routes(blueprint):
+    """Register certificate routes on the provided blueprint"""
+    
+    @blueprint.route('/certificate/<certificate_id>', methods=['GET'])
+    def view_loan_certificate(certificate_id):
+        """Display the loan certificate"""
+        action = request.args.get('action', 'view')
+        
+        try:
+            # Query loan details by certificate_id
+            result = supabase.table("loans").select("*").eq("certificate_id", certificate_id).execute()
+            
+            if not result.data or len(result.data) == 0:
+                return abort(404, description="Certificate not found")
+                
+            loan = result.data[0]
+            
+            # Get customer details
+            customer_result = supabase.table("members").select("*").eq("customer_id", loan["customer_id"]).execute()
+            customer = customer_result.data[0] if customer_result.data else {}
+            
+            # Get staff details if available
+            staff = {}
+            if loan.get("staff_email"):
+                staff_result = supabase.table("staff").select("*").eq("email", loan["staff_email"]).execute()
+                staff = staff_result.data[0] if staff_result.data else {}
+            
+            # Format date for certificate
+            issue_date = datetime.now().strftime("%d-%m-%Y")
+            if loan.get("approved_at"):
+                try:
+                    approved_date = datetime.fromisoformat(loan["approved_at"]).strftime("%d-%m-%Y")
+                    issue_date = approved_date
+                except:
+                    pass
+                    
+            certificate_data = {
+                "loan_id": loan["loan_id"],
+                "customer_name": customer.get("name", ""),
+                "customer_id": loan["customer_id"],
+                "loan_amount": loan["loan_amount"],
+                "interest_rate": loan["interest_rate"],
+                "loan_term_months": loan["loan_term_months"],
+                "status": loan["status"],
+                "issue_date": issue_date,
+                "loan_type": loan["loan_type"],
+                "staff_name": staff.get("name", ""),
+            }
+            
+            if action == 'view':
+                # Render HTML certificate
+                return render_template('loan_certificate.html', loan=certificate_data)
+            else:
+                # Return JSON data
+                return jsonify(certificate_data)
+                
+        except Exception as e:
+            print(f"Error retrieving certificate: {e}")
+            return abort(500, description="Error generating certificate")

@@ -13,26 +13,36 @@ def create_app():
     from .auth import auth_bp
     from .members import members_bp
     from .staff import staff_bp
-    # now just import the API blueprint
     from .manager.api import manager_bp
     from .finance import finance_bp
     from .notification import notification_bp
     from .core import core_bp
     from app.staff.api import staff_api_bp
+    
+    # Import admin blueprint and routes BEFORE registering
     from .admin import admin_bp
-    from .admin.api import admin_api_bp  # Add this import
+    # Import admin routes before registering the blueprint
+    from .admin import routes
+    # Only import loan_views if it exists
+    try:
+        from .admin import loan_views
+        print("Admin loan views imported successfully")
+    except ImportError:
+        print("Admin loan views not found, skipping")
+    
+    from .admin.api import admin_api_bp
 
+    # Now register all blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(members_bp)
     app.register_blueprint(staff_bp)
     app.register_blueprint(manager_bp)
-    # Only register finance_bp once:
     app.register_blueprint(finance_bp)
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(staff_api_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(admin_api_bp)  # Add this registration
+    app.register_blueprint(admin_bp)  # Register only once
+    app.register_blueprint(admin_api_bp)
 
     return app
 
@@ -43,6 +53,18 @@ def list_routes(app):
     for rule in app.url_map.iter_rules():
         methods = ','.join(sorted(rule.methods))
         line = urllib.parse.unquote(f"{rule.endpoint:30s} {methods:25s} {rule}")
+        output.append(line)
+    for line in sorted(output):
+        print(line)
+
+# Example usage:
+# In your app.py, after creating the app:
+# from app import list_routes
+# list_routes(app)
+# Example usage:
+# In your app.py, after creating the app:
+# from app import list_routes
+# list_routes(app)
         output.append(line)
     for line in sorted(output):
         print(line)

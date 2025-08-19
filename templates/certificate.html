@@ -102,35 +102,41 @@
             <div class="certificate-title">Transaction Certificate</div>
         </div>
 
-        <table class="details-table">
+        <table class="details-table" border="1" style="border-collapse:collapse;">
             <tr>
-                <td><b>Transaction ID (STID):</b></td>
+                <td style="font-weight:bold;">Transaction ID (STID):</td>
                 <td>{{ transaction.stid }}</td>
-                <td><b>Date:</b></td>
+                <td style="font-weight:bold;">Date:</td>
                 <td>{{ transaction.date }}</td>
             </tr>
             <tr>
-                <td><b>Member Name:</b></td>
+                <td style="font-weight:bold;">Member Name:</td>
                 <td>{{ member.name }}</td>
-                <td><b>Member ID:</b></td>
+                <td style="font-weight:bold;">Member ID:</td>
                 <td>{{ member.customer_id }}</td>
             </tr>
             <tr>
-                <td><b>Transaction Type:</b></td>
+                <td style="font-weight:bold;">Transaction Type:</td>
                 <td>{{ transaction.type|capitalize }}</td>
-                <td><b>Amount:</b></td>
+                <td style="font-weight:bold;">Amount:</td>
                 <td>₹ {{ transaction.amount }}</td>
             </tr>
             <tr>
-                <td><b>From Account:</b></td>
+                <td style="font-weight:bold;">From Account:</td>
                 <td>{{ transaction.from_account }}</td>
-                <td><b>To Account:</b></td>
+                <td style="font-weight:bold;">To Account:</td>
                 <td>{{ transaction.to_account }}</td>
             </tr>
             <tr>
-                <td><b>Balance After:</b></td>
+                <td style="font-weight:bold;">From Bank Name:</td>
+                <td>{{ transaction.from_bank_name }}</td>
+                <td style="font-weight:bold;">To Bank Name:</td>
+                <td>{{ transaction.to_bank_name }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">Balance After:</td>
                 <td>₹ {{ transaction.balance_after }}</td>
-                <td><b>Remarks:</b></td>
+                <td style="font-weight:bold;">Remarks:</td>
                 <td>{{ transaction.remarks }}</td>
             </tr>
         </table>
@@ -152,22 +158,9 @@
 
         <div class="footer">
             <div></div>
-            {# 
-            {% if staff_signature_url %}
-                <img src="{{ staff_signature_url }}" ...>
-                <div>{{ staff_name }}</div>
-                <div style="font-size:0.9em;">Staff Signature</div>
-            {% else %}
-                <div style="margin-top: 2.5em;"></div>
-                <div style="font-size:0.9em;">Staff Signature</div>
-                <div style="font-size:0.8em; color:#999;">(No signature available)</div>
-            {% endif %}
-            #}
+            <!-- Staff signature block can be added here if needed -->
         </div>
     </div>
 </body>
 </html>
-        </div>
-    </div>
-</body>
-</html>
+

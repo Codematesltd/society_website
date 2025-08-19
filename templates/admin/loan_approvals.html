@@ -1,116 +1,96 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ status|title }} Loans</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold text-{{ 'green' if status == 'approved' else 'red' if status == 'rejected' else 'blue' }}-700 mb-4">
+            {{ status|title }} Loan Applications
+        </h1>
 
-{% block title %}Loan Approvals - Chit Fund Management{% endblock %}
+        {% if not loans %}
+            <div class="bg-gray-100 p-4 rounded-lg text-center">
+                <p class="text-gray-600">No {{ status }} loan applications found.</p>
+            </div>
+        {% else %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="py-2 px-4 border-b">Loan ID</th>
+                            <th class="py-2 px-4 border-b">Customer ID</th>
+                            <th class="py-2 px-4 border-b">Type</th>
+                            <th class="py-2 px-4 border-b">Amount</th>
+                            <th class="py-2 px-4 border-b">Interest Rate</th>
+                            <th class="py-2 px-4 border-b">Term (months)</th>
+                            <th class="py-2 px-4 border-b">Applied</th>
+                            <th class="py-2 px-4 border-b">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-2 px-4 border-b">{{ loan.loan_id }}</td>
+                            <td class="py-2 px-4 border-b">{{ loan.customer_id }}</td>
+                            <td class="py-2 px-4 border-b">{{ loan.loan_type|title }}</td>
+                            <td class="py-2 px-4 border-b">₹{{ loan.loan_amount|float|round(2) }}</td>
+                            <td class="py-2 px-4 border-b">{{ loan.interest_rate }}%</td>
+                            <td class="py-2 px-4 border-b">{{ loan.loan_term_months }}</td>
+                            <td class="py-2 px-4 border-b">{{ loan.created_at }}</td>
+                            <td class="py-2 px-4 border-b">
+                                <a href="{{ url_for('admin.loan_details', loan_id=loan.id) }}" class="text-blue-600 hover:underline">View Details</a>
+                                
+                                {% if status == 'pending' %}
+                                <div class="flex space-x-2 mt-2">
+                                    <form method="post" action="{{ url_for('admin.admin_approve_loan', loan_id=loan.id) }}">
+                                        <button type="submit" class="bg-green-500 text-white px-2 py-1 rounded text-sm">Approve</button>
+                                    </form>
+                                    <button 
+                                        onclick="showRejectModal('{{ loan.id }}')" 
+                                        class="bg-red-500 text-white px-2 py-1 rounded text-sm">
+                                        Reject
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
 
-{% block header %}Loan Approvals{% endblock %}
+    <!-- Rejection Modal -->
+    <div id="rejectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 class="text-lg font-semibold mb-4">Reject Loan Application</h3>
+            <form id="rejectForm" method="post" action="">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Reason for Rejection</label>
+                    <textarea name="reason" rows="3" class="w-full border rounded p-2" required></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideRejectModal()" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded">Reject</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-{% block content %}
-<div class="bg-white shadow rounded-lg overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-xl font-semibold text-gray-800">Pending Loan Requests</h2>
-    </div>
-    
-    {% if requests|selectattr('status', 'equalto', 'pending')|list|length > 0 %}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KGID</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Applied</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for request in requests if request.status == 'pending' %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ request.id }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.kgid }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹{{ '{:,.0f}'.format(request.amount) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.date_applied }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.reason }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            Pending
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="{{ url_for('approve_loan', request_id=request.id) }}" class="text-green-600 hover:text-green-900 mr-4">Approve</a>
-                        <a href="{{ url_for('reject_loan', request_id=request.id) }}" class="text-red-600 hover:text-red-900">Reject</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="px-6 py-12 text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No pending loan requests</h3>
-        <p class="mt-1 text-sm text-gray-500">There are no pending loan requests at the moment.</p>
-    </div>
-    {% endif %}
-</div>
-
-<div class="mt-6 bg-white shadow rounded-lg overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-xl font-semibold text-gray-800">Processed Loan Requests</h2>
-    </div>
-    
-    {% if requests|rejectattr('status', 'equalto', 'pending')|list|length > 0 %}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KGID</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Applied</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for request in requests if request.status != 'pending' %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ request.id }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.kgid }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹{{ '{:,.0f}'.format(request.amount) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.date_applied }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ request.reason }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        {% if request.status == 'approved' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Approved
-                        </span>
-                        {% elif request.status == 'rejected' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                            Rejected
-                        </span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="px-6 py-12 text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No processed loan requests</h3>
-        <p class="mt-1 text-sm text-gray-500">There are no processed loan requests at the moment.</p>
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
+    <script>
+        function showRejectModal(loanId) {
+            document.getElementById('rejectForm').action = '/admin/reject-loan/' + loanId;
+            document.getElementById('rejectModal').classList.remove('hidden');
+        }
+        
+        function hideRejectModal() {
+            document.getElementById('rejectModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

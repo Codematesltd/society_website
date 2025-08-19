@@ -305,7 +305,8 @@ def send_transaction_email(email, name, stid, tx_type, amount, balance_after, re
 def add_transaction():
     required_fields = [
         "customer_id", "type", "amount",
-        "from_account", "to_account", "date", "transaction_id"
+        "from_account", "to_account", "date", "transaction_id",
+        "from_bank_name", "to_bank_name"  # <-- Add these as required
     ]
     data = {field: request.form.get(field) for field in required_fields}
     missing = [f for f, v in data.items() if not v]
@@ -350,8 +351,6 @@ def add_transaction():
     # Insert transaction
     try:
         resp = supabase.table("transactions").insert(data).execute()
-        if not resp.data:
-            raise Exception("Insert failed")
         # Update member's balance using customer_id
         supabase.table("members").update({"balance": new_balance}).eq("customer_id", customer_id).execute()
         # Generate receipt URL
@@ -551,6 +550,29 @@ def check_transaction(stid):
 
     html = render_template("check_transaction.html", **template_data)
     return html
+
+@staff_api_bp.route('/fetch-account', methods=['GET'])
+def fetch_account_member():
+    # Fetch member details by customer_id
+    customer_id = request.args.get('customer_id')
+    if not customer_id:
+        return jsonify({'status':'error','message':'Missing customer_id'}), 400
+    resp = supabase.table("members") \
+        .select("name,phone,customer_id,photo_url,signature_url,kgid") \
+        .eq("customer_id", customer_id) \
+        .execute()
+    if not resp.data:
+        return jsonify({'status':'error','message':'Account not found'}), 404
+    m = resp.data[0]
+    return jsonify({
+        'status': 'success',
+        'name': m.get('name'),
+        'phone': m.get('phone'),
+        'customer_id': m.get('customer_id'),
+        'photo_url': m.get('photo_url'),
+        'signature_url': m.get('signature_url'),
+        'kgid': m.get('kgid')
+    }), 200
 
 
 

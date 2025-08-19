@@ -98,6 +98,22 @@ def login():
 
     # On successful login, always reset login_attempts to zero
     supabase.table(role).update({"login_attempts": 0}).eq("email", email).execute()
+    
+    # Set session variables for staff identity (add these lines)
+    try:
+        session['email'] = email
+        # Get name from user data if available
+        user_details = supabase.table(role).select("name,email").eq("email", email).execute()
+        if user_details.data and len(user_details.data) > 0:
+            session['name'] = user_details.data[0].get('name', email)
+            if role == 'staff':
+                session['staff_name'] = user_details.data[0].get('name', email)
+        # Save the role in session
+        session['role'] = role
+        session['user_id'] = user['id']
+    except Exception as e:
+        print(f"Failed to set session variables: {e}")
+    
     # Redirect according to role (for API, just return role)
     return jsonify({'status': 'success', 'role': role, 'id': user['id']}), 200
 
@@ -171,6 +187,73 @@ def reset_password():
             supabase.table(role).update({"password": hashed, "reset_token": None}).eq("email", email).execute()
             return jsonify({'status': 'success', 'message': 'Password reset successful'}), 200
     return jsonify({'status': 'error', 'message': 'Invalid or expired token'}), 400
+
+@auth_bp.route('/logout', methods=['GET', 'POST'])
+def logout():
+    """
+    Clear session and redirect user to the login page.
+    Uses explicit path '/login' per requirement.
+    """
+    try:
+        session.clear()
+    except Exception:
+        # if session cannot be cleared for some reason, ignore and continue to redirect
+        pass
+    return redirect('/login')
+
+def valid_password(password):
+    """Validate password meets security requirements"""
+    # At least 8 chars, containing letters, numbers, and special chars
+    if not password or len(password) < 8:
+        return False
+    if not re.search(r'[A-Za-z]', password):
+        return False
+    if not re.search(r'[0-9]', password):
+        return False
+    if not re.search(r'[^A-Za-z0-9]', password):
+        return False
+    return True
+
+def notify_admin_loan_application(loan_id, customer_id, loan_type, amount):
+    """Send notification to admins about new loan application"""
+    try:
+        # Get all admin/manager emails
+        managers = supabase.table("staff").select("email,name").eq("role", "manager").execute()
+        if not managers.data:
+            print(f"No managers found to notify about loan {loan_id}")
+            return False
+            
+        # Prepare notification email
+        EMAIL_USER = os.getenv("EMAIL_USER")
+        EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+        
+        subject = f"New Loan Application #{loan_id} Requires Approval"
+        body = f"""
+        A new loan application has been submitted and requires your approval:
+        
+        Loan ID: {loan_id}
+        Customer ID: {customer_id}
+        Loan Type: {loan_type}
+        Amount: ₹{amount}
+        
+        Please login to the management portal to review and approve/reject this application.
+        """
+        
+        # Send to all managers
+        for manager in managers.data:
+            msg = MIMEText(body)
+            msg['Subject'] = subject
+            msg['From'] = EMAIL_USER
+            msg['To'] = manager['email']
+            
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(EMAIL_USER, EMAIL_PASSWORD)
+                server.send_message(msg)
+                
+        return True
+    except Exception as e:
+        print(f"Failed to notify admins about loan {loan_id}: {e}")
+        return False
 
 
 

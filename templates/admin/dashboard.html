@@ -12,6 +12,7 @@
     <nav class="space-y-3">
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="welcome">🏠 Home</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountRequests">📝 Account Requests</button>
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanApprovals">💰 Loan Approvals</button>
     </nav>
   </aside>
 
@@ -22,11 +23,68 @@
       <div class="bg-white p-8 rounded-xl shadow text-center">
         <h1 class="text-3xl font-bold text-blue-700 mb-4">Welcome to Admin Dashboard</h1>
         <p class="text-gray-600">Use the navigation menu to manage accounts and view requests.</p>
+        
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <!-- Account Requests Card -->
+          <div class="bg-blue-50 p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="text-4xl text-blue-500 mb-2">📝</div>
+            <h3 class="text-xl font-bold text-blue-700 mb-2">Account Requests</h3>
+            <p class="text-gray-600 mb-4">Review and approve new member account requests</p>
+            <button class="admin-nav-btn bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" data-target="accountRequests">View Requests</button>
+          </div>
+          
+          <!-- Loan Approvals Card -->
+          <div class="bg-green-50 p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="text-4xl text-green-500 mb-2">💰</div>
+            <h3 class="text-xl font-bold text-green-700 mb-2">Loan Approvals</h3>
+            <p class="text-gray-600 mb-4">Review and manage pending loan applications</p>
+            <button class="admin-nav-btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition" data-target="loanApprovals">View Loans</button>
+          </div>
+          
+          <!-- Stats Card -->
+          <div class="bg-purple-50 p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="text-4xl text-purple-500 mb-2">📊</div>
+            <h3 class="text-xl font-bold text-purple-700 mb-2">Society Stats</h3>
+            <p class="text-gray-600 mb-4">View overall society statistics and metrics</p>
+            <button class="admin-nav-btn bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition" data-target="welcome">View Stats</button>
+          </div>
+        </div>
       </div>
     </section>
+    
     <!-- Account Requests Section -->
     <section id="accountRequests" class="admin-section hidden">
       <iframe src="{{ url_for('admin.admin_account_requests') }}" class="w-full min-h-[600px] border-0 rounded-xl shadow"></iframe>
+    </section>
+    
+    <!-- Loan Approvals Section -->
+    <section id="loanApprovals" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-2xl font-bold text-green-700 mb-4">Pending Loan Approvals</h2>
+        
+        <!-- Tabs for loan categories -->
+        <div class="mb-6 border-b">
+          <div class="flex space-x-4">
+            <button class="loan-tab-btn px-4 py-2 border-b-2 border-green-500 text-green-700 font-medium" data-target="pendingLoans">Pending</button>
+            <button class="loan-tab-btn px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-target="approvedLoans">Approved</button>
+            <button class="loan-tab-btn px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-target="rejectedLoans">Rejected</button>
+          </div>
+        </div>
+        
+        <!-- Loan listings by status -->
+        <div id="pendingLoans" class="loan-tab-content">
+          <iframe src="{{ url_for('admin.pending_loan_approvals') }}" class="w-full min-h-[500px] border-0"></iframe>
+        </div>
+        
+        <div id="approvedLoans" class="loan-tab-content hidden">
+          <iframe src="{{ url_for('admin.approved_loans') }}" class="w-full min-h-[500px] border-0"></iframe>
+        </div>
+        
+        <div id="rejectedLoans" class="loan-tab-content hidden">
+          <iframe src="{{ url_for('admin.rejected_loans') }}" class="w-full min-h-[500px] border-0"></iframe>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -42,6 +100,27 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById(target).classList.remove('hidden');
     });
   });
+  
+  // Loan tab navigation
+  const loanTabBtns = document.querySelectorAll('.loan-tab-btn');
+  const loanTabContents = document.querySelectorAll('.loan-tab-content');
+  loanTabBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      // Update active tab styling
+      loanTabBtns.forEach(b => {
+        b.classList.remove('border-green-500', 'text-green-700');
+        b.classList.add('border-transparent', 'text-gray-500');
+      });
+      btn.classList.remove('border-transparent', 'text-gray-500');
+      btn.classList.add('border-green-500', 'text-green-700');
+      
+      // Show selected tab content
+      const target = btn.getAttribute('data-target');
+      loanTabContents.forEach(content => content.classList.add('hidden'));
+      document.getElementById(target).classList.remove('hidden');
+    });
+  });
+  
   // Show welcome section by default
   sections.forEach(sec => sec.classList.add('hidden'));
   document.getElementById('welcome').classList.remove('hidden');
