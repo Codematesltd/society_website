@@ -13,6 +13,7 @@
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="welcome">🏠 Home</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountRequests">📝 Account Requests</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanApprovals">💰 Loan Approvals</button>
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="customerDetails">👤 Customer Details</button>
     </nav>
   </aside>
 
@@ -86,6 +87,113 @@
         </div>
       </div>
     </section>
+    
+    <!-- Customer Details Section -->
+    <section id="customerDetails" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-2xl font-bold text-blue-700 mb-6">Customer Details</h2>
+        
+        <!-- Search Form -->
+        <div class="mb-6">
+          <form id="customerSearchForm" class="flex gap-4 items-end">
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Search Customer</label>
+              <input type="text" id="customerSearchInput" placeholder="Enter Customer ID or KGID" 
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+              Search
+            </button>
+          </form>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="customerSearchLoading" class="hidden text-center py-4">
+          <div class="inline-flex items-center">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+            <span class="text-blue-600">Searching...</span>
+          </div>
+        </div>
+        
+        <!-- Search Results -->
+        <div id="customerSearchResults" class="hidden">
+          <!-- Customer Basic Info Card -->
+          <div class="bg-gray-50 p-6 rounded-lg mb-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Customer Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="customerBasicInfo">
+              <!-- Content will be populated by JavaScript -->
+            </div>
+          </div>
+          
+          <!-- Loans Summary -->
+          <div class="bg-gray-50 p-6 rounded-lg mb-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Loan Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="loanSummaryInfo">
+              <!-- Content will be populated by JavaScript -->
+            </div>
+          </div>
+          
+          <!-- Detailed Loans Table -->
+          <div class="bg-white border rounded-lg overflow-hidden">
+            <h3 class="text-lg font-bold text-gray-800 p-4 border-b bg-gray-50">Loan Details</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Loan ID</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="loansTableBody">
+                  <!-- Content will be populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Transactions History -->
+          <div class="bg-white border rounded-lg overflow-hidden mt-6">
+            <h3 class="text-lg font-bold text-gray-800 p-4 border-b bg-gray-50">Recent Transactions</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance After</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTableBody">
+                  <!-- Content will be populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Error State -->
+        <div id="customerSearchError" class="hidden">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-red-800 font-medium" id="customerSearchErrorMessage">Customer not found</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 <script>
@@ -119,6 +227,288 @@ document.addEventListener('DOMContentLoaded', function() {
       loanTabContents.forEach(content => content.classList.add('hidden'));
       document.getElementById(target).classList.remove('hidden');
     });
+  });
+  
+  // Customer Details Search functionality
+  const customerSearchForm = document.getElementById('customerSearchForm');
+  const customerSearchInput = document.getElementById('customerSearchInput');
+  const customerSearchLoading = document.getElementById('customerSearchLoading');
+  const customerSearchResults = document.getElementById('customerSearchResults');
+  const customerSearchError = document.getElementById('customerSearchError');
+  const customerSearchErrorMessage = document.getElementById('customerSearchErrorMessage');
+  
+  if (customerSearchForm) {
+    customerSearchForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const searchValue = customerSearchInput.value.trim();
+      if (!searchValue) {
+        showError('Please enter a Customer ID or KGID');
+        return;
+      }
+      
+      // Reset previous states
+      hideAllSearchStates();
+      customerSearchLoading.classList.remove('hidden');
+      
+      try {
+        // Call the fetch_customer_details API
+        const response = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          displayCustomerDetails(data);
+        } else {
+          showError(data.message || 'Customer not found');
+        }
+      } catch (error) {
+        console.error('Error fetching customer details:', error);
+        showError('Network error. Please try again.');
+      } finally {
+        customerSearchLoading.classList.add('hidden');
+      }
+    });
+  }
+  
+  function hideAllSearchStates() {
+    customerSearchLoading.classList.add('hidden');
+    customerSearchResults.classList.add('hidden');
+    customerSearchError.classList.add('hidden');
+  }
+  
+  function showError(message) {
+    hideAllSearchStates();
+    customerSearchErrorMessage.textContent = message;
+    customerSearchError.classList.remove('hidden');
+  }
+  
+  function displayCustomerDetails(data) {
+    hideAllSearchStates();
+    
+    const customerInfo = data.customer_info;
+    const loanSummary = data.loan_summary;
+    const loans = data.loans || [];
+    const transactions = data.transactions || [];
+    
+    // Populate basic customer info with photos on the right side
+    const basicInfoContainer = document.getElementById('customerBasicInfo');
+    basicInfoContainer.innerHTML = `
+      <div class="col-span-1 md:col-span-2 lg:col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Name</p>
+            <p class="font-medium">${customerInfo.name || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Customer ID</p>
+            <p class="font-medium">${customerInfo.customer_id || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">KGID</p>
+            <p class="font-medium">${customerInfo.kgid || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Phone</p>
+            <p class="font-medium">${customerInfo.phone || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Email</p>
+            <p class="font-medium">${customerInfo.email || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Current Balance</p>
+            <p class="font-medium text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Organization</p>
+            <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Address</p>
+            <p class="font-medium">${customerInfo.address || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Aadhar No</p>
+            <p class="font-medium">${customerInfo.aadhar_no || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">PAN No</p>
+            <p class="font-medium">${customerInfo.pan_no || 'N/A'}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Salary</p>
+            <p class="font-medium">₹${(customerInfo.salary || 0).toLocaleString()}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Account Status</p>
+            <p class="font-medium">
+              <span class="px-2 py-1 rounded-full text-xs ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-800' : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                ${(customerInfo.status || 'pending').toUpperCase()}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Customer Photos on the Right Side -->
+      <div class="col-span-1 lg:col-span-1 flex flex-col items-center space-y-4">
+        <!-- Profile Photo -->
+        <div class="text-center">
+          <h4 class="font-medium text-gray-700 mb-2">Profile Photo</h4>
+          ${customerInfo.photo_url ? `
+            <img src="${customerInfo.photo_url}" 
+                 alt="Customer Photo" 
+                 class="w-32 h-32 object-cover rounded-lg border-2 border-gray-300 shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                 onclick="showImageModal('${customerInfo.photo_url}', 'Customer Photo')" />
+          ` : `
+            <div class="w-32 h-32 bg-gray-200 rounded-lg border-2 border-gray-300 flex items-center justify-center">
+              <span class="text-gray-500 text-sm text-center">No Photo<br>Available</span>
+            </div>
+          `}
+        </div>
+        
+        <!-- Customer Signature -->
+        <div class="text-center">
+          <h4 class="font-medium text-gray-700 mb-2">Signature</h4>
+          ${customerInfo.signature_url ? `
+            <img src="${customerInfo.signature_url}" 
+                 alt="Customer Signature" 
+                 class="w-32 h-20 object-contain rounded-lg border-2 border-gray-300 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
+                 onclick="showImageModal('${customerInfo.signature_url}', 'Customer Signature')" />
+          ` : `
+            <div class="w-32 h-20 bg-gray-200 rounded-lg border-2 border-gray-300 flex items-center justify-center">
+              <span class="text-gray-500 text-xs text-center">No Signature<br>Available</span>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+    
+    // Remove the separate photos section creation since it's now integrated
+    
+    // Populate loan summary
+    const loanSummaryContainer = document.getElementById('loanSummaryInfo');
+    loanSummaryContainer.innerHTML = `
+      <div class="text-center p-4 bg-blue-50 rounded-lg">
+        <p class="text-2xl font-bold text-blue-600">${loanSummary.total_loans}</p>
+        <p class="text-sm text-gray-600">Total Loans</p>
+      </div>
+      <div class="text-center p-4 bg-green-50 rounded-lg">
+        <p class="text-2xl font-bold text-green-600">${loanSummary.active_loans}</p>
+        <p class="text-sm text-gray-600">Active Loans</p>
+      </div>
+      <div class="text-center p-4 bg-yellow-50 rounded-lg">
+        <p class="text-2xl font-bold text-yellow-600">${loanSummary.pending_loans}</p>
+        <p class="text-sm text-gray-600">Pending</p>
+      </div>
+      <div class="text-center p-4 bg-red-50 rounded-lg">
+        <p class="text-2xl font-bold text-red-600">₹${(loanSummary.total_outstanding || 0).toLocaleString()}</p>
+        <p class="text-sm text-gray-600">Outstanding</p>
+      </div>
+    `;
+    
+    // Populate loans table
+    const loansTableBody = document.getElementById('loansTableBody');
+    if (loans.length === 0) {
+      loansTableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+    } else {
+      loansTableBody.innerHTML = loans.map(loan => {
+        const statusClass = loan.status === 'approved' ? 'bg-green-100 text-green-800' :
+                           loan.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                           'bg-yellow-100 text-yellow-800';
+        
+        return `
+          <tr class="border-t">
+            <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
+            <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
+            <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
+                ${(loan.status || 'pending').replace('_', ' ').toUpperCase()}
+              </span>
+            </td>
+            <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
+            <td class="px-4 py-3">₹${(loan.remaining_balance || 0).toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // Populate transactions table
+    const transactionsTableBody = document.getElementById('transactionsTableBody');
+    if (transactions.length === 0) {
+      transactionsTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No transactions found</td></tr>';
+    } else {
+      transactionsTableBody.innerHTML = transactions.slice(0, 10).map(transaction => {
+        const typeClass = transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600';
+        
+        return `
+          <tr class="border-t">
+            <td class="px-4 py-3">${transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
+            <td class="px-4 py-3">
+              <span class="capitalize ${typeClass} font-medium">${transaction.type || 'N/A'}</span>
+            </td>
+            <td class="px-4 py-3">₹${(transaction.amount || 0).toLocaleString()}</td>
+            <td class="px-4 py-3">₹${(transaction.balance_after || 0).toLocaleString()}</td>
+            <td class="px-4 py-3">${transaction.remarks || transaction.description || 'N/A'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    customerSearchResults.classList.remove('hidden');
+  }
+  
+  // Add image modal functionality - Make functions global
+  window.showImageModal = function(imageSrc, imageTitle) {
+    // Remove existing modal if present
+    const existingModal = document.getElementById('imageModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'imageModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+      <div class="relative max-w-4xl max-h-full">
+        <div class="bg-white p-4 rounded-lg">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">${imageTitle}</h3>
+            <button onclick="closeImageModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">
+              &times;
+            </button>
+          </div>
+          <img src="${imageSrc}" 
+               alt="${imageTitle}" 
+               class="max-w-full max-h-[70vh] object-contain rounded shadow-lg" />
+        </div>
+      </div>
+    `;
+    
+    // Close modal when clicking outside
+    modal.onclick = function(e) {
+      if (e.target === modal) {
+        closeImageModal();
+      }
+    };
+    
+    document.body.appendChild(modal);
+  };
+  
+  window.closeImageModal = function() {
+    const modal = document.getElementById('imageModal');
+    if (modal) {
+      modal.remove();
+    }
+  };
+  
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeImageModal();
+    }
   });
   
   // Show welcome section by default

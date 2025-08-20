@@ -10,3 +10,6 @@ from .loan_certificate import register_certificate_routes
 
 # Register certificate routes
 register_certificate_routes(finance_bp)
+
+# Debug statement to confirm initialization
+print("🔍 [DEBUG] Finance blueprint initialized with routes imported")

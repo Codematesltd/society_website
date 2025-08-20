@@ -76,7 +76,7 @@ except ImportError as e:
 # --- Proxy endpoints to support /finance/api/* paths if blueprint uses a different prefix ---
 try:
     # import the view functions from finance API
-    from app.finance.api import check_surety_get, fetch_account, apply_loan
+    from app.finance.api import check_surety_get, fetch_account, apply_loan, fetch_customer_details
     from flask import request, session as flask_session
 
     @app.route('/finance/api/check-surety', methods=['GET'])
@@ -86,6 +86,11 @@ try:
     @app.route('/finance/api/fetch-account', methods=['GET'])
     def _proxy_fetch_account():
         return fetch_account()
+
+    # NEW: Add the missing fetch_customer_details proxy
+    @app.route('/finance/api/fetch_customer_details', methods=['GET'])
+    def _proxy_fetch_customer_details():
+        return fetch_customer_details()
 
     # NEW: proxy POST /finance/api/apply -> finance.api.apply_loan
     @app.route('/finance/api/apply', methods=['POST'])
@@ -120,8 +125,8 @@ try:
         return apply_loan()
 
 except Exception as _e:
+    print(f"❌ [ERROR] Failed to register finance API proxies: {_e}")
     # if finance.api isn't available yet, skip proxy registration
-    pass
 
 @app.route("/first_time_signin")
 def first_time_signin_root():
@@ -160,4 +165,5 @@ except Exception:
     pass
 
 if __name__ == "__main__":
+    app.run(debug=True)
     app.run(debug=True)

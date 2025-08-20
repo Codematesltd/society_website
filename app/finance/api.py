@@ -306,9 +306,6 @@ def loan_certificate(loan_id):
     # Fetch member with more detail (ensuring name is included)
     member_resp = supabase.table("members").select("*").eq("customer_id", loan["customer_id"]).execute()
     
-    # Debug what we're getting from the database
-    print(f"Member data for customer_id {loan['customer_id']}: {member_resp.data}")
-    
     # Handle the case where member data is missing
     if not member_resp.data:
         member = {"name": "Customer information not available"}
@@ -438,3 +435,164 @@ def fetch_account():
         "signature_url": m.get("signature_url"),
         "kgid": m.get("kgid")
     }), 200
+
+@finance_bp.route('/fetch_customer_details', methods=['GET'])
+def fetch_customer_details():
+    """
+    Fetch comprehensive customer details including:
+    - All member information (personal, contact, financial)
+    - All loans (active, pending, approved, rejected)
+    - Loan repayment records
+    - Outstanding balances
+    - Staff information who processed the loans
+    - Sureties information
+    """
+    customer_id = request.args.get('customer_id')
+    
+    if not customer_id:
+        return jsonify({"status": "error", "message": "Missing customer_id parameter"}), 400
+    
+    try:
+        # Fetch comprehensive customer/member information
+        customer_resp = supabase.table("members").select("*").eq("customer_id", customer_id).execute()
+        
+        if not customer_resp.data:
+            return jsonify({
+                "status": "error", 
+                "message": f"Customer not found for ID: {customer_id}",
+                "customer_id": customer_id
+            }), 404
+        
+        customer_info = customer_resp.data[0]
+        
+        # Remove sensitive information from response
+        sensitive_fields = ['password', 'otp', 'reset_token']
+        for field in sensitive_fields:
+            customer_info.pop(field, None)
+        
+        # Fetch all loans for the customer
+        loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).execute()
+        
+        loans_with_details = []
+        
+        if loans_resp.data:
+            for loan in loans_resp.data:
+                loan_details = dict(loan)  # Copy loan data
+                
+                # Fetch loan records (repayments) for this specific loan
+                if loan.get("loan_id"):
+                    records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan["loan_id"]).execute()
+                    loan_details["repayment_records"] = records_resp.data if records_resp.data else []
+                    
+                    # Calculate total repaid amount
+                    total_repaid = 0
+                    for record in loan_details["repayment_records"]:
+                        if record.get("repayment_amount"):
+                            total_repaid += float(record["repayment_amount"])
+                    
+                    loan_details["total_repaid"] = total_repaid
+                    loan_details["remaining_balance"] = float(loan["loan_amount"]) - total_repaid
+                else:
+                    loan_details["repayment_records"] = []
+                    loan_details["total_repaid"] = 0
+                    loan_details["remaining_balance"] = float(loan["loan_amount"])
+                
+                # Fetch staff details if available
+                if loan.get("staff_email"):
+                    staff_resp = supabase.table("staff").select("name,phone,email").eq("email", loan["staff_email"]).execute()
+                    if staff_resp.data:
+                        loan_details["staff_details"] = staff_resp.data[0]
+                    else:
+                        loan_details["staff_details"] = {
+                            "name": loan.get("staff_name"),
+                            "phone": loan.get("staff_phone"),
+                            "email": loan.get("staff_email")
+                        }
+                else:
+                    loan_details["staff_details"] = None
+                
+                # Fetch sureties for this loan
+                sureties_resp = supabase.table("sureties").select("*").eq("loan_id", loan["id"]).execute()
+                loan_details["sureties"] = sureties_resp.data if sureties_resp.data else []
+                
+                loans_with_details.append(loan_details)
+        
+        # Calculate summary statistics
+        total_loans = len(loans_with_details)
+        active_loans = len([loan for loan in loans_with_details if loan.get("status") == "approved"])
+        pending_loans = len([loan for loan in loans_with_details if loan.get("status") == "pending_approval"])
+        rejected_loans = len([loan for loan in loans_with_details if loan.get("status") == "rejected"])
+        
+        total_loan_amount = sum(float(loan["loan_amount"]) for loan in loans_with_details if loan.get("status") == "approved")
+        total_repaid_amount = sum(loan.get("total_repaid", 0) for loan in loans_with_details)
+        total_outstanding = sum(loan.get("remaining_balance", 0) for loan in loans_with_details if loan.get("status") == "approved")
+        
+        # Fetch transactions history for the customer
+        transactions_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).execute()
+        transactions = transactions_resp.data if transactions_resp.data else []
+        
+        # Check if customer is acting as surety for other loans
+        surety_loans_resp = supabase.table("sureties").select("*").eq("surety_customer_id", customer_id).execute()
+        surety_for_loans = surety_loans_resp.data if surety_loans_resp.data else []
+        active_surety_count = len([s for s in surety_for_loans if s.get("active")])
+        
+        return jsonify({
+            "status": "success",
+            "customer_id": customer_id,
+            "customer_info": {
+                # Personal Information
+                "id": customer_info.get("id"),
+                "name": customer_info.get("name"),
+                "kgid": customer_info.get("kgid"),
+                "customer_id": customer_info.get("customer_id"),
+                "aadhar_no": customer_info.get("aadhar_no"),
+                "pan_no": customer_info.get("pan_no"),
+                
+                # Contact Information
+                "phone": customer_info.get("phone"),
+                "email": customer_info.get("email"),
+                "address": customer_info.get("address"),
+                
+                # Employment Information
+                "organization_name": customer_info.get("organization_name"),
+                "salary": customer_info.get("salary"),
+                
+                # Account Information
+                "status": customer_info.get("status"),
+                "balance": customer_info.get("balance", 0),
+                "blocked": customer_info.get("blocked", False),
+                "login_attempts": customer_info.get("login_attempts", 0),
+                "created_at": customer_info.get("created_at"),
+                
+                # Document URLs
+                "photo_url": customer_info.get("photo_url"),
+                "signature_url": customer_info.get("signature_url")
+            },
+            "loan_summary": {
+                "total_loans": total_loans,
+                "active_loans": active_loans,
+                "pending_loans": pending_loans,
+                "rejected_loans": rejected_loans,
+                "total_loan_amount": total_loan_amount,
+                "total_repaid_amount": total_repaid_amount,
+                "total_outstanding": total_outstanding
+            },
+            "surety_info": {
+                "acting_as_surety_for": len(surety_for_loans),
+                "active_surety_count": active_surety_count,
+                "surety_details": surety_for_loans
+            },
+            "loans": loans_with_details,
+            "transactions": transactions
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Failed to fetch customer details: {str(e)}"
+        }), 500
+
+@finance_bp.route('/api/test', methods=['GET'])
+def test_api():
+    """Test route to verify API is working"""
+    return jsonify({"status": "success", "message": "Finance API is working"}), 200

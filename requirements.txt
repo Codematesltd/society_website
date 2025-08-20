@@ -8,11 +8,11 @@ Flask-Login
 Flask-Migrate
 Flask-SQLAlchemy
 Flask-DotEnv
-
+inflect
 # --- Supabase Python Client ---
 supabase
 httpx  # required by Supabase
-
+pdfkit
 # --- Database & ORM ---
 SQLAlchemy
 
@@ -29,3 +29,4 @@ bcrypt  # For password hashing
 werkzeug  # For security
 pillow
 xhtml2pdf
+Flask-Session
