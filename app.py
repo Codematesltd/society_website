@@ -1,20 +1,18 @@
 import os
+from datetime import timedelta
 from flask import Flask, redirect, url_for, session  # Add session import
 from app import create_app
 from app.certificate import certificate_bp
 from jinja2 import ChoiceLoader, FileSystemLoader
-from flask_session import Session
 
 app = create_app()
 
 # Set a secret key for sessions - add this line
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key_change_in_production')
 
-# Configure session type (filesystem is simple for dev; use redis for prod)
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # Session lifetime in seconds (1 hour)
-Session(app)
+# Use Flask built-in session (remove dependency on Flask-Session)
+# configure session lifetime (1 hour)
+app.permanent_session_lifetime = timedelta(seconds=3600)
 
 # Tell Jinja about our custom templates directory
 app.jinja_loader = ChoiceLoader([
@@ -175,6 +173,8 @@ try:
 except Exception:
     pass
 
+if __name__ == "__main__":
+    app.run(debug=True)
 if __name__ == "__main__":
     app.run(debug=True)
     app.run(debug=True)
