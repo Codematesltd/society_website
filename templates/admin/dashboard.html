@@ -146,12 +146,24 @@
                     <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                     <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
                     <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="loansTableBody">
                   <!-- Content will be populated by JavaScript -->
                 </tbody>
               </table>
+            </div>
+          </div>
+          
+          <!-- Selected Loan Detailed Panel -->
+          <div id="selectedLoanDetails" class="hidden bg-white border rounded-lg overflow-hidden mt-6">
+            <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+              <h3 class="text-lg font-bold text-gray-800">Selected Loan Comprehensive View</h3>
+              <button id="hideLoanDetailsBtn" class="text-sm text-gray-500 hover:text-gray-700">Hide ✕</button>
+            </div>
+            <div id="selectedLoanContent" class="p-4 text-sm">
+              <!-- Filled dynamically -->
             </div>
           </div>
           
@@ -285,8 +297,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function displayCustomerDetails(data) {
     hideAllSearchStates();
     
-    const customerInfo = data.customer_info;
-    const loanSummary = data.loan_summary;
+    const customerInfo = data.customer; // CHANGED from data.customer_info
+    const loanSummary = data.summary;   // CHANGED from data.loan_summary
     const loans = data.loans || [];
     const transactions = data.transactions || [];
     
@@ -295,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
     basicInfoContainer.innerHTML = `
       <div class="col-span-1 md:col-span-2 lg:col-span-2">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="space-y-1">
+          <div class="space-y-1"
             <p class="text-sm text-gray-600">Name</p>
             <p class="font-medium">${customerInfo.name || 'N/A'}</p>
           </div>
@@ -413,10 +425,16 @@ document.addEventListener('DOMContentLoaded', function() {
       loansTableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
     } else {
       loansTableBody.innerHTML = loans.map(loan => {
-        const statusClass = loan.status === 'approved' ? 'bg-green-100 text-green-800' :
-                           loan.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                           'bg-yellow-100 text-yellow-800';
-        
+        // Map status to display: "ACTIVE" if approved, "REJECTED" if rejected, else "PENDING"
+        let statusLabel = "PENDING";
+        let statusClass = "bg-yellow-100 text-yellow-800";
+        if (loan.status === 'approved') {
+          statusLabel = "ACTIVE";
+          statusClass = "bg-green-100 text-green-800";
+        } else if (loan.status === 'rejected') {
+          statusLabel = "REJECTED";
+          statusClass = "bg-red-100 text-red-800";
+        }
         return `
           <tr class="border-t">
             <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
@@ -424,11 +442,17 @@ document.addEventListener('DOMContentLoaded', function() {
             <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
             <td class="px-4 py-3">
               <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
-                ${(loan.status || 'pending').replace('_', ' ').toUpperCase()}
+                ${statusLabel}
               </span>
             </td>
             <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
             <td class="px-4 py-3">₹${(loan.remaining_balance || 0).toLocaleString()}</td>
+            <td class="px-4 py-3">
+              <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      onclick="fetchLoanDeepDetails('${loan.id}')">
+                Details
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
@@ -514,6 +538,145 @@ document.addEventListener('DOMContentLoaded', function() {
   // Show welcome section by default
   sections.forEach(sec => sec.classList.add('hidden'));
   document.getElementById('welcome').classList.remove('hidden');
+  
+  // Enhance loans table after data load by overriding displayCustomerDetails (wrap original)
+  const originalDisplayCustomerDetails = displayCustomerDetails;
+  window.displayCustomerDetails = function(data){
+    originalDisplayCustomerDetails(data);
+    const loansTableBody = document.getElementById('loansTableBody');
+    loansTableBody.querySelectorAll('tr').forEach((row, idx) => {
+      const loan = data.loans[idx];
+      if (!loan) return;
+      let cell = document.createElement('td');
+      cell.className = "px-4 py-3";
+      cell.innerHTML = `
+        <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                onclick="fetchLoanDeepDetails('${loan.id}')">
+          Details
+        </button>
+      `;
+      row.appendChild(cell);
+    });
+  };
+
+  // Hide details panel when Hide button is clicked
+  document.getElementById('hideLoanDetailsBtn').onclick = function() {
+    document.getElementById('selectedLoanDetails').classList.add('hidden');
+  };
+
+  // NEW: Fetch single loan deep details
+  window.fetchLoanDeepDetails = async function(loanUuid){
+    // Show loading indicator in the details panel
+    const detailsPanel = document.getElementById('selectedLoanDetails');
+    const detailsContent = document.getElementById('selectedLoanContent');
+    detailsContent.innerHTML = `<div class="flex items-center py-8 justify-center text-blue-600">
+      <svg class="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      <span>Loading loan details...</span>
+    </div>`;
+    detailsPanel.classList.remove('hidden');
+    try {
+      const res = await fetch(`/finance/${loanUuid}`);
+      const json = await res.json();
+      if(json.status !== 'success'){ throw new Error('Fetch failed'); }
+      renderSelectedLoan(json.loan, json.customer, json.sureties, json.records);
+    } catch(e){
+      console.error(e);
+      detailsContent.innerHTML = `<p class="text-red-600">Failed to load loan details.</p>`;
+      detailsPanel.classList.remove('hidden');
+    }
+  };
+
+  function computeMetrics(loan, records){
+    const principal = Number(loan.loan_amount||0);
+    const rateAnnual = Number(loan.interest_rate||0);
+    const term = Number(loan.loan_term_months||0);
+    const r = rateAnnual ? rateAnnual/1200 : 0;
+    let emi = 0;
+    if (r && term){
+      emi = principal * r * Math.pow(1+r, term) / (Math.pow(1+r, term)-1);
+    } else if (term){
+      emi = principal/term;
+    }
+    emi = Math.round(emi*100)/100;
+    let totalRepaid = 0;
+    records.forEach(rp => totalRepaid += Number(rp.repayment_amount||0));
+    const outstanding = Math.max(principal - totalRepaid, 0);
+    const scheduledTotal = Math.round(emi*term*100)/100;
+    const scheduledInterest = Math.round((scheduledTotal - principal)*100)/100;
+    return {principal, rateAnnual, term, emi, totalRepaid: Math.round(totalRepaid*100)/100, outstanding: Math.round(outstanding*100)/100, scheduledInterest, scheduledTotal};
+  }
+
+  function renderSelectedLoan(loan, customer, sureties, records){
+    records = records || [];
+    const metrics = computeMetrics(loan, records);
+
+    // Format loan tenure as "X months (Y years Z months)" if > 12 months
+    let tenureStr = '';
+    const months = Number(loan.loan_term_months || 0);
+    if (months >= 12) {
+      const years = Math.floor(months / 12);
+      const remMonths = months % 12;
+      tenureStr = `${months} months (${years} year${years > 1 ? 's' : ''}${remMonths ? ' ' + remMonths + ' month' + (remMonths > 1 ? 's' : '') : ''})`;
+    } else {
+      tenureStr = `${months} month${months === 1 ? '' : 's'}`;
+    }
+
+    // Calculate months left
+    let monthsLeft = '';
+    if (loan.loan_term_months && metrics) {
+      const elapsed = metrics.elapsed_months !== undefined ? metrics.elapsed_months : 0;
+      const left = Math.max(Number(loan.loan_term_months) - Number(elapsed), 0);
+      monthsLeft = `${left} month${left === 1 ? '' : 's'} left`;
+    }
+
+    const container = document.getElementById('selectedLoanContent');
+    container.innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${metrics.principal.toLocaleString()}</p></div>
+        <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${metrics.totalRepaid.toLocaleString()}</p></div>
+        <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${metrics.outstanding.toLocaleString()}</p></div>
+        <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${metrics.rateAnnual}%</p></div>
+        <div class="p-3 bg-indigo-50 rounded"><p class="text-xs text-gray-500">EMI (Est.)</p><p class="font-semibold">₹${metrics.emi.toLocaleString()}</p></div>
+        <div class="p-3 bg-teal-50 rounded"><p class="text-xs text-gray-500">Scheduled Interest</p><p class="font-semibold text-teal-700">₹${metrics.scheduledInterest.toLocaleString()}</p></div>
+        <div class="p-3 bg-orange-50 rounded"><p class="text-xs text-gray-500">Loan Tenure</p><p class="font-semibold">${tenureStr}</p></div>
+        <div class="p-3 bg-lime-50 rounded"><p class="text-xs text-gray-500">Months Left</p><p class="font-semibold">${monthsLeft}</p></div>
+      </div>
+      <h4 class="font-semibold mb-2">Repayment History</h4>
+      ${records.length===0 ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>' :
+        `<div class="overflow-x-auto mb-4">
+          <table class="min-w-full text-xs">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-2 py-2 text-left">#</th>
+                <th class="px-2 py-2 text-left">Date</th>
+                <th class="px-2 py-2 text-left">Amount</th>
+                <th class="px-2 py-2 text-left">Outstanding After</th>
+                <th class="px-2 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map((r,i)=>`
+                <tr class="border-b hover:bg-gray-50">
+                  <td class="px-2 py-1">${i+1}</td>
+                  <td class="px-2 py-1">${r.repayment_date || '—'}</td>
+                  <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
+                  <td class="px-2 py-1">₹${Number(r.outstanding_balance!=null ? r.outstanding_balance : metrics.principal - metrics.totalRepaid).toLocaleString()}</td>
+                  <td class="px-2 py-1">
+                    <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">
+                      ${(r.status||'active').toUpperCase()}
+                    </span>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      <div class="text-xs text-gray-500">Computed values are indicative (EMI & interest schedule).</div>
+    `;
+    document.getElementById('selectedLoanDetails').classList.remove('hidden');
+  }
 });
 </script>
 {% endblock %}

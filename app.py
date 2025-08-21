@@ -128,6 +128,17 @@ except Exception as _e:
     print(f"❌ [ERROR] Failed to register finance API proxies: {_e}")
     # if finance.api isn't available yet, skip proxy registration
 
+try:
+    from app.finance.api import get_loan
+    from flask import request
+
+    # Add this proxy route for loan details by UUID
+    @app.route('/finance/<loan_uuid>', methods=['GET'])
+    def _proxy_finance_loan_detail(loan_uuid):
+        return get_loan(loan_uuid)
+except Exception as e:
+    print(f"Failed to register /finance/<loan_uuid> proxy: {e}")
+
 @app.route("/first_time_signin")
 def first_time_signin_root():
     # Redirect legacy /first_time_signin to the auth blueprint page

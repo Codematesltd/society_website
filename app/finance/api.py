@@ -90,6 +90,22 @@ def send_loan_status_email(email, name, loan_id, status):
     except Exception as e:
         print(f"Failed to send loan status email: {e}")
 
+def _auto_complete_loan_if_fully_repaid(loan_row, total_repaid):
+    """
+    If outstanding <= 0 and loan is approved, mark it completed.
+    Returns possibly updated loan_row (status field adjusted in-memory too).
+    """
+    try:
+        loan_amount = float(loan_row.get("loan_amount", 0) or 0)
+        outstanding = loan_amount - total_repaid
+        if outstanding <= 0 and loan_row.get("status") == "approved":
+            # Update DB status to completed
+            supabase.table("loans").update({"status": "completed"}).eq("id", loan_row["id"]).execute()
+            loan_row["status"] = "completed"
+    except Exception as e:
+        print(f"Auto-complete check failed for loan {loan_row.get('id')}: {e}")
+    return loan_row
+
 @finance_bp.route('/apply', methods=['POST'])
 def apply_loan():
     """
@@ -208,22 +224,36 @@ def get_loan(loan_id):
     customer = supabase.table("members").select("customer_id,name,phone,photo_url,signature_url").eq("customer_id", loan_data["customer_id"]).execute()
     # Fetch sureties
     sureties = supabase.table("sureties").select("*").eq("loan_id", loan_id).execute()
-    # Fetch loan records
-    records = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+    # Fetch repayment records for both textual loan_id and UUID
+    loan_id_text = loan_data.get("loan_id")
+    rec_resp1 = supabase.table("loan_records").select("*").eq("loan_id", loan_id_text).execute() if loan_id_text else None
+    rec_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+    seen = set()
+    all_records = []
+    for r in (rec_resp1.data if rec_resp1 and rec_resp1.data else []) + (rec_resp2.data or []):
+        if r["id"] not in seen:
+            all_records.append(r)
+            seen.add(r["id"])
+    # Sort by repayment_date (oldest first, nulls last)
+    records = sorted(all_records, key=lambda r: (r["repayment_date"] or "9999-12-31"))
+    # NEW: compute total repaid & auto-complete
+    try:
+        total_repaid = sum(float(r.get("repayment_amount") or 0) for r in records)
+        _auto_complete_loan_if_fully_repaid(loan_data, total_repaid)
+    except Exception as e:
+        print(f"Failed computing repayment summary for loan {loan_id}: {e}")
     # Fetch staff details (already in loan_data, but can be refreshed if needed)
     staff_details = {
         "email": loan_data.get("staff_email"),
         "name": loan_data.get("staff_name"),
-        # expose phone (no photo/signature)
         "phone": loan_data.get("staff_phone")
     }
-    # Fixed: Properly formatted return statement
     return jsonify({
         "status": "success",
         "loan": loan_data,
         "customer": customer.data[0] if customer.data else {},
         "sureties": sureties.data,
-        "records": records.data,
+        "records": records,
         "staff": staff_details
     }), 200
 
@@ -491,11 +521,19 @@ def fetch_customer_details():
                             total_repaid += float(record["repayment_amount"])
                     
                     loan_details["total_repaid"] = total_repaid
-                    loan_details["remaining_balance"] = float(loan["loan_amount"]) - total_repaid
+                    loan_details["remaining_balance"] = max(float(loan["loan_amount"]) - total_repaid, 0)
                 else:
                     loan_details["repayment_records"] = []
                     loan_details["total_repaid"] = 0
-                    loan_details["remaining_balance"] = float(loan["loan_amount"])
+                    loan_details["remaining_balance"] = max(float(loan["loan_amount"]), 0)
+                
+                # NEW: auto-complete status if fully repaid
+                try:
+                    if loan_details.get("status") == "approved" and loan_details["remaining_balance"] <= 0:
+                        supabase.table("loans").update({"status": "completed"}).eq("id", loan_details["id"]).execute()
+                        loan_details["status"] = "completed"
+                except Exception as e:
+                    print(f"Auto-complete update failed for loan {loan_details.get('id')}: {e}")
                 
                 # Fetch staff details if available
                 if loan.get("staff_email"):
@@ -522,53 +560,24 @@ def fetch_customer_details():
         active_loans = len([loan for loan in loans_with_details if loan.get("status") == "approved"])
         pending_loans = len([loan for loan in loans_with_details if loan.get("status") == "pending_approval"])
         rejected_loans = len([loan for loan in loans_with_details if loan.get("status") == "rejected"])
-        
-        total_loan_amount = sum(float(loan["loan_amount"]) for loan in loans_with_details if loan.get("status") == "approved")
+        # FIX: complete broken line and include completed loans in aggregates
+        total_loan_amount = sum(
+            float(loan["loan_amount"]) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
+        )
         total_repaid_amount = sum(loan.get("total_repaid", 0) for loan in loans_with_details)
-        total_outstanding = sum(loan.get("remaining_balance", 0) for loan in loans_with_details if loan.get("status") == "approved")
-        
-        # Fetch transactions history for the customer
-        transactions_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).execute()
+        total_outstanding = sum(
+            loan.get("remaining_balance", 0) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
+        )
+
+        # Fetch transactions
+        transactions_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).order("date", desc=True).execute()
         transactions = transactions_resp.data if transactions_resp.data else []
-        
-        # Check if customer is acting as surety for other loans
-        surety_loans_resp = supabase.table("sureties").select("*").eq("surety_customer_id", customer_id).execute()
-        surety_for_loans = surety_loans_resp.data if surety_loans_resp.data else []
-        active_surety_count = len([s for s in surety_for_loans if s.get("active")])
-        
-        return jsonify({
+
+        response_data = {
             "status": "success",
-            "customer_id": customer_id,
-            "customer_info": {
-                # Personal Information
-                "id": customer_info.get("id"),
-                "name": customer_info.get("name"),
-                "kgid": customer_info.get("kgid"),
-                "customer_id": customer_info.get("customer_id"),
-                "aadhar_no": customer_info.get("aadhar_no"),
-                "pan_no": customer_info.get("pan_no"),
-                
-                # Contact Information
-                "phone": customer_info.get("phone"),
-                "email": customer_info.get("email"),
-                "address": customer_info.get("address"),
-                
-                # Employment Information
-                "organization_name": customer_info.get("organization_name"),
-                "salary": customer_info.get("salary"),
-                
-                # Account Information
-                "status": customer_info.get("status"),
-                "balance": customer_info.get("balance", 0),
-                "blocked": customer_info.get("blocked", False),
-                "login_attempts": customer_info.get("login_attempts", 0),
-                "created_at": customer_info.get("created_at"),
-                
-                # Document URLs
-                "photo_url": customer_info.get("photo_url"),
-                "signature_url": customer_info.get("signature_url")
-            },
-            "loan_summary": {
+            "customer": customer_info,
+            "loans": loans_with_details,
+            "summary": {
                 "total_loans": total_loans,
                 "active_loans": active_loans,
                 "pending_loans": pending_loans,
@@ -577,22 +586,9 @@ def fetch_customer_details():
                 "total_repaid_amount": total_repaid_amount,
                 "total_outstanding": total_outstanding
             },
-            "surety_info": {
-                "acting_as_surety_for": len(surety_for_loans),
-                "active_surety_count": active_surety_count,
-                "surety_details": surety_for_loans
-            },
-            "loans": loans_with_details,
             "transactions": transactions
-        }), 200
-        
+        }
+        return jsonify(response_data), 200
     except Exception as e:
-        return jsonify({
-            "status": "error", 
-            "message": f"Failed to fetch customer details: {str(e)}"
-        }), 500
-
-@finance_bp.route('/api/test', methods=['GET'])
-def test_api():
-    """Test route to verify API is working"""
-    return jsonify({"status": "success", "message": "Finance API is working"}), 200
+        print(f"Error fetching customer details: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500

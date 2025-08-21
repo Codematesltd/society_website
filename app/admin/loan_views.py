@@ -1,7 +1,8 @@
 from flask import render_template, jsonify, request, redirect, url_for
 from . import admin_bp
 from app.auth.routes import supabase
-from datetime import datetime
+from datetime import datetime, date
+import math  # NEW
 
 @admin_bp.route('/pending-loans')
 def pending_loan_approvals():
@@ -40,26 +41,113 @@ def loan_details(loan_id):
     loan = supabase.table("loans").select("*").eq("id", loan_id).execute()
     if not loan.data:
         return jsonify({"status": "error", "message": "Loan not found"}), 404
-    
     loan_data = loan.data[0]
-    
+
     # Fetch customer details
     customer = None
     if loan_data.get("customer_id"):
         customer_data = supabase.table("members").select("*").eq("customer_id", loan_data["customer_id"]).execute()
         if customer_data.data:
             customer = customer_data.data[0]
-    
+
     # Fetch sureties
     sureties = []
     sureties_data = supabase.table("sureties").select("*").eq("loan_id", loan_id).execute()
     if sureties_data.data:
         sureties = sureties_data.data
-    
-    return render_template('admin/loan_details.html', 
-                          loan=loan_data,
-                          customer=customer,
-                          sureties=sureties)
+
+    # --- FIX: Fetch repayment records for both textual loan_id and UUID ---
+    loan_id_text = loan_data.get("loan_id")
+    records = []
+    if loan_id_text:
+        rec_resp1 = supabase.table("loan_records").select("*").eq("loan_id", loan_id_text).execute()
+        rec_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+        # Merge and deduplicate by id
+        seen = set()
+        all_records = []
+        for r in (rec_resp1.data or []) + (rec_resp2.data or []):
+            if r["id"] not in seen:
+                all_records.append(r)
+                seen.add(r["id"])
+        # Sort by repayment_date (oldest first, nulls last)
+        records = sorted(all_records, key=lambda r: (r["repayment_date"] or "9999-12-31"))
+    # ...existing code...
+
+    # NEW: Compute metrics
+    principal = float(loan_data.get("loan_amount", 0) or 0)
+    annual_rate = float(loan_data.get("interest_rate", 0) or 0)
+    term_months = int(loan_data.get("loan_term_months", 0) or 0)
+    monthly_rate = annual_rate / 1200 if annual_rate else 0
+    if monthly_rate and term_months:
+        emi = principal * monthly_rate * (1 + monthly_rate) ** term_months / ((1 + monthly_rate) ** term_months - 1)
+    else:
+        emi = principal / term_months if term_months else 0
+    emi = round(emi, 2)
+
+    total_repaid = 0
+    last_outstanding = principal
+    for r in records:
+        amt = float(r.get("repayment_amount") or 0)
+        total_repaid += amt
+        if r.get("outstanding_balance") is not None:
+            last_outstanding = float(r.get("outstanding_balance"))
+        else:
+            last_outstanding = max(principal - total_repaid, 0)
+
+    outstanding = max(principal - total_repaid, 0) if not records or not records[-1].get("outstanding_balance") else last_outstanding
+    # Total scheduled payment & interest (standard EMI plan)
+    total_payment_sched = round(emi * term_months, 2)
+    total_interest_sched = round(total_payment_sched - principal, 2)
+
+    # Elapsed months
+    created_at = loan_data.get("created_at")
+    elapsed_months = 0
+    if created_at:
+        try:
+            dt_created = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+            today = datetime.utcnow()
+            elapsed_months = (today.year - dt_created.year) * 12 + (today.month - dt_created.month)
+            elapsed_months = max(0, min(elapsed_months, term_months))
+        except Exception:
+            pass
+
+    # Approx interest accrued (linear over term if EMI)
+    interest_accrued_est = round(total_interest_sched * (elapsed_months / term_months), 2) if term_months else 0
+
+    # Next due date
+    next_due_date = None
+    if created_at and term_months:
+        try:
+            base = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+            next_index = min(elapsed_months + 1, term_months)
+            year = base.year + (base.month - 1 + next_index) // 12
+            month = (base.month - 1 + next_index) % 12 + 1
+            day = min(base.day, 28)  # safe day
+            next_due_date = date(year, month, day).isoformat()
+        except Exception:
+            pass
+
+    metrics = {
+        "principal": principal,
+        "emi": emi,
+        "annual_rate": annual_rate,
+        "monthly_rate_percent": round(monthly_rate * 100, 4),
+        "term_months": term_months,
+        "total_payment_scheduled": total_payment_sched,
+        "total_interest_scheduled": total_interest_sched,
+        "total_repaid": round(total_repaid, 2),
+        "outstanding": round(outstanding, 2),
+        "elapsed_months": elapsed_months,
+        "interest_accrued_est": interest_accrued_est,
+        "next_due_date": next_due_date
+    }
+
+    return render_template('admin/loan_details.html',
+                           loan=loan_data,
+                           customer=customer,
+                           sureties=sureties,
+                           records=records,          # NEW
+                           metrics=metrics)          # NEW
 
 @admin_bp.route('/approve-loan/<loan_id>', methods=['POST'])
 def admin_approve_loan(loan_id):

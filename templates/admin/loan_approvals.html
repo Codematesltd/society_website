@@ -28,7 +28,7 @@
                             <th class="py-2 px-4 border-b">Interest Rate</th>
                             <th class="py-2 px-4 border-b">Term (months)</th>
                             <th class="py-2 px-4 border-b">Applied</th>
-                            <th class="py-2 px-4 border-b">Actions</th>
+                            {# Removed Actions column #}
                         </tr>
                     </thead>
                     <tbody>
@@ -41,22 +41,7 @@
                             <td class="py-2 px-4 border-b">{{ loan.interest_rate }}%</td>
                             <td class="py-2 px-4 border-b">{{ loan.loan_term_months }}</td>
                             <td class="py-2 px-4 border-b">{{ loan.created_at }}</td>
-                            <td class="py-2 px-4 border-b">
-                                <a href="{{ url_for('admin.loan_details', loan_id=loan.id) }}" class="text-blue-600 hover:underline">View Details</a>
-                                
-                                {% if status == 'pending' %}
-                                <div class="flex space-x-2 mt-2">
-                                    <form method="post" action="{{ url_for('admin.admin_approve_loan', loan_id=loan.id) }}">
-                                        <button type="submit" class="bg-green-500 text-white px-2 py-1 rounded text-sm">Approve</button>
-                                    </form>
-                                    <button 
-                                        onclick="showRejectModal('{{ loan.id }}')" 
-                                        class="bg-red-500 text-white px-2 py-1 rounded text-sm">
-                                        Reject
-                                    </button>
-                                </div>
-                                {% endif %}
-                            </td>
+                            {# Removed Actions cell #}
                         </tr>
                         {% endfor %}
                     </tbody>

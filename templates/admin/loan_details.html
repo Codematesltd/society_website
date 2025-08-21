@@ -103,6 +103,110 @@
                 </div>
             {% endif %}
         </div>
+
+        <!-- NEW: Loan Metrics Summary -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Loan Summary & Metrics</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 text-sm">
+                <div class="p-3 rounded bg-blue-50">
+                    <p class="text-gray-500">Principal</p>
+                    <p class="font-semibold">₹{{ metrics.principal|round(2) }}</p>
+                </div>
+                <div class="p-3 rounded bg-green-50">
+                    <p class="text-gray-500">Total Repaid</p>
+                    <p class="font-semibold text-green-700">₹{{ metrics.total_repaid|round(2) }}</p>
+                </div>
+                <div class="p-3 rounded bg-yellow-50">
+                    <p class="text-gray-500">Outstanding</p>
+                    <p class="font-semibold text-yellow-700">₹{{ metrics.outstanding|round(2) }}</p>
+                </div>
+                <div class="p-3 rounded bg-purple-50">
+                    <p class="text-gray-500">Interest Rate (Annual)</p>
+                    <p class="font-semibold">{{ metrics.annual_rate }}%</p>
+                </div>
+                <div class="p-3 rounded bg-indigo-50">
+                    <p class="text-gray-500">EMI</p>
+                    <p class="font-semibold">₹{{ metrics.emi }}</p>
+                </div>
+                <div class="p-3 rounded bg-pink-50">
+                    <p class="text-gray-500">Term (Months)</p>
+                    <p class="font-semibold">{{ metrics.term_months }}</p>
+                </div>
+                <div class="p-3 rounded bg-teal-50">
+                    <p class="text-gray-500">Scheduled Interest</p>
+                    <p class="font-semibold text-teal-700">₹{{ metrics.total_interest_scheduled }}</p>
+                </div>
+                <div class="p-3 rounded bg-orange-50">
+                    <p class="text-gray-500">Interest Accrued (Est.)</p>
+                    <p class="font-semibold text-orange-700">₹{{ metrics.interest_accrued_est }}</p>
+                </div>
+                <div class="p-3 rounded bg-slate-50">
+                    <p class="text-gray-500">Elapsed Months</p>
+                    <p class="font-semibold">{{ metrics.elapsed_months }} / {{ metrics.term_months }}</p>
+                </div>
+                <div class="p-3 rounded bg-lime-50">
+                    <p class="text-gray-500">Next Due Date</p>
+                    <p class="font-semibold">{{ metrics.next_due_date or '—' }}</p>
+                </div>
+                <div class="p-3 rounded bg-red-50">
+                    <p class="text-gray-500">Status</p>
+                    <p class="font-semibold capitalize">{{ loan.status.replace('_',' ') }}</p>
+                </div>
+                <div class="p-3 rounded bg-gray-100">
+                    <p class="text-gray-500">Created</p>
+                    <p class="font-semibold">{{ loan.created_at }}</p>
+                </div>
+            </div>
+            <p class="mt-3 text-xs text-gray-500">Interest & EMI values are computed (standard EMI). Actual ledger may vary if manual adjustments exist.</p>
+        </div>
+
+        <!-- NEW: Repayment History -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Repayment History</h2>
+            {% if not records %}
+                <p class="text-gray-600 text-sm">No repayment records found.</p>
+            {% else %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left">#</th>
+                            <th class="px-3 py-2 text-left">Repayment Date</th>
+                            <th class="px-3 py-2 text-left">Amount</th>
+                            <th class="px-3 py-2 text-left">Outstanding After</th>
+                            <th class="px-3 py-2 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in records %}
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="px-3 py-2">{{ loop.index }}</td>
+                            <td class="px-3 py-2">{{ r.repayment_date or '—' }}</td>
+                            <td class="px-3 py-2">₹{{ (r.repayment_amount or 0)|round(2) }}</td>
+                            <td class="px-3 py-2">₹{{ (r.outstanding_balance if r.outstanding_balance is not none else metrics.principal - metrics.total_repaid)|round(2) }}</td>
+                            <td class="px-3 py-2">
+                                <span class="px-2 py-1 rounded text-xs
+                                    {% if r.status == 'completed' %} bg-green-100 text-green-700
+                                    {% elif r.status == 'overdue' %} bg-red-100 text-red-700
+                                    {% else %} bg-blue-100 text-blue-700 {% endif %}">
+                                    {{ r.status|title }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50">
+                        <tr>
+                            <td colspan="2" class="px-3 py-2 font-semibold text-right">Totals</td>
+                            <td class="px-3 py-2 font-semibold">₹{{ metrics.total_repaid|round(2) }}</td>
+                            <td class="px-3 py-2 font-semibold">₹{{ metrics.outstanding|round(2) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Rejection Modal -->
