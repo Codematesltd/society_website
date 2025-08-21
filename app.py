@@ -126,6 +126,17 @@ except Exception as _e:
     print(f"❌ [ERROR] Failed to register finance API proxies: {_e}")
     # if finance.api isn't available yet, skip proxy registration
 
+# Register standalone api handlers in the project root (e.g. api/check_expenses.py)
+try:
+    from api.check_expenses import bp_expenses
+    if 'check_expenses_api' not in app.blueprints:
+        app.register_blueprint(bp_expenses)
+        print("check_expenses blueprint registered successfully")
+    else:
+        print("check_expenses blueprint already registered (skipped)")
+except ImportError as e:
+    print(f"api.check_expenses not found or failed to import: {e}")
+
 try:
     from app.finance.api import get_loan
     from flask import request

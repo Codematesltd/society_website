@@ -213,6 +213,45 @@
     <section id="expenses" class="admin-section hidden">
       <div class="bg-white p-6 rounded-xl shadow">
         <h2 class="text-2xl font-bold text-indigo-700 mb-4">Expenses</h2>
+        <!-- Filters -->
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Search ID / Name</label>
+            <input id="expenseSearch" type="search" placeholder="Enter ID or name" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-300" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Date range</label>
+            <div class="flex gap-2">
+              <input id="expenseDateFrom" type="date" class="w-full px-3 py-2 border rounded-lg" />
+              <input id="expenseDateTo" type="date" class="w-full px-3 py-2 border rounded-lg" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Month</label>
+            <select id="expenseMonth" class="w-full px-3 py-2 border rounded-lg">
+              <option value="">All months</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Amount min / max</label>
+            <div class="flex gap-2">
+              <input id="amountMin" type="number" placeholder="Min" class="w-full px-3 py-2 border rounded-lg" />
+              <input id="amountMax" type="number" placeholder="Max" class="w-full px-3 py-2 border rounded-lg" />
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="applyFiltersBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Apply</button>
+            <button id="clearFiltersBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg">Clear</button>
+            <button id="refreshExpensesBtn" class="px-4 py-2 bg-white border text-gray-700 rounded-lg">Refresh</button>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-gray-500">Count: <span id="expensesCount">0</span></div>
+            <div class="text-sm text-yellow-600 font-semibold">Total: ₹<span id="expensesTotal">0</span></div>
+          </div>
+        </div>
+
         <div id="expensesLoading" class="hidden text-center py-4">
           <div class="inline-flex items-center">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-2"></div>
@@ -222,14 +261,8 @@
         <div id="expensesError" class="hidden text-red-600 mb-4"></div>
         <div id="expensesContainer" class="overflow-x-auto hidden">
           <table class="w-full table-auto">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="px-4 py-2 text-left">ID</th>
-                <th class="px-4 py-2 text-left">Name</th>
-                <th class="px-4 py-2 text-left">Amount</th>
-                <th class="px-4 py-2 text-left">Date</th>
-                <th class="px-4 py-2 text-left">Remarks</th>
-              </tr>
+            <thead id="expensesTableHead" class="bg-gray-100">
+              <!-- headers will be generated dynamically -->
             </thead>
             <tbody id="expensesTableBody" class="bg-white"></tbody>
           </table>
@@ -708,52 +741,193 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('selectedLoanDetails').classList.remove('hidden');
   }
 
-  // Expenses fetcher
+  // Expenses fetcher (improved JSON handling and clearer errors)
+  // Keeps data in memory (window.expensesRaw) and renders via renderExpenses()
   async function loadExpenses() {
     const loading = document.getElementById('expensesLoading');
     const err = document.getElementById('expensesError');
     const container = document.getElementById('expensesContainer');
     const tbody = document.getElementById('expensesTableBody');
     if (!loading || !err || !container || !tbody) return;
-    err.classList.add('hidden'); container.classList.add('hidden'); tbody.innerHTML = '';
+
+    err.classList.add('hidden');
+    container.classList.add('hidden');
+    tbody.innerHTML = '';
     loading.classList.remove('hidden');
+
     try {
-      const res = await fetch('/api/check-expenses');
-      if (!res.ok) throw new Error('Network response not ok');
-      const data = await res.json();
-      if (data.status !== 'success' || !Array.isArray(data.expenses)) {
-        throw new Error(data.message || 'Invalid response');
+      const res = await fetch('/api/check-expenses', {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json,text/plain,*/*' }
+      });
+
+      const text = await res.text();
+      // keep full response in console for debugging
+      console.debug('[loadExpenses] raw response:', { status: res.status, text });
+
+      let parsed = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch (parseErr) {
+        // Try to handle when backend returns a bare JSON array (no envelope)
+        const trimmed = (text || '').trim();
+        if (trimmed.startsWith('[')) {
+          try {
+            const arr = JSON.parse(trimmed);
+            parsed = { expenses: arr };
+            console.debug('[loadExpenses] interpreted raw array as expenses');
+          } catch (arrErr) {
+            parsed = null;
+          }
+        } else {
+          parsed = null;
+        }
       }
-      if (data.expenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No expenses found</td></tr>';
+
+      // If HTTP not ok, prefer JSON message if present, else show snippet of raw text
+      if (!res.ok) {
+        const serverMsg = parsed && parsed.message ? parsed.message : (text ? text.substring(0, 500) : res.statusText);
+        throw new Error(`HTTP ${res.status}: ${serverMsg}`);
+      }
+
+      if (!parsed) {
+        // non-JSON or malformed JSON — surface a short snippet so backend can be diagnosed
+        const snippet = (text || '').substring(0, 800);
+        throw new Error('Invalid JSON response from server. Response snippet: ' + snippet);
+      }
+
+      // Accept both { expenses: [...] } and { data: [...] } shapes if you use PostgREST directly
+      let expenses = [];
+      if (Array.isArray(parsed.expenses)) {
+        expenses = parsed.expenses;
+      } else if (Array.isArray(parsed.data)) {
+        expenses = parsed.data;
+      } else if (Array.isArray(parsed)) {
+        expenses = parsed; // parsed was an array
       } else {
-        tbody.innerHTML = data.expenses.map(exp => `
-          <tr class="border-t hover:bg-gray-50">
-            <td class="px-4 py-2">${exp.id ?? ''}</td>
-            <td class="px-4 py-2">${(exp.name || exp.expense_name || '')}</td>
-            <td class="px-4 py-2">₹${Number(exp.amount||0).toLocaleString()}</td>
-            <td class="px-4 py-2">${exp.date ? new Date(exp.date).toLocaleDateString() : (exp.created_at ? new Date(exp.created_at).toLocaleDateString() : '')}</td>
-            <td class="px-4 py-2">${exp.remarks || exp.description || ''}</td>
-          </tr>
-        `).join('');
+        throw new Error('Unexpected JSON structure. Expected array in "expenses" or "data" or top-level array.');
       }
-      container.classList.remove('hidden');
+
+  // store raw data for client-side filtering and rendering
+  window.expensesRaw = expenses;
+  // populate month select with unique months
+  try { populateMonthSelect(expenses); } catch(e){}
+  renderExpenses(expenses);
+  container.classList.remove('hidden');
     } catch (e) {
-      err.textContent = 'Failed to load expenses: ' + (e.message || '');
+      console.error('[loadExpenses] error:', e);
+      // show friendly message + short detail for debugging
+      err.textContent = 'Failed to load expenses: ' + (e.message || 'Unknown error');
       err.classList.remove('hidden');
     } finally {
       loading.classList.add('hidden');
     }
   }
 
-  // Hook to show expenses when nav opens the section (nav uses data-target)
-  const adminNavBtns = document.querySelectorAll('.admin-nav-btn[data-target="expenses"]');
-  adminNavBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      // load when user switches to the section
-      setTimeout(loadExpenses, 50);
+  // Also update the expenses table click handler to load immediately
+  const expensesNavBtn = document.querySelector('.admin-nav-btn[data-target="expenses"]');
+  if (expensesNavBtn) {
+    expensesNavBtn.addEventListener('click', () => {
+      loadExpenses().catch(console.error);
     });
+  }
+
+  // Render a set of expenses into the table (build headers from keys)
+  function renderExpenses(expenses) {
+    const tbody = document.getElementById('expensesTableBody');
+    const thead = document.getElementById('expensesTableHead');
+    if (!tbody || !thead) return;
+
+    if (!expenses || expenses.length === 0) {
+      const cols = (thead && thead.querySelectorAll('th').length) || 5;
+      tbody.innerHTML = `<tr><td colspan="${cols}" class="px-4 py-6 text-center text-gray-500">No expenses found</td></tr>`;
+      document.getElementById('expensesCount').textContent = '0';
+      document.getElementById('expensesTotal').textContent = '0';
+      return;
+    }
+
+    const first = expenses[0];
+    const keys = Object.keys(first);
+    thead.innerHTML = '<tr>' + keys.map(k => `<th class="px-4 py-2 text-left">${k}</th>`).join('') + '</tr>';
+
+    tbody.innerHTML = expenses.map(exp => {
+      const cells = keys.map(k => {
+        const val = exp[k];
+        if (typeof val === 'number') return `<td class="px-4 py-2">${formatCurrency(val)}</td>`;
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return `<td class="px-4 py-2">${new Date(val).toLocaleDateString()}</td>`;
+        if (val === null || val === undefined) return `<td class="px-4 py-2"></td>`;
+        return `<td class="px-4 py-2">${String(val)}</td>`;
+      }).join('');
+      return `<tr class="border-t hover:bg-gray-50">${cells}</tr>`;
+    }).join('');
+
+    // update counters
+    document.getElementById('expensesCount').textContent = String(expenses.length);
+    const total = expenses.reduce((s, e) => {
+      const v = Number(e.amount || e.value || 0);
+      return s + (isNaN(v) ? 0 : v);
+    }, 0);
+    document.getElementById('expensesTotal').textContent = total.toLocaleString();
+  }
+
+  function formatCurrency(n){ return Number(n||0).toLocaleString(); }
+
+  // Apply filters from the UI to window.expensesRaw and re-render
+  function applyFilters() {
+    const raw = window.expensesRaw || [];
+    const q = (document.getElementById('expenseSearch')||{}).value.trim().toLowerCase();
+    const from = (document.getElementById('expenseDateFrom')||{}).value;
+    const to = (document.getElementById('expenseDateTo')||{}).value;
+    const month = (document.getElementById('expenseMonth')||{}).value;
+    const min = parseFloat((document.getElementById('amountMin')||{}).value || '');
+    const max = parseFloat((document.getElementById('amountMax')||{}).value || '');
+
+    const filtered = raw.filter(e => {
+      // search by id or name
+      if (q) {
+        const idstr = String(e.id||e.ID||'').toLowerCase();
+        const namestr = String(e.name||e.expense_name||'').toLowerCase();
+        if (!idstr.includes(q) && !namestr.includes(q) && !JSON.stringify(e).toLowerCase().includes(q)) return false;
+      }
+      // date range
+      const d = e.date || e.created_at || null;
+      if (from && d && new Date(d) < new Date(from)) return false;
+      if (to && d && new Date(d) > new Date(to)) return false;
+      // month filter in YYYY-MM format
+      if (month && d) {
+        const m = d.slice(0,7);
+        if (m !== month) return false;
+      }
+      // amount range
+      const amt = Number(e.amount || e.value || 0);
+      if (!isNaN(min) && min !== '' && amt < min) return false;
+      if (!isNaN(max) && max !== '' && amt > max) return false;
+      return true;
+    });
+
+    renderExpenses(filtered);
+  }
+
+  function populateMonthSelect(expenses){
+    const sel = document.getElementById('expenseMonth');
+    if (!sel) return;
+    const months = new Set();
+    expenses.forEach(e => {
+      const d = e.date || e.created_at || null;
+      if (d && typeof d === 'string' && d.length>=7) months.add(d.slice(0,7));
+    });
+    const arr = Array.from(months).sort((a,b)=>b.localeCompare(a));
+    sel.innerHTML = '<option value="">All months</option>' + arr.map(m=>`<option value="${m}">${m}</option>`).join('');
+  }
+
+  // Wire filter buttons
+  document.getElementById('applyFiltersBtn')?.addEventListener('click', applyFilters);
+  document.getElementById('clearFiltersBtn')?.addEventListener('click', ()=>{
+    ['expenseSearch','expenseDateFrom','expenseDateTo','amountMin','amountMax','expenseMonth'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    renderExpenses(window.expensesRaw || []);
   });
+  document.getElementById('refreshExpensesBtn')?.addEventListener('click', ()=>{ loadExpenses().catch(console.error); });
 });
 </script>
 {% endblock %}

@@ -555,7 +555,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
-        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Check Expense</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Add Expense</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
@@ -981,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   <!-- Header with Download Button -->
   <div class="flex justify-between items-center mb-4">
-    <h2 class="text-xl font-bold text-blue-700">Check Expense</h2>
+    <h2 class="text-xl font-bold text-blue-700">Add Expense</h2>
     <button id="downloadReportBtn" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
       Download Report
     </button>
@@ -989,29 +989,104 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <div class="content space-y-4">
     <!-- Transaction ID -->
-    <input type="text" placeholder="Transaction ID" class="w-full border p-2 rounded" />
+    <input id="expenseTxnId" type="text" placeholder="Transaction ID" class="w-full border p-2 rounded" />
 
     <!-- Expense Fields -->
-    <input type="text" placeholder="Expense Name" class="w-full border p-2 rounded" />
-    <input type="number" placeholder="Amount" class="w-full border p-2 rounded" />
+    <input id="expenseName" type="text" placeholder="Expense Name" class="w-full border p-2 rounded" />
+    <input id="expenseAmount" type="number" placeholder="Amount" class="w-full border p-2 rounded" />
 
     <!-- From & To Date -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <input type="date" placeholder="From Date" class="w-full border p-2 rounded" />
-      <input type="date" placeholder="End Date" class="w-full border p-2 rounded" />
+    <input id="expenseDate" type="date" class="w-full border p-2 rounded" />
+
+    <textarea id="expenseDescription" placeholder="Description" class="w-full border p-2 rounded"></textarea>
+
+    <div class="flex items-center gap-4">
+      <button id="addExpenseBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Add Expense</button>
+      <div id="expenseMsg" class="text-sm"></div>
     </div>
-
-    <textarea placeholder="Description" class="w-full border p-2 rounded"></textarea>
-
-    <button class="px-4 py-2 bg-blue-500 text-white rounded">Add Expense</button>
   </div>
 </section>
 
 <script>
-// Download Report Logic Placeholder
-document.getElementById('downloadReportBtn').addEventListener('click', () => {
-  alert("Report download functionality will be implemented here.");
-});
+  // Add Expense handler: validate, POST to backend, show processing/completion messages.
+  (function(){
+    const addBtn = document.getElementById('addExpenseBtn');
+    const msg = document.getElementById('expenseMsg');
+    if (!addBtn || !msg) return;
+
+    addBtn.addEventListener('click', async function () {
+      // collect values
+      const txnId = (document.getElementById('expenseTxnId') || {}).value?.trim();
+      const name = (document.getElementById('expenseName') || {}).value?.trim();
+      const amount = (document.getElementById('expenseAmount') || {}).value?.trim();
+      const date = (document.getElementById('expenseDate') || {}).value?.trim();
+      const description = (document.getElementById('expenseDescription') || {}).value?.trim();
+
+      // simple validation
+      if (!name || !amount || !date) {
+        msg.textContent = 'Please fill Expense Name, Amount and Date.';
+        msg.className = 'text-sm text-red-600';
+        return;
+      }
+
+      // show processing state
+      addBtn.disabled = true;
+      msg.textContent = 'Processing...';
+      msg.className = 'text-sm text-blue-600';
+
+      const payload = {
+        transaction_id: txnId || null,
+        name,
+        amount: Number(amount),
+        date,
+        description
+      };
+
+      try {
+        const res = await fetch('/api/check-expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        // attempt to parse JSON response
+        let data = null;
+        try { data = await res.json(); } catch(e){ data = null; }
+
+        if (!res.ok) {
+          // backend responded non-2xx
+          const serverMsg = data && data.message ? data.message : res.statusText || 'Server error';
+          msg.textContent = 'Failed to save expense. ' + serverMsg;
+          msg.className = 'text-sm text-red-600';
+        } else if (data && data.status === 'success') {
+          // backend may include message (e.g. saved locally)
+          const serverMsg = data.message || 'Expense saved successfully.';
+          msg.textContent = serverMsg;
+          msg.className = 'text-sm text-green-600';
+          // optionally clear form
+          (document.getElementById('expenseTxnId') || {}).value = '';
+          (document.getElementById('expenseName') || {}).value = '';
+          (document.getElementById('expenseAmount') || {}).value = '';
+          (document.getElementById('expenseDate') || {}).value = '';
+          (document.getElementById('expenseDescription') || {}).value = '';
+          // reload admin expenses list if opened elsewhere (best-effort)
+          if (window.loadExpenses) try { window.loadExpenses(); } catch(e){}
+        } else {
+          // Backend returned success HTTP but payload indicates error or unexpected shape
+          const serverMsg = data && data.message ? data.message : 'Invalid response from backend';
+          msg.textContent = 'Failed to save expense. ' + serverMsg;
+          msg.className = 'text-sm text-red-600';
+        }
+      } catch (err) {
+        // network / connection error
+        console.error('Add expense network error:', err);
+        msg.textContent = 'Backend not connected. Please try again later.';
+        msg.className = 'text-sm text-red-600';
+      } finally {
+        addBtn.disabled = false;
+      }
+    });
+  })();
 </script>
 
       <section id="depositWithdraw" class="dynamic-section hidden bg-white p-6 rounded shadow">
@@ -1362,29 +1437,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('DOMContentLoaded', () => {
       initializeFloatingBoxes();
     });
-  </script>
-</body>
-</html>
-      initializeFloatingBoxes();
-    });
-  </script>
-</body>
-</html>
-      initializeFloatingBoxes();
-    });
-  </script>
-</body>
-</html>
-</body>
-</html>
-      initializeFloatingBoxes();
-    });
-  </script>
-</body>
-</html>
-  </script>
-</body>
-</html>
   </script>
 </body>
 </html>
