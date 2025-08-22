@@ -19,13 +19,6 @@ def dashboard():
         total_statement=0
     )
 
-@admin_bp.route("/account_requests")
-def admin_account_requests():
-    # Fetch all pending member requests - INCLUDE customer_id
-    resp = supabase.table("members").select("id, name, kgid, email, phone, customer_id").eq("status", "pending").execute()
-    requests = resp.data if resp.data else []
-    return render_template("admin/account_requests.html", requests=requests)
-
 @admin_bp.route("/account_requests/approve/<email>", methods=["POST"])
 def approve_member(email):
     # Approve member by email
@@ -66,6 +59,13 @@ def reject_member(email):
         flash("Failed to reject member.", "error")
     return redirect(url_for("admin.admin_account_requests"))
 
+@admin_bp.route("/staff_expense")
+def admin_staff_expense():
+    return render_template("admin/staff_expense.html")
+
+@admin_bp.route("/add_staff")
+def admin_add_staff():
+    return render_template("admin/add_staff.html")
 @admin_bp.route("/staff_expense")
 def admin_staff_expense():
     return render_template("admin/staff_expense.html")

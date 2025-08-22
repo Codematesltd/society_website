@@ -771,18 +771,10 @@
     <div id="addUserMsg" class="mb-4 text-center hidden"></div>
     <form id="addUserForm">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- First / Middle / Last Name -->
+        <!-- Single Name Field -->
         <div>
-          <label class="block text-sm font-medium mb-1">First Name</label>
-          <input type="text" name="first_name" placeholder="First Name" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Middle Name</label>
-          <input type="text" name="middle_name" placeholder="Middle Name" class="border p-2 rounded w-full" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Last Name</label>
-          <input type="text" name="last_name" placeholder="Last Name" class="border p-2 rounded w-full" required />
+          <label class="block text-sm font-medium mb-1">Full Name</label>
+          <input type="text" name="name" placeholder="Full Name" class="border p-2 rounded w-full" required />
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">KGID</label>
@@ -871,109 +863,136 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = emailInput.value.trim();
     if (!email) {
       addUserMsg.textContent = "Please enter an email.";
+      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
+      addUserMsg.classList.remove('hidden');
       return;
     }
+    
     verifyBtn.disabled = true;
+    verifyBtn.textContent = "Sending...";
     addUserMsg.textContent = "Sending OTP...";
+    addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
+    addUserMsg.classList.remove('hidden');
+    
     try {
       // Create a FormData with only the 'email' field
       const formData = new FormData();
       formData.append('email', email);
+      
       const res = await fetch('/staff/api/add-member/send-otp', {
         method: 'POST',
         body: formData
       });
-      // If response is not JSON, show error
+      
+      console.log('Response status:', res.status);
+      
+      // Handle both JSON and non-JSON responses
       let data;
-      try {
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
         data = await res.json();
-      } catch {
-        addUserMsg.textContent = "Server error. Please check backend logs.";
-        verifyBtn.disabled = false;
-        return;
+      } else {
+        const text = await res.text();
+        console.log('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
       }
-      if (data.status === 'success') {
+      
+      console.log('Response data:', data);
+      
+      if (res.ok && data.status === 'success') {
         otpContainer.classList.remove('hidden');
         otpInput.focus();
-        addUserMsg.textContent = "OTP sent to email. Enter OTP to continue.";
+        addUserMsg.textContent = "OTP sent to email. Enter the 6-digit OTP to continue.";
+        addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
         otpSent = true;
+        verifyBtn.textContent = "Sent ✓";
       } else {
-        addUserMsg.textContent = data.message || "Failed to send OTP.";
+        addUserMsg.textContent = data?.message || "Failed to send OTP. Please try again.";
+        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         verifyBtn.disabled = false;
+        verifyBtn.textContent = "Verify";
       }
     } catch (err) {
-      addUserMsg.textContent = "Network error.";
+      console.error('Error sending OTP:', err);
+      addUserMsg.textContent = "Network error: " + err.message;
+      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
       verifyBtn.disabled = false;
+      verifyBtn.textContent = "Verify";
     }
   });
 
-  // OTP input handler
+  // OTP input handler - check for 6 digits
   otpInput.addEventListener('input', () => {
-    if (otpInput.value.length === 6) {
+    const otpValue = otpInput.value.trim();
+    if (otpValue.length === 6 && /^\d{6}$/.test(otpValue)) {
       otpVerified = true;
-      otpInput.classList.add('border-green-500');
-      addUserMsg.textContent = "";
+      otpInput.classList.add('border-green-500', 'bg-green-50');
+      addUserMsg.textContent = "OTP verified! You can now submit the form.";
+      addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+      addUserMsg.classList.remove('hidden');
     } else {
       otpVerified = false;
-      otpInput.classList.remove('border-green-500');
+      otpInput.classList.remove('border-green-500', 'bg-green-50');
+      if (otpValue.length > 0) {
+        addUserMsg.textContent = "Please enter a valid 6-digit OTP.";
+        addUserMsg.className = "mb-4 text-center bg-yellow-100 text-yellow-700 px-4 py-2 rounded shadow";
+      }
     }
   });
 
   // Form submit handler
   addUserForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
     if (!otpSent || !otpVerified) {
       warning.classList.remove('hidden');
-      addUserMsg.textContent = "Please verify your email and enter OTP.";
+      addUserMsg.textContent = "Please verify your email and enter the 6-digit OTP first.";
       addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
       addUserMsg.classList.remove('hidden');
       return;
     }
+    
     warning.classList.add('hidden');
-    addUserMsg.textContent = "Submitting user...";
+    addUserMsg.textContent = "Submitting user registration...";
     addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
     addUserMsg.classList.remove('hidden');
+    
     const formData = new FormData(addUserForm);
-
-    // Combine first/middle/last name into 'name'
-    const name = [
-      formData.get('first_name') || '',
-      formData.get('middle_name') || '',
-      formData.get('last_name') || ''
-    ].filter(Boolean).join(' ');
-    formData.set('name', name);
-
-    // Remove individual name fields
-    formData.delete('first_name');
-    formData.delete('middle_name');
-    formData.delete('last_name');
 
     try {
       const res = await fetch('/staff/api/add-member', {
         method: 'POST',
         body: formData
       });
+      
       const data = await res.json();
-      if (data.status === 'success') {
-        addUserMsg.textContent = "User added successfully!";
+      
+      if (res.ok && data.status === 'success') {
+        addUserMsg.textContent = "User added successfully! Customer ID: " + (data.member?.customer_id || "Generated");
         addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
         addUserMsg.classList.remove('hidden');
+        
+        // Reset form and state
         addUserForm.reset();
         otpContainer.classList.add('hidden');
         verifyBtn.disabled = false;
+        verifyBtn.textContent = "Verify";
         otpSent = false;
         otpVerified = false;
+        otpInput.classList.remove('border-green-500', 'bg-green-50');
       } else {
-        addUserMsg.textContent = data.message || "Failed to add user.";
+        addUserMsg.textContent = data?.message || "Failed to add user. Please try again.";
         addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
         addUserMsg.classList.remove('hidden');
       }
     } catch (err) {
-      addUserMsg.textContent = "Network error.";
+      console.error('Error adding user:', err);
+      addUserMsg.textContent = "Network error: " + err.message;
       addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
       addUserMsg.classList.remove('hidden');
     }
   });
+});
 </script>
 
       <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
@@ -1415,6 +1434,14 @@ document.addEventListener('DOMContentLoaded', () => {
     <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
     <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
     <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
+    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
+    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
   </div>
 
   <!-- Floating Civil Score Button -->
@@ -1431,7 +1458,6 @@ document.addEventListener('DOMContentLoaded', () => {
     <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
     <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
   </div>
-  
   <script src="shared.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {

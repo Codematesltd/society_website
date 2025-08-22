@@ -4,21 +4,39 @@
 {% block header %}Account Requests{% endblock %}
 {% block content %}
 <h2 class="text-2xl font-bold mb-6 text-blue-700">Pending Account Requests</h2>
-<div id="accountCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {% for req in requests %}
-  <div class="bg-white rounded-xl shadow p-6 flex flex-col justify-between">
-    <div>
-      <div class="font-bold text-lg text-blue-700 mb-2">{{ req.name }}</div>
-      <div class="mb-1"><span class="font-semibold">KGID:</span> {{ req.kgid }}</div>
-      <div class="mb-1"><span class="font-semibold">Email:</span> {{ req.email }}</div>
-      <div class="mb-1"><span class="font-semibold">Phone:</span> {{ req.phone }}</div>
-    </div>
-    <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition view-details-btn"
-      data-email="{{ req.email or '' }}"
-    >View Full Details</button>
-  </div>
-  {% endfor %}
+
+<!-- Debug info -->
+<div class="mb-4 text-sm text-gray-600">
+  Found {{ requests|length }} pending requests
 </div>
+
+{% if not requests or requests|length == 0 %}
+  <div class="text-center py-12">
+    <div class="text-gray-400 text-6xl mb-4">📝</div>
+    <h3 class="text-lg font-medium text-gray-900 mb-2">No pending account requests</h3>
+    <p class="text-gray-500">All account requests have been processed or no new requests have been submitted.</p>
+    <button onclick="window.location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      Refresh
+    </button>
+  </div>
+{% else %}
+  <div id="accountCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for req in requests %}
+    <div class="bg-white rounded-xl shadow p-6 flex flex-col justify-between">
+      <div>
+        <div class="font-bold text-lg text-blue-700 mb-2">{{ req.name }}</div>
+        <div class="mb-1"><span class="font-semibold">KGID:</span> {{ req.kgid }}</div>
+        <div class="mb-1"><span class="font-semibold">Email:</span> {{ req.email }}</div>
+        <div class="mb-1"><span class="font-semibold">Phone:</span> {{ req.phone }}</div>
+        <div class="mb-1"><span class="font-semibold">Customer ID:</span> {{ req.customer_id or 'Pending' }}</div>
+      </div>
+      <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition view-details-btn"
+        data-email="{{ req.email or '' }}"
+      >View Full Details</button>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
 
 <!-- Modal for full details -->
 <div id="memberModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
