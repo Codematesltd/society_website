@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loan Dashboard</title>
+  <title>User Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .fade-enter {
@@ -24,30 +24,106 @@
       transform: translateY(0);
       opacity: 1;
     }
+    /* Responsive sidebar overlay for mobile */
+    @media (max-width: 768px) {
+      .sidebar-mobile {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 80vw;
+        height: 100vh;
+        z-index: 50;
+        background: #fff;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+      }
+      .sidebar-mobile.open {
+        transform: translateX(0);
+      }
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.2);
+        z-index: 40;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <!-- Header -->
   <header class="w-full h-16 bg-white shadow flex items-center justify-between px-6">
-    <div class="text-2xl font-bold text-blue-700">Loan Dashboard</div>
-    <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-semibold">U</div>
+    <div class="flex items-center gap-4">
+      <button id="sidebarToggle" class="md:hidden text-blue-700 focus:outline-none">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <span class="text-2xl font-bold text-blue-700">User Dashboard</span>
+    </div>
   </header>
 
   <div class="flex h-[calc(100vh-4rem)]">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r p-6 space-y-6">
-      <h2 class="font-semibold text-xl text-blue-600">Navigation</h2>
+    <aside id="sidebar" class="sidebar-mobile md:static md:w-64 bg-white border-r p-6 space-y-6 md:block hidden">
+      <div class="flex items-center justify-between mb-4 md:hidden">
+        <span class="font-semibold text-xl text-blue-600">Navigation</span>
+        <button id="sidebarClose" class="text-gray-500 hover:text-blue-700">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <h2 class="font-semibold text-xl text-blue-600 hidden md:block">Navigation</h2>
       <nav class="space-y-4">
-        <a href="landing page.html" class="block w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">🏠 Home</a>
-        <button onclick="fetchData('loan')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">📄 Loan Status</button>
-        <button onclick="fetchData('statement')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">📁 Get Statement</button>
-        <button onclick="fetchData('balance')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition">💳 Check Balance</button>
-        <button onclick="window.location.href='landing page.html'" class="w-full px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition">🚪 Logout</button>
+        <button onclick="fetchData('account')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
+          <span>👤</span> <span>Account Overview</span>
+        </button>
+        <button onclick="fetchData('loan')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
+          <span>📄</span> <span>Loan Status</span>
+        </button>
+        <button onclick="fetchData('statement')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
+          <span>📁</span> <span>Get Statement</span>
+        </button>
+        <button onclick="fetchData('balance')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
+          <span>💳</span> <span>Check Balance</span>
+        </button>
+        <a href="/logout" class="w-full block px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition flex items-center gap-2">
+          <span>🧾</span> <span>Logout</span>
+        </a>
       </nav>
     </aside>
+    <!-- Sidebar backdrop for mobile -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop hidden md:hidden"></div>
 
     <!-- Main Content -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+      <div id="welcomeSection" class="flex flex-col items-center justify-center h-full">
+        <div class="bg-white rounded-xl shadow p-6 w-full max-w-md text-center mb-8">
+          <h2 class="text-2xl font-bold text-blue-700 mb-2">
+            Welcome{% if session.get('name') %}, {{ session.get('name') }}{% endif %}!
+          </h2>
+          <p class="text-gray-600 mb-6">Select an option below to get started:</p>
+          <div class="flex flex-col gap-4">
+            <button onclick="fetchData('account')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
+              <span>👤</span> <span>Account Overview</span>
+            </button>
+            <button onclick="fetchData('loan')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
+              <span>📄</span> <span>Loan Status</span>
+            </button>
+            <button onclick="fetchData('statement')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
+              <span>📁</span> <span>Get Statement</span>
+            </button>
+            <button onclick="fetchData('balance')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
+              <span>💳</span> <span>Check Balance</span>
+            </button>
+            <a href="/logout" class="w-full block px-4 py-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition flex items-center gap-2 text-lg font-medium">
+              <span>🧾</span> <span>Logout</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <section id="account" class="hidden animate-fade-in"></section>
       <section id="loan" class="hidden animate-fade-in"></section>
       <section id="statement" class="hidden animate-fade-in"></section>
       <section id="balance" class="hidden animate-fade-in"></section>
@@ -55,102 +131,363 @@
   </div>
 
   <script>
+    // Sidebar mobile toggle
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() {
+      sidebar.classList.add('open');
+      sidebar.classList.remove('hidden');
+      sidebarBackdrop.classList.remove('hidden');
+    }
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      setTimeout(() => sidebar.classList.add('hidden'), 300);
+      sidebarBackdrop.classList.add('hidden');
+    }
+    if (sidebarToggle) sidebarToggle.onclick = openSidebar;
+    if (sidebarClose) sidebarClose.onclick = closeSidebar;
+    if (sidebarBackdrop) sidebarBackdrop.onclick = closeSidebar;
+    // Hide sidebar on desktop resize
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        sidebar.classList.remove('sidebar-mobile', 'open', 'hidden');
+        sidebarBackdrop.classList.add('hidden');
+      } else {
+        sidebar.classList.add('sidebar-mobile', 'hidden');
+      }
+    });
+
+    // Auto-close sidebar on menu option click (mobile only)
+    function autoCloseSidebarOnMobile() {
+      if (window.innerWidth < 768) closeSidebar();
+    }
+    // Attach to all sidebar nav items
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('#sidebar a, #sidebar button').forEach(el => {
+        el.addEventListener('click', autoCloseSidebarOnMobile);
+      });
+    });
+
     const loader = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
+
+    const accountData = `
+      <h2 class="text-2xl font-bold text-blue-700 mb-6">Account Overview</h2>
+      <div id="accountOverviewContent" class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-8 max-w-lg mx-auto flex flex-col items-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+        <div class="text-gray-600">Loading account details...</div>
+      </div>
+    `;
 
     const loanData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Loan Status</h2>
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-white rounded shadow">
-          <thead class="bg-blue-100">
-            <tr>
-              <th class="py-3 px-4 border">Initial Date</th>
-              <th class="py-3 px-4 border">Loan Amount</th>
-              <th class="py-3 px-4 border">End Date</th>
-              <th class="py-3 px-4 border">Status</th>
-            </tr>
-        
-        </table>
-      </div>`;
+      <div id="loanDetailsSection"></div>
+    `;
 
     const statementData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Get Statement</h2>
       <div class="flex flex-wrap gap-4 mb-6">
-        <input type="date" class="border p-3 rounded-lg w-48" />
-        <input type="date" class="border p-3 rounded-lg w-48" />
-        <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Generate</button>
+        <select id="statementRange" class="border p-3 rounded-lg w-48">
+          <option value="last10">Last 10 Transactions</option>
+          <option value="1m">Last 1 Month</option>
+          <option value="3m">Last 3 Months</option>
+          <option value="6m">Last 6 Months</option>
+          <option value="1y">Last 1 Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        <input type="date" id="fromDate" class="border p-3 rounded-lg w-48 hidden" />
+        <input type="date" id="toDate" class="border p-3 rounded-lg w-48 hidden" />
+        <button id="generateStatementBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Generate</button>
       </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-white rounded shadow">
-          <thead class="bg-blue-100">
-            <tr>
-              <th class="py-3 px-4 border">Date</th>
-              <th class="py-3 px-4 border">Description</th>
-              <th class="py-3 px-4 border">Debit</th>
-              <th class="py-3 px-4 border">Credit</th>
-              <th class="py-3 px-4 border">Balance</th>
-            </tr>
-          </thead>
-         
-        </table>
+      <div id="statementTableWrapper">
+        <div class="overflow-x-auto">
+          <table class="min-w-full bg-white rounded shadow">
+            <thead class="bg-blue-100">
+              <tr>
+                <th class="py-3 px-4 border">Date</th>
+                <th class="py-3 px-4 border">Description</th>
+                <th class="py-3 px-4 border">Debit</th>
+                <th class="py-3 px-4 border">Credit</th>
+                <th class="py-3 px-4 border">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="statementTableBody">
+              <tr><td colspan="5" class="text-center py-4 text-gray-500">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <p class="mt-4 text-green-600 font-medium">✔ Statement successfully generated</p>`;
+      <p id="statementSuccess" class="mt-4 text-green-600 font-medium hidden">✔ Statement successfully generated</p>
+    `;
 
     const balanceData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Check Balance</h2>
       <input type="password" id="balancePassword" placeholder="Enter your login password" class="border p-3 rounded-lg w-60 mb-4" />
       <button id="checkBalanceBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Check</button>
-      <p id="balanceResult" class="mt-4 font-medium"></p>`;
+      <p id="balanceResult" class="mt-4 font-medium"></p>
+    `;
 
-    async function fetchData(tabId) {
-      const section = document.getElementById(tabId);
-
+    // Define fetchData as a function expression and assign to window to ensure global scope
+    window.fetchData = async function(tabId) {
+      document.getElementById("welcomeSection").style.display = "none";
       document.querySelectorAll("main section").forEach(s => {
         s.classList.add("hidden");
         s.innerHTML = "";
       });
-
+      const section = document.getElementById(tabId);
       section.innerHTML = loader;
       section.classList.remove("hidden");
-
       setTimeout(() => {
         const contentMap = {
+          account: accountData,
           loan: loanData,
           statement: statementData,
           balance: balanceData
         };
-
         section.innerHTML = contentMap[tabId];
         section.classList.add("fade-enter");
-        requestAnimationFrame(() => {
-          section.classList.add("fade-enter-active");
-        });
+        requestAnimationFrame(() => section.classList.add("fade-enter-active"));
 
-        // Attach balance check handler
+        // Account Overview API integration
+        if (tabId === "account") {
+          fetch("{{ url_for('members.api_account_overview') }}", {
+            method: "GET",
+            credentials: "include"
+          })
+          .then(res => res.json())
+          .then(data => {
+            const contentDiv = document.getElementById("accountOverviewContent");
+            if (data.status === "success" && data.data) {
+              const d = data.data;
+              contentDiv.innerHTML = `
+                <div class="w-full flex flex-col items-center">
+                  <div class="mb-4">
+                    ${
+                      d.photo_url
+                        ? `<img src="${d.photo_url}" alt="User Photo" class="w-20 h-20 rounded-full object-cover shadow border-2 border-blue-200">`
+                        : `<div class="w-20 h-20 rounded-full bg-blue-200 flex items-center justify-center text-3xl font-bold text-blue-700 shadow">?</div>`
+                    }
+                  </div>
+                  <div class="mb-2 text-xl font-semibold text-blue-800">${d.name || "-"}</div>
+                  <div class="grid grid-cols-1 gap-3 text-gray-700 w-full max-w-xs mt-4">
+                    <div class="flex justify-between"><span class="font-semibold">KGID:</span> <span>${d.kgid || "-"}</span></div>
+                    <div class="flex justify-between"><span class="font-semibold">Customer ID:</span> <span>${d.customer_id || "-"}</span></div>
+                    <div class="flex justify-between"><span class="font-semibold">Organization:</span> <span>${d.organization_name || "-"}</span></div>
+                    <div class="flex justify-between"><span class="font-semibold">Phone:</span> <span>${d.phone || "-"}</span></div>
+                    <div class="flex justify-between"><span class="font-semibold">Email:</span> <span>${d.email || "-"}</span></div>
+                    <div class="flex justify-between"><span class="font-semibold">Address:</span> <span class="text-right">${d.address || "-"}</span></div>
+                  </div>
+                </div>
+              `;
+            } else {
+              contentDiv.innerHTML = `<div class="text-red-600 font-medium">${data.message || "Unable to fetch account details."}</div>`;
+            }
+          })
+          .catch(() => {
+            const contentDiv = document.getElementById("accountOverviewContent");
+            contentDiv.innerHTML = `<div class="text-red-600 font-medium">Network error</div>`;
+          });
+        }
+
         if (tabId === "balance") {
           const btn = document.getElementById("checkBalanceBtn");
           btn.onclick = async function() {
             const pw = document.getElementById("balancePassword").value;
-            const resultP = document.getElementById("balanceResult");
-            resultP.textContent = "Checking...";
+            section.innerHTML = loader;
             try {
-              const res = await fetch("/members/api/check-balance", {
+              const res = await fetch("{{ url_for('members.api_check_balance') }}", {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ password: pw })
               });
               const data = await res.json();
               if (res.ok && data.status === "success") {
-                resultP.textContent = `Your current balance is ₹${Number(data.balance).toLocaleString()}`;
-                resultP.className = "mt-4 text-green-600 font-medium";
+                section.innerHTML = `
+                  <div class="flex flex-col items-center justify-center py-12">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-16 h-16 text-green-500 mb-4"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M7 13l3 3 7-7"/>
+                    </svg>
+                    <h2 class="mt-4 text-xl font-bold text-green-600 text-center">KSTHST A/C Balance Fetched Successfully</h2>
+                    <div class="mt-4 text-4xl font-bold text-green-700">₹${Number(data.balance).toLocaleString()}</div>
+                  </div>
+                `;
               } else {
-                resultP.textContent = data.message || "Error checking balance";
-                resultP.className = "mt-4 text-red-600 font-medium";
+                section.innerHTML = `<p class="mt-4 text-red-600 font-medium">${data.message}</p>`;
               }
             } catch {
-              resultP.textContent = "Network error";
-              resultP.className = "mt-4 text-red-600 font-medium";
+              section.innerHTML = `<p class="mt-4 text-red-600 font-medium">Network error</p>`;
             }
           };
+        }
+
+        // Loan Status: fetch loans automatically for logged-in user
+        if (tabId === "loan") {
+          const detailsSection = document.getElementById("loanDetailsSection");
+          detailsSection.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
+
+          // Fetch all loans for the logged-in user
+          const fetchLoans = async () => {
+            try {
+              const res = await fetch("/members/api/my-loans");
+              const data = await res.json();
+              if (res.ok && data.status === "success") {
+                const loans = data.loans;
+                if (!loans.length) {
+                  detailsSection.innerHTML = `<div class="text-gray-600 font-medium mb-4">No loans found for your account.</div>`;
+                  return;
+                }
+                detailsSection.innerHTML = loans.map(loan => `
+                  <div class="bg-white rounded-xl shadow p-6 mb-6">
+                    <h3 class="text-xl font-bold text-blue-700 mb-2">Loan Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700 mb-4">
+                      <div><span class="font-semibold">Loan ID:</span> ${loan.loan_id || "-"}</div>
+                      <div><span class="font-semibold">Customer ID:</span> ${loan.customer_id || "-"}</div>
+                      <div><span class="font-semibold">Loan Type:</span> ${loan.loan_type || "-"}</div>
+                      <div><span class="font-semibold">Loan Amount:</span> ₹${loan.loan_amount ? Number(loan.loan_amount).toLocaleString() : "-"}</div>
+                      <div><span class="font-semibold">Interest Rate:</span> ${loan.interest_rate || "-"}%</div>
+                      <div><span class="font-semibold">Loan Term:</span> ${loan.loan_term_months || "-"} months</div>
+                      <div><span class="font-semibold">Purpose:</span> ${loan.purpose || "-"}</div>
+                      <div><span class="font-semibold">Status:</span> ${loan.status || "-"}</div>
+                      ${
+                        loan.status === "rejected" && loan.rejection_reason
+                          ? `<div class="md:col-span-2 text-red-600 font-semibold"><span class="font-semibold">Rejection Reason:</span> ${loan.rejection_reason}</div>`
+                          : ""
+                      }
+                    </div>
+                    ${
+                      loan.status !== "rejected"
+                        ? `<button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="fetchLoanRecords('${loan.loan_id}', this)">Show Repayment Records</button>
+                           <div class="repayment-records mt-4"></div>`
+                        : ""
+                    }
+                  </div>
+                `).join("");
+              } else {
+                detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "Loan not found."}</div>`;
+              }
+            } catch (e) {
+              detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
+            }
+          };
+          fetchLoans();
+        }
+
+        // Statement API integration
+        if (tabId === "statement") {
+          const rangeSelect = document.getElementById("statementRange");
+          const fromDate = document.getElementById("fromDate");
+          const toDate = document.getElementById("toDate");
+          const genBtn = document.getElementById("generateStatementBtn");
+          const tableBody = document.getElementById("statementTableBody");
+          const successMsg = document.getElementById("statementSuccess");
+
+          // Update table header for new columns (STID + date merged)
+          document.getElementById("statementTableWrapper").querySelector("thead tr").innerHTML = `
+            <th class="py-3 px-2 border whitespace-nowrap">Date<br><span class="text-xs font-normal">STID</span></th>
+            <th class="py-3 px-2 border">Description</th>
+            <th class="py-3 px-2 border">Type</th>
+            <th class="py-3 px-2 border">Amount</th>
+            <th class="py-3 px-2 border">Balance</th>
+          `;
+
+          function toggleDateInputs() {
+            if (rangeSelect.value === "custom") {
+              fromDate.classList.remove("hidden");
+              toDate.classList.remove("hidden");
+            } else {
+              fromDate.classList.add("hidden");
+              toDate.classList.add("hidden");
+            }
+          }
+          rangeSelect.onchange = toggleDateInputs;
+          toggleDateInputs();
+
+          async function fetchStatement() {
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading...</td></tr>`;
+            successMsg.classList.add("hidden");
+            let url = "{{ url_for('members.api_statements') }}?range=" + encodeURIComponent(rangeSelect.value);
+            if (rangeSelect.value === "custom") {
+              if (!fromDate.value || !toDate.value) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Please select both dates.</td></tr>`;
+                return;
+              }
+              url += "&from_date=" + encodeURIComponent(fromDate.value) + "&to_date=" + encodeURIComponent(toDate.value);
+            }
+            try {
+              const res = await fetch(url, { credentials: "include" });
+              const data = await res.json();
+              if (res.ok && data.status === "success") {
+                if (data.transactions && data.transactions.length > 0) {
+                  tableBody.innerHTML = data.transactions.map(tr => `
+                    <tr>
+                      <td class="py-2 px-2 border text-xs md:text-base">
+                        <div>${tr.date ? tr.date.split('T')[0] : '-'}</div>
+                        <div class="text-gray-400 text-[10px] md:text-xs break-all">${tr.stid || '-'}</div>
+                      </td>
+                      <td class="py-2 px-2 border">${tr.remarks && tr.remarks !== 'null' ? tr.remarks : '-'}</td>
+                      <td class="py-2 px-2 border">
+                        <span class="${tr.type === "deposit" ? "text-green-600 font-semibold" : tr.type === "withdraw" ? "text-red-600 font-semibold" : ""}">
+                          ${tr.type === "deposit" ? "Deposit" : tr.type === "withdraw" ? "Withdrawal" : "-"}
+                        </span>
+                      </td>
+                      <td class="py-2 px-2 border ${tr.type === "deposit" ? "text-green-600 font-semibold" : tr.type === "withdraw" ? "text-red-600 font-semibold" : ""}">
+                        ₹${Number(tr.amount).toLocaleString()}
+                      </td>
+                      <td class="py-2 px-2 border">${tr.balance_after !== undefined && tr.balance_after !== null ? "₹" + Number(tr.balance_after).toLocaleString() : "-"}</td>
+                    </tr>
+                  `).join("");
+                  successMsg.classList.remove("hidden");
+                } else {
+                  tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">No transactions found.</td></tr>`;
+                }
+              } else {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">${data.message || "Error fetching statement."}</td></tr>`;
+              }
+            } catch {
+              tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Network error</td></tr>`;
+            }
+          }
+
+          // Initial fetch for last 10 transactions from transaction table
+          fetchStatement();
+          genBtn.onclick = fetchStatement;
+
+          // Add download button
+          if (!document.getElementById("downloadStatementBtn")) {
+            const downloadBtn = document.createElement("button");
+            downloadBtn.id = "downloadStatementBtn";
+            downloadBtn.className = "bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition mb-4";
+            downloadBtn.innerHTML = "⬇ Download PDF";
+            downloadBtn.onclick = function() {
+              // Get current range and dates
+              const range = rangeSelect.value;
+              let url = "{{ url_for('members.download_statement') }}?range=" + encodeURIComponent(range);
+              if (range === "custom") {
+                if (!fromDate.value || !toDate.value) {
+                  alert("Please select both dates for custom range.");
+                  return;
+                }
+                url += "&from_date=" + encodeURIComponent(fromDate.value) + "&to_date=" + encodeURIComponent(toDate.value);
+              }
+              
+              // Force download instead of opening in new tab
+              const downloadLink = document.createElement('a');
+              downloadLink.href = url;
+              downloadLink.download = 'statement.pdf';
+              document.body.appendChild(downloadLink);
+              downloadLink.click();
+              setTimeout(() => {
+                document.body.removeChild(downloadLink);
+              }, 100);
+            };
+            section.insertBefore(downloadBtn, section.querySelector("#statementTableWrapper"));
+          }
         }
       }, 600);
     }
@@ -186,6 +523,55 @@
         closeCivil.addEventListener('click', () => toggleBox(civilBox));
       }
     });
+
+    // Make fetchData globally accessible
+    window.fetchData = fetchData;
+
+    // Helper function to fetch and show repayment records for a loan
+    window.fetchLoanRecords = async function(loanId, btn) {
+      const container = btn.parentElement.querySelector('.repayment-records');
+      container.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600'></div></div>`;
+      try {
+        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
+        const data = await res.json();
+        if (res.ok && data.status === "success") {
+          const records = data.records;
+          container.innerHTML = `
+            <h4 class="text-lg font-semibold text-blue-600 mt-2 mb-2">Repayment Records</h4>
+            <div class="overflow-x-auto">
+              <table class="min-w-full bg-white rounded shadow">
+                <thead class="bg-blue-100">
+                  <tr>
+                    <th class="py-2 px-4 border">Repayment Date</th>
+                    <th class="py-2 px-4 border">Repayment Amount</th>
+                    <th class="py-2 px-4 border">Outstanding Balance</th>
+                    <th class="py-2 px-4 border">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    records.length > 0
+                    ? records.map(r => `
+                      <tr>
+                        <td class="py-2 px-4 border">${r.repayment_date || "-"}</td>
+                        <td class="py-2 px-4 border">${r.repayment_amount !== null ? "₹" + Number(r.repayment_amount).toLocaleString() : "-"}</td>
+                        <td class="py-2 px-4 border">${r.outstanding_balance !== null ? "₹" + Number(r.outstanding_balance).toLocaleString() : "-"}</td>
+                        <td class="py-2 px-4 border">${r.status || "-"}</td>
+                      </tr>
+                    `).join("")
+                    : `<tr><td colspan="4" class="text-center py-4 text-gray-500">No repayment records found.</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "No records found."}</div>`;
+        }
+      } catch (e) {
+        container.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
+      }
+    };
   </script>
     <!-- Add before closing body tag -->
   <!-- Floating Query Button -->
@@ -219,5 +605,57 @@
     <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
     <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
   </div>
+
+  
+  <script src="shared.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
+
+  <!-- Responsive table styles -->
+  <style>
+    @media (max-width: 640px) {
+      #statementTableWrapper table, #statementTableWrapper thead, #statementTableWrapper tbody, #statementTableWrapper th, #statementTableWrapper td, #statementTableWrapper tr {
+        display: block;
+        width: 100%;
+      }
+      #statementTableWrapper thead tr {
+        display: none;
+      }
+      #statementTableWrapper tbody tr {
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        background: #fff;
+        padding: 0.5rem 0;
+      }
+      #statementTableWrapper td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        min-height: 32px;
+        text-align: left;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:before {
+        position: absolute;
+        left: 0.75rem;
+        top: 0.5rem;
+        width: 45%;
+        white-space: nowrap;
+        font-weight: 600;
+        color: #2563eb;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
+      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
+      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
+      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
+      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
+    }
+  </style>
 </body>
 </html>
+

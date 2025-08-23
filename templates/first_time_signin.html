@@ -1,135 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>First Time Sign-In</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body{
-      background: radial-gradient(circle at 25% 25%, #eef3ff, #e3ecff 40%, #d2e2ff 75%, #c2d8ff);
-      min-height:100vh;
-    }
-    .glass{
-      backdrop-filter: blur(8px);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>First Time Sign-In</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="flex flex-col items-center justify-center px-4 py-10">
-  <!-- Branding -->
-  <div class="mb-8 flex items-center gap-3">
-    <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png"
-         alt="Logo" class="w-14 h-14 rounded-full shadow border border-blue-200">
-    <div>
-      <h1 class="text-xl md:text-2xl font-bold text-blue-700 leading-tight">
-        KSTHST Co‑operative Society
-      </h1>
-      <p class="text-xs text-blue-500 tracking-wide">Secure Activation Portal</p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">First Time Sign-In</h2>
+        <form id="firstTimeForm" class="space-y-6">
+            <div>
+                <label for="email" class="block text-gray-700">Email</label>
+                <input id="email" name="email" type="email" class="mt-1 block w-full rounded border-gray-300 shadow-sm" required>
+            </div>
+            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Send Link</button>
+        </form>
+        <div id="firstTimeMsg" class="mt-4 text-center text-red-600"></div>
     </div>
-  </div>
-
-  <!-- Card -->
-  <div class="w-full max-w-md bg-white/85 glass border border-white/40 rounded-2xl shadow-xl p-8">
-    <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">First Time Sign-In</h2>
-    <p class="text-xs text-gray-500 text-center mb-5">Enter your registered email to receive a password setup link.</p>
-
-    <form id="firstTimeForm" class="space-y-5" novalidate>
-      <div>
-        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-        <input id="email" name="email" type="email" autocomplete="email"
-               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
-               placeholder="you@example.com" required>
-        <p id="emailErr" class="hidden text-xs text-red-600 mt-1"></p>
-      </div>
-
-      <button id="submitBtn" type="submit"
-              class="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2.5 rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:opacity-60">
-        <span id="btnText">Send Link</span>
-        <svg id="spinner" class="hidden animate-spin h-5 w-5 text-white"
-             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-        </svg>
-      </button>
-
-      <div id="firstTimeMsg" class="text-center text-sm mt-1 min-h-[20px]"></div>
-
-      <div class="pt-2 text-center">
-        <a href="{{ url_for('auth.login') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-          Back to Login
-        </a>
-      </div>
-    </form>
-  </div>
-
-  <script>
-    const form = document.getElementById('firstTimeForm');
-    const emailEl = document.getElementById('email');
-    const emailErr = document.getElementById('emailErr');
-    const msg = document.getElementById('firstTimeMsg');
-    const btn = document.getElementById('submitBtn');
-    const spinner = document.getElementById('spinner');
-    const btnText = document.getElementById('btnText');
-
-    function setMsg(text, type){
-      msg.textContent = text || '';
-      if(!text){ msg.className = 'text-center text-sm mt-1'; return; }
-      msg.className = 'text-center text-sm mt-1 ' + (type==='success' ? 'text-green-600' : type==='warn' ? 'text-amber-600' : 'text-red-600');
-    }
-
-    function validateEmail(){
-      emailErr.classList.add('hidden');
-      const v = emailEl.value.trim();
-      if(!v){
-        emailErr.textContent = 'Email required';
-        emailErr.classList.remove('hidden');
-        return false;
-      }
-      if(!/^\S+@\S+\.\S+$/.test(v)){
-        emailErr.textContent = 'Invalid email format';
-        emailErr.classList.remove('hidden');
-        return false;
-      }
-      return true;
-    }
-
-    emailEl.addEventListener('blur', validateEmail);
-    emailEl.addEventListener('input', () => {
-      if(!emailErr.classList.contains('hidden')) validateEmail();
-    });
-
-    form.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      setMsg('', null);
-      if(!validateEmail()) return;
-
-      btn.disabled = true;
-      spinner.classList.remove('hidden');
-      btnText.textContent = 'Sending...';
-
-      try{
+    <script>
+    document.getElementById('firstTimeForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
         const res = await fetch('/auth/first-time-signin', {
-          method:'POST',
-          body: new URLSearchParams({email: emailEl.value.trim()}),
-          headers:{'Content-Type':'application/x-www-form-urlencoded'}
+            method: 'POST',
+            body: new URLSearchParams({email}),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
         });
-        let data = {};
-        try{ data = await res.json(); }catch{}
-        if(res.ok && data.status === 'success'){
-          setMsg('A password setup link has been sent to your email.', 'success');
-          form.reset();
-          emailEl.focus();
+        const data = await res.json();
+        if (data.status === 'success') {
+            document.getElementById('firstTimeMsg').textContent = "A password set link has been sent to your email.";
+            document.getElementById('firstTimeMsg').className = "mt-4 text-center text-green-600";
         } else {
-          setMsg(data.message || 'Request failed.', 'error');
+            document.getElementById('firstTimeMsg').textContent = data.message;
+            document.getElementById('firstTimeMsg').className = "mt-4 text-center text-red-600";
         }
-      }catch{
-        setMsg('Network error.', 'error');
-      }finally{
-        btn.disabled = false;
-        spinner.classList.add('hidden');
-        btnText.textContent = 'Send Link';
-      }
-    });
-  </script>
+    };
+    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Flask, redirect, url_for, session  # Add session import
+from flask import Flask, redirect, url_for, session, request, abort  # Add session import
 from app import create_app
 from app.certificate import certificate_bp
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -184,8 +184,80 @@ try:
 except Exception:
     pass
 
+def is_sql_injection(value: str) -> bool:
+    """
+    Simple SQL injection detection for user input.
+    Returns True if suspicious patterns are found.
+    """
+    if not isinstance(value, str):
+        return False
+    # Common SQLi patterns (case-insensitive)
+    patterns = [
+        r"(\%27)|(\')|(\-\-)|(\%23)|(#)",  # single quote, comment
+        r"(\%22)|(\")",                   # double quote
+        r"(\%3D)|(=)",                    # equal sign
+        r"(\b(OR|AND)\b\s+\d+=\d+)",      # OR/AND 1=1
+        r"(\bUNION\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bALTER\b|\bCREATE\b)",  # SQL keywords
+        r"(\bWHERE\b|\bFROM\b|\bTABLE\b|\bDATABASE\b)",
+        r"(\bEXEC\b|\bEXECUTE\b|\bCAST\b|\bCONVERT\b)",
+        r"(\bSLEEP\b|\bBENCHMARK\b|\bWAITFOR\b)",
+    ]
+    import re
+    for pat in patterns:
+        if re.search(pat, value, re.IGNORECASE):
+            return True
+    return False
+
+from flask import request, abort
+from functools import wraps
+import time
+
+# --- DDoS Protection: Simple Rate Limiting (per IP, per endpoint) ---
+RATE_LIMITS = {}
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 30     # max requests per window per IP per endpoint
+
+def rate_limit(limit=RATE_LIMIT_MAX, window=RATE_LIMIT_WINDOW):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            ip = request.remote_addr or "unknown"
+            endpoint = request.endpoint or f.__name__
+            now = int(time.time())
+            key = f"{ip}:{endpoint}:{now // window}"
+            count = RATE_LIMITS.get(key, 0)
+            if count >= limit:
+                abort(429, "Too many requests. Please try again later.")
+            RATE_LIMITS[key] = count + 1
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# Apply rate limiting to sensitive endpoints (login, manager_login, etc.)
+@app.before_request
+def block_sql_injection_and_ddos():
+    # SQL Injection protection (existing)
+    if request.endpoint in ['auth.login', 'manager.manager_login']:
+        for v in list(request.form.values()) + list(request.args.values()):
+            if is_sql_injection(v):
+                abort(400, "Potential SQL injection detected.")
+        if request.is_json:
+            for v in (request.get_json(silent=True) or {}).values():
+                if isinstance(v, str) and is_sql_injection(v):
+                    abort(400, "Potential SQL injection detected.")
+
+    # DDoS protection (rate limit)
+    sensitive_endpoints = ['auth.login', 'manager.manager_login']
+    if request.endpoint in sensitive_endpoints:
+        ip = request.remote_addr or "unknown"
+        endpoint = request.endpoint
+        now = int(time.time())
+        key = f"{ip}:{endpoint}:{now // RATE_LIMIT_WINDOW}"
+        count = RATE_LIMITS.get(key, 0)
+        if count >= RATE_LIMIT_MAX:
+            abort(429, "Too many requests. Please try again later.")
+        RATE_LIMITS[key] = count + 1
+
 if __name__ == "__main__":
     app.run(debug=True)
-if __name__ == "__main__":
-    app.run(debug=True)
-    app.run(debug=True)
+

@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h2 class="text-2xl font-bold mb-6 text-center">Manager Login</h2>
+<body class="bg-gradient-to-br from-blue-50 to-blue-200 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 relative">
+        <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Society Logo" class="w-16 h-16 mx-auto mb-4 rounded-full shadow border-2 border-blue-200 bg-white">
+        <h2 class="text-3xl font-extrabold mb-6 text-center text-blue-800 tracking-wide">Manager Login</h2>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             <div>
@@ -26,13 +27,17 @@
             {# {{ form.hidden_tag() }} #}
             <div>
                 <label for="email" class="block text-gray-700">Email</label>
-                <input id="email" name="email" type="email" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500" required autocomplete="off">
+                <input id="email" name="email" type="email"
+                  class="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 shadow focus:ring-blue-500 focus:border-blue-500 px-4 py-2 transition"
+                  required autocomplete="off">
                 <p id="emailError" class="text-red-500 text-sm mt-1 hidden"></p>
             </div>
             <div>
                 <label for="password" class="block text-gray-700">Password</label>
                 <div class="relative">
-                    <input id="password" name="password" type="password" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10" required autocomplete="off">
+                    <input id="password" name="password" type="password"
+                      class="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 shadow focus:ring-blue-500 focus:border-blue-500 pr-10 px-4 py-2 transition"
+                      required autocomplete="off">
                     <button type="button" id="togglePassword" tabindex="-1" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 focus:outline-none">
                         <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -67,6 +72,23 @@
         }
       });
 
+      // SQL injection check function
+      function hasSQLi(str) {
+        if (!str) return false;
+        const s = String(str);
+        const patterns = [
+            /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
+            /(\%22)|(\")/i,
+            /(\%3D)|(=)/i,
+            /\b(OR|AND)\b\s+\d+=\d+/i,
+            /\b(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/i,
+            /\b(WHERE|FROM|TABLE|DATABASE)\b/i,
+            /\b(EXEC|EXECUTE|CAST|CONVERT)\b/i,
+            /\b(SLEEP|BENCHMARK|WAITFOR)\b/i,
+        ];
+        return patterns.some(pat => pat.test(s));
+      }
+
       // Front-end Validation & Submission Handling
       document.getElementById('loginForm').addEventListener('submit', function (e) {
         let valid = true;
@@ -93,6 +115,14 @@
           passwordError.textContent = "Password is required.";
           passwordError.classList.remove('hidden');
           valid = false;
+        }
+
+        // Add SQLi check
+        if (hasSQLi(email.value) || hasSQLi(password.value)) {
+          emailError.textContent = "Invalid input detected.";
+          emailError.classList.remove('hidden');
+          e.preventDefault();
+          return;
         }
 
         if (!valid) {
