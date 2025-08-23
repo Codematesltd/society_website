@@ -4,100 +4,164 @@
   <meta charset="UTF-8">
   <title>KSTHST Account Statement</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    body { font-family: Arial, sans-serif; color: #222; background: #fff; }
+    .statement-container { max-width: 1200px; margin: 0 auto; background: #fff; }
+    .header-bar {
+      background: #e3f0ff;
+      border-bottom: 2px solid #b6d4fe;
+      padding: 24px 32px 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-bar img { width: 60px; height: 60px; object-fit: contain; margin-right: 18px; }
+    .header-title { font-size: 2rem; font-weight: bold; color: #2563eb; }
+    .header-meta { font-size: 1rem; color: #444; }
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 16px 32px 8px 32px;
+      font-size: 1rem;
+      background: #f6faff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .details-col { min-width: 220px; }
+    .details-label { color: #2563eb; font-weight: 600; }
+    .statement-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+      background: #fff;
+    }
+    .statement-table th, .statement-table td {
+      border: 1px solid #e3eaf2;
+      padding: 10px 8px;
+      text-align: left;
+      font-size: 1rem;
+    }
+    .statement-table th {
+      background: #e3f0ff;
+      color: #2563eb;
+      font-weight: bold;
+      text-align: left;
+      border-bottom: 2px solid #b6d4fe;
+    }
+    .statement-table td {
+      background: #fff;
+      vertical-align: top;
+    }
+    .statement-table tr:nth-child(even) td {
+      background: #f6faff;
+    }
+    .deposit { color: #059669; font-weight: 600; }
+    .withdrawal { color: #dc2626; font-weight: 600; }
+    .type-cell { font-weight: 600; }
+    .amount-cell { font-weight: 600; }
+    .balance-cell { font-weight: 600; }
+    .date-stid-cell { line-height: 1.3; }
+    .stid { color: #888; font-size: 0.95em; display: block; }
+    .footer-bar {
+      text-align: right;
+      font-size: 0.95rem;
+      color: #888;
+      margin: 24px 32px 0 0;
+    }
     @media print {
-      .no-print { display: none !important; }
-      body { background: #fff !important; }
+      .statement-container { box-shadow: none !important; }
+      .header-bar, .details-row, .footer-bar { padding-left: 0; padding-right: 0; }
     }
   </style>
 </head>
-<body class="bg-white text-gray-900">
-  <div class="max-w-3xl mx-auto bg-white shadow p-6 md:p-10 rounded-lg mt-6 mb-6">
+<body>
+  <div class="statement-container">
     <!-- Header -->
-    <div class="flex items-center border-b-4 border-blue-700 pb-4 mb-6">
-      <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="KSTHST Logo" class="w-20 h-20 object-contain mr-4">
-      <div>
-        <div class="text-2xl md:text-3xl font-bold text-blue-800 tracking-wide">KSTHST</div>
-        <div class="text-lg md:text-xl font-semibold text-blue-700">Account Statement</div>
-      </div>
-    </div>
-    <!-- User Info -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-      <div class="flex items-center gap-4 mb-4 md:mb-0">
-        {% if photo_url %}
-          <img src="{{ photo_url }}" alt="User Photo" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 shadow">
-        {% else %}
-          <div class="w-16 h-16 rounded-full bg-blue-200 flex items-center justify-center text-2xl font-bold text-blue-700 shadow">?</div>
-        {% endif %}
-        <div>
-          <div class="font-semibold text-lg">{{ name or '-' }}</div>
-          <div class="text-gray-700 text-sm">{{ org_name or '-' }}</div>
-          <div class="text-gray-700 text-sm">Customer ID: {{ customer_id or '-' }}</div>
-          <div class="text-gray-700 text-sm">KGID: {{ kgid or '-' }}</div>
-          <div class="text-gray-700 text-sm">Email: {{ email or '-' }}</div>
-          <div class="text-gray-700 text-sm">Phone: {{ phone or '-' }}</div>
-          <div class="text-gray-700 text-sm font-semibold mt-2">
-            Present Balance:
-            <span class="text-blue-700 font-bold">
-              {% if present_balance is not none and present_balance != '' and present_balance != 'None' %}
-                ₹{{ '{:,.2f}'.format(present_balance|float) }}
-              {% else %}
-                -
-              {% endif %}
-            </span>
-          </div>
+    <div class="header-bar" style="position: relative;">
+      <div style="display: flex; align-items: center;">
+        <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="KSTHST Logo">
+        <div style="margin-left: 18px;">
+          <div class="header-title">KSTHST</div>
+          <div class="header-meta">Account Statement</div>
         </div>
       </div>
-      <div class="text-sm text-gray-700">
-        <div><span class="font-semibold">Period:</span> {{ period_text or '-' }}</div>
+      <div style="position: absolute; top: 24px; right: 32px; display: flex; flex-direction: column; align-items: flex-end;">
+        {% if photo_url %}
+          <img src="{{ photo_url }}" alt="User Photo" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #2563eb;margin-bottom:8px;">
+        {% endif %}
+        <div class="header-meta" style="text-align:right;">
+          Generated on: {{ generated_on or '' }}
+        </div>
       </div>
     </div>
-    <!-- Address -->
-    <div class="mb-6 text-sm text-gray-700">
-      <span class="font-semibold">Address:</span>
-      <span>{{ address or '-' }}</span>
+    <!-- Details -->
+    <div class="details-row">
+      <div class="details-col">
+        <div class="details-label">{{ name or '-' }}</div>
+        <div>{{ address or '-' }}</div>
+        <div>{{ org_name or '-' }}</div>
+        <div>KGID: <span class="details-label">{{ kgid or '-' }}</span></div>
+        <div>Email: <span class="details-label">{{ email or '-' }}</span></div>
+        <div>Phone: <span class="details-label">{{ phone or '-' }}</span></div>
+      </div>
+      <div class="details-col" style="text-align:right;">
+        <div><span class="details-label">Period:</span> {{ period_text or '-' }}</div>
+        <div><span class="details-label">Customer ID:</span> {{ customer_id or '-' }}</div>
+      </div>
     </div>
     <!-- Statement Table -->
-    <div class="overflow-x-auto">
-      <table class="min-w-full border border-gray-300 text-xs md:text-sm">
-        <thead>
-          <tr class="bg-blue-100 text-blue-900">
-            <th class="py-2 px-2 border">Date</th>
-            <th class="py-2 px-2 border">Narration</th>
-            <th class="py-2 px-2 border">STID</th>
-            <th class="py-2 px-2 border">Withdrawal (Dr)</th>
-            <th class="py-2 px-2 border">Deposit (Cr)</th>
-            <th class="py-2 px-2 border">Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for tr in transactions %}
-          <tr class="bg-white even:bg-gray-50">
-            <td class="py-1 px-2 border">{{ tr.date.split('T')[0] if tr.date else '-' }}</td>
-            <td class="py-1 px-2 border">{{ tr.remarks if tr.remarks and tr.remarks != 'null' else '-' }}</td>
-            <td class="py-1 px-2 border text-gray-500">{{ tr.stid or '-' }}</td>
-            <td class="py-1 px-2 border text-red-600 font-semibold">
-              {% if tr.type == 'withdraw' %}₹{{ '{:,.2f}'.format(tr.amount|float) }}{% endif %}
-            </td>
-            <td class="py-1 px-2 border text-green-600 font-semibold">
-              {% if tr.type == 'deposit' %}₹{{ '{:,.2f}'.format(tr.amount|float) }}{% endif %}
-            </td>
-            <td class="py-1 px-2 border font-semibold">
-              {% if tr.balance_after is not none %}₹{{ '{:,.2f}'.format(tr.balance_after|float) }}{% else %}-{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <table class="statement-table">
+      <thead>
+        <tr>
+          <th>Date<br><span style="font-weight:400;font-size:0.95em;">STID</span></th>
+          <th>Description</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tr in transactions %}
+        <tr>
+          <td class="date-stid-cell">
+            {{ tr.date.split('T')[0] if tr.date else '-' }}
+            <span class="stid">{{ tr.stid or '-' }}</span>
+          </td>
+          <td>{{ tr.remarks if tr.remarks and tr.remarks != 'null' else '-' }}</td>
+          <td class="type-cell">
+            {% if tr.type == 'deposit' %}
+              <span class="deposit">Deposit</span>
+            {% elif tr.type == 'withdraw' %}
+              <span class="withdrawal">Withdrawal</span>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td class="amount-cell {% if tr.type == 'deposit' %}deposit{% elif tr.type == 'withdraw' %}withdrawal{% endif %}">
+            {% if tr.amount is not none %}
+              ₹{{ '{:,.0f}'.format(tr.amount|float) }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td class="balance-cell">
+            {% if tr.balance_after is not none %}
+              ₹{{ '{:,.0f}'.format(tr.balance_after|float) }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     <!-- Footer -->
-    <div class="mt-8 text-xs text-gray-500 text-right">
-      Generated on: {{ generated_on or '' }}
+    <div class="footer-bar">
+      <!-- Optionally add any footer note here -->
     </div>
     {% if error_message %}
-      <div class="mt-4 text-center text-red-600 font-semibold">{{ error_message }}</div>
+      <div class="mt-4 text-center" style="color:#dc2626;font-weight:600;">{{ error_message }}</div>
     {% endif %}
   </div>
 </body>
 </html>
+

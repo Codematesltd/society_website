@@ -172,20 +172,18 @@
 
     const loader = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
 
+    const accountData = `
+      <h2 class="text-2xl font-bold text-blue-700 mb-6">Account Overview</h2>
+      <div id="accountOverviewContent" class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-8 max-w-lg mx-auto flex flex-col items-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+        <div class="text-gray-600">Loading account details...</div>
+      </div>
+    `;
+
     const loanData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Loan Status</h2>
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-white rounded shadow">
-          <thead class="bg-blue-100">
-            <tr>
-              <th class="py-3 px-4 border">Initial Date</th>
-              <th class="py-3 px-4 border">Loan Amount</th>
-              <th class="py-3 px-4 border">End Date</th>
-              <th class="py-3 px-4 border">Status</th>
-            </tr>
-        
-        </table>
-      </div>`;
+      <div id="loanDetailsSection"></div>
+    `;
 
     const statementData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Get Statement</h2>
@@ -220,26 +218,18 @@
           </table>
         </div>
       </div>
-      <p id="statementSuccess" class="mt-4 text-green-600 font-medium hidden">✔ Statement successfully generated</p>`;
+      <p id="statementSuccess" class="mt-4 text-green-600 font-medium hidden">✔ Statement successfully generated</p>
+    `;
 
     const balanceData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Check Balance</h2>
       <input type="password" id="balancePassword" placeholder="Enter your login password" class="border p-3 rounded-lg w-60 mb-4" />
       <button id="checkBalanceBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Check</button>
-      <p id="balanceResult" class="mt-4 font-medium"></p>`;
-
-    const accountData = `
-      <h2 class="text-2xl font-bold text-blue-700 mb-6">Account Overview</h2>
-      <div id="accountOverviewContent" class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-8 max-w-lg mx-auto flex flex-col items-center">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-        <div class="text-gray-600">Loading account details...</div>
-      </div>
+      <p id="balanceResult" class="mt-4 font-medium"></p>
     `;
 
-    // Get the real API URL from Flask
-    const balanceApiUrl = "{{ url_for('members.api_check_balance') }}";
-
-    async function fetchData(tabId) {
+    // Define fetchData as a function expression and assign to window to ensure global scope
+    window.fetchData = async function(tabId) {
       document.getElementById("welcomeSection").style.display = "none";
       document.querySelectorAll("main section").forEach(s => {
         s.classList.add("hidden");
@@ -334,6 +324,58 @@
               section.innerHTML = `<p class="mt-4 text-red-600 font-medium">Network error</p>`;
             }
           };
+        }
+
+        // Loan Status: fetch loans automatically for logged-in user
+        if (tabId === "loan") {
+          const detailsSection = document.getElementById("loanDetailsSection");
+          detailsSection.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
+
+          // Fetch all loans for the logged-in user
+          const fetchLoans = async () => {
+            try {
+              const res = await fetch("/members/api/my-loans");
+              const data = await res.json();
+              if (res.ok && data.status === "success") {
+                const loans = data.loans;
+                if (!loans.length) {
+                  detailsSection.innerHTML = `<div class="text-gray-600 font-medium mb-4">No loans found for your account.</div>`;
+                  return;
+                }
+                detailsSection.innerHTML = loans.map(loan => `
+                  <div class="bg-white rounded-xl shadow p-6 mb-6">
+                    <h3 class="text-xl font-bold text-blue-700 mb-2">Loan Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700 mb-4">
+                      <div><span class="font-semibold">Loan ID:</span> ${loan.loan_id || "-"}</div>
+                      <div><span class="font-semibold">Customer ID:</span> ${loan.customer_id || "-"}</div>
+                      <div><span class="font-semibold">Loan Type:</span> ${loan.loan_type || "-"}</div>
+                      <div><span class="font-semibold">Loan Amount:</span> ₹${loan.loan_amount ? Number(loan.loan_amount).toLocaleString() : "-"}</div>
+                      <div><span class="font-semibold">Interest Rate:</span> ${loan.interest_rate || "-"}%</div>
+                      <div><span class="font-semibold">Loan Term:</span> ${loan.loan_term_months || "-"} months</div>
+                      <div><span class="font-semibold">Purpose:</span> ${loan.purpose || "-"}</div>
+                      <div><span class="font-semibold">Status:</span> ${loan.status || "-"}</div>
+                      ${
+                        loan.status === "rejected" && loan.rejection_reason
+                          ? `<div class="md:col-span-2 text-red-600 font-semibold"><span class="font-semibold">Rejection Reason:</span> ${loan.rejection_reason}</div>`
+                          : ""
+                      }
+                    </div>
+                    ${
+                      loan.status !== "rejected"
+                        ? `<button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="fetchLoanRecords('${loan.loan_id}', this)">Show Repayment Records</button>
+                           <div class="repayment-records mt-4"></div>`
+                        : ""
+                    }
+                  </div>
+                `).join("");
+              } else {
+                detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "Loan not found."}</div>`;
+              }
+            } catch (e) {
+              detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
+            }
+          };
+          fetchLoans();
         }
 
         // Statement API integration
@@ -433,7 +475,16 @@
                 }
                 url += "&from_date=" + encodeURIComponent(fromDate.value) + "&to_date=" + encodeURIComponent(toDate.value);
               }
-              window.open(url, "_blank");
+              
+              // Force download instead of opening in new tab
+              const downloadLink = document.createElement('a');
+              downloadLink.href = url;
+              downloadLink.download = 'statement.pdf';
+              document.body.appendChild(downloadLink);
+              downloadLink.click();
+              setTimeout(() => {
+                document.body.removeChild(downloadLink);
+              }, 100);
             };
             section.insertBefore(downloadBtn, section.querySelector("#statementTableWrapper"));
           }
@@ -472,6 +523,55 @@
         closeCivil.addEventListener('click', () => toggleBox(civilBox));
       }
     });
+
+    // Make fetchData globally accessible
+    window.fetchData = fetchData;
+
+    // Helper function to fetch and show repayment records for a loan
+    window.fetchLoanRecords = async function(loanId, btn) {
+      const container = btn.parentElement.querySelector('.repayment-records');
+      container.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600'></div></div>`;
+      try {
+        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
+        const data = await res.json();
+        if (res.ok && data.status === "success") {
+          const records = data.records;
+          container.innerHTML = `
+            <h4 class="text-lg font-semibold text-blue-600 mt-2 mb-2">Repayment Records</h4>
+            <div class="overflow-x-auto">
+              <table class="min-w-full bg-white rounded shadow">
+                <thead class="bg-blue-100">
+                  <tr>
+                    <th class="py-2 px-4 border">Repayment Date</th>
+                    <th class="py-2 px-4 border">Repayment Amount</th>
+                    <th class="py-2 px-4 border">Outstanding Balance</th>
+                    <th class="py-2 px-4 border">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    records.length > 0
+                    ? records.map(r => `
+                      <tr>
+                        <td class="py-2 px-4 border">${r.repayment_date || "-"}</td>
+                        <td class="py-2 px-4 border">${r.repayment_amount !== null ? "₹" + Number(r.repayment_amount).toLocaleString() : "-"}</td>
+                        <td class="py-2 px-4 border">${r.outstanding_balance !== null ? "₹" + Number(r.outstanding_balance).toLocaleString() : "-"}</td>
+                        <td class="py-2 px-4 border">${r.status || "-"}</td>
+                      </tr>
+                    `).join("")
+                    : `<tr><td colspan="4" class="text-center py-4 text-gray-500">No repayment records found.</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "No records found."}</div>`;
+        }
+      } catch (e) {
+        container.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
+      }
+    };
   </script>
     <!-- Add before closing body tag -->
   <!-- Floating Query Button -->
@@ -556,9 +656,6 @@
       #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
     }
   </style>
-=======
->>>>>>> f03d5d5cb5b82865f6b479f176467c2a41de591b
 </body>
 </html>
-
 

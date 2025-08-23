@@ -127,98 +127,63 @@ def download_statement():
     Download account statement as PDF.
     Query params: same as /api/statements
     """
-    user_email = session.get("email")
-    if not user_email:
-        return "Not logged in", 401
-
-    # Fetch member info
-    member_resp = supabase.table("members").select(
-        "name,kgid,phone,email,address,customer_id,organization_name,photo_url"
-    ).eq("email", user_email).execute()
-    if not member_resp.data:
-        return "Member not found", 404
-    member = member_resp.data[0]
-
-    # Get transactions using same logic as api_statements
-    range_type = request.args.get("range", "last10")
-    from_date = request.args.get("from_date")
-    to_date = request.args.get("to_date")
-    customer_id = member["customer_id"]
-    query = supabase.table("transactions").select("*").eq("customer_id", customer_id)
-    now = datetime.now()
-    date_col = "date"
-    if range_type == "last10":
-        query = query.order(date_col, desc=True).limit(10)
-        period_text = "Last 10 Transactions"
-    elif range_type == "1m":
-        since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-        period_text = "Last 1 Month"
-    elif range_type == "3m":
-        since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-        period_text = "Last 3 Months"
-    elif range_type == "6m":
-        since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-        period_text = "Last 6 Months"
-    elif range_type == "1y":
-        since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-        period_text = "Last 1 Year"
-    elif range_type == "custom":
-        if not from_date or not to_date:
-            return "from_date and to_date required for custom range", 400
-        try:
-            from_dt = datetime.strptime(from_date, "%Y-%m-%d")
-            to_dt = datetime.strptime(to_date, "%Y-%m-%d")
-        except Exception:
-            return "Invalid date format", 400
-        query = query.gte(date_col, from_date).lte(date_col, to_date).order(date_col, desc=True)
-        period_text = f"{from_date} to {to_date}"
-    else:
-        return "Invalid range type", 400
-
-    result = query.execute()
-    transactions = result.data if result.data else []
-
-    # Fetch kgid, email, phone, and balance from members table for statement.html
-    # Ensure balance is fetched as a number (not None or string)
-    balance = member.get("balance")
     try:
-        present_balance = float(balance) if balance not in (None, '', 'None') else None
-    except Exception:
-        present_balance = None
+        user_email = session.get("email")
+        if not user_email:
+            return "Not logged in", 401
 
-    html = render_template(
-        "statement.html",
-        name=member.get("name"),
-        customer_id=member.get("customer_id"),
-        address=member.get("address"),
-        org_name=member.get("organization_name"),
-        photo_url=member.get("photo_url"),
-        period_text=period_text,
-        transactions=transactions,
-        generated_on=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        kgid=member.get("kgid"),
-        email=member.get("email"),
-        phone=member.get("phone"),
-        present_balance=present_balance,
-    )
+        # Fetch member info
+        member_resp = supabase.table("members").select(
+            "name,kgid,phone,email,address,customer_id,organization_name,photo_url,balance"
+        ).eq("email", user_email).execute()
+        if not member_resp.data:
+            return "Member not found", 404
+        member = member_resp.data[0]
 
-    try:
-        from weasyprint import HTML
-        pdf = HTML(string=html, base_url=request.url_root).write_pdf()
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename=statement.pdf'
-        response.headers['Cache-Control'] = 'no-store'
-        response.headers['Pragma'] = 'no-cache'
-        return response
-    except ImportError:
-        return "WeasyPrint is not installed. Please install it with 'pip install weasyprint'.", 500
-    except OSError as e:
-        return render_template(
+        # Get transactions using same logic as api_statements
+        range_type = request.args.get("range", "last10")
+        from_date = request.args.get("from_date")
+        to_date = request.args.get("to_date")
+        customer_id = member["customer_id"]
+        query = supabase.table("transactions").select("*").eq("customer_id", customer_id)
+        now = datetime.now()
+        date_col = "date"
+        if range_type == "last10":
+            query = query.order(date_col, desc=True).limit(10)
+            period_text = "Last 10 Transactions"
+        elif range_type == "1m":
+            since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+            query = query.gte(date_col, since).order(date_col, desc=True)
+            period_text = "Last 1 Month"
+        elif range_type == "3m":
+            since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+            query = query.gte(date_col, since).order(date_col, desc=True)
+            period_text = "Last 3 Months"
+        elif range_type == "6m":
+            since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+            query = query.gte(date_col, since).order(date_col, desc=True)
+            period_text = "Last 6 Months"
+        elif range_type == "1y":
+            since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+            query = query.gte(date_col, since).order(date_col, desc=True)
+            period_text = "Last 1 Year"
+        elif range_type == "custom":
+            if not from_date or not to_date:
+                return "from_date and to_date required for custom range", 400
+            try:
+                from_dt = datetime.strptime(from_date, "%Y-%m-%d")
+                to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+            except Exception:
+                return "Invalid date format", 400
+            query = query.gte(date_col, from_date).lte(date_col, to_date).order(date_col, desc=True)
+            period_text = f"{from_date} to {to_date}"
+        else:
+            return "Invalid range type", 400
+
+        result = query.execute()
+        transactions = result.data if result.data else []
+
+        html_content = render_template(
             "statement.html",
             name=member.get("name"),
             customer_id=member.get("customer_id"),
@@ -230,7 +195,124 @@ def download_statement():
             generated_on=datetime.now().strftime("%Y-%m-%d %H:%M"),
             kgid=member.get("kgid"),
             email=member.get("email"),
-            phone=member.get("phone"),
-            present_balance=present_balance,
-            error_message="PDF generation is not available on this server. Please use your browser's Print > Save as PDF feature."
+            phone=member.get("phone")
         )
+
+        # Pure Python PDF generation using xhtml2pdf (no external binaries required)
+        try:
+            from xhtml2pdf import pisa
+            pdf_io = io.BytesIO()
+            pisa_status = pisa.CreatePDF(html_content, dest=pdf_io)
+            if pisa_status.err:
+                raise Exception("xhtml2pdf failed to generate PDF")
+            pdf_io.seek(0)
+            response = make_response(pdf_io.read())
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename=statement_{datetime.now().strftime("%Y%m%d")}.pdf'
+            return response
+        except Exception as e:
+            print(f"PDF generation error: {str(e)}")
+            return render_template(
+                "statement.html",
+                name=member.get("name"),
+                customer_id=member.get("customer_id"),
+                address=member.get("address"),
+                org_name=member.get("organization_name"),
+                photo_url=member.get("photo_url"),
+                period_text=period_text,
+                transactions=transactions,
+                generated_on=datetime.now().strftime("%Y-%m-%d %H:%M"),
+                kgid=member.get("kgid"),
+                email=member.get("email"),
+                phone=member.get("phone"),
+                error_message="PDF generation failed. Please use your browser's Print > Save as PDF."
+            ), 200
+
+    except Exception as e:
+        print(f"Statement download error: {str(e)}")
+        return f"Error generating statement: {str(e)}", 500
+
+@members_bp.route("/api/loan-details", methods=["GET"])
+def api_loan_details():
+    """
+    API to fetch loan details for a given loan_id.
+    Query params:
+      - loan_id: required
+    Returns: {
+      "status": "success",
+      "loan": {loan_id, customer_id, loan_type, loan_amount, interest_rate, loan_term_months, purpose, status},
+      "records": [ ...repayment records... ]
+    }
+    """
+    loan_id = request.args.get("loan_id")
+    if not loan_id:
+        return jsonify({"status": "error", "message": "loan_id is required"}), 400
+
+    # Fetch loan details from loans table
+    loan_resp = supabase.table("loans").select(
+        "loan_id,customer_id,loan_type,loan_amount,interest_rate,loan_term_months,purpose_of_loan,purpose_of_emergency_loan,status"
+    ).eq("loan_id", loan_id).limit(1).execute()
+    if not loan_resp.data:
+        return jsonify({"status": "error", "message": "Loan not found"}), 404
+
+    loan = loan_resp.data[0]
+    # Prefer purpose_of_loan, fallback to purpose_of_emergency_loan
+    purpose = loan.get("purpose_of_loan") or loan.get("purpose_of_emergency_loan") or "-"
+
+    # Fetch repayment records from loan_records table
+    records_resp = supabase.table("loan_records").select(
+        "repayment_date,repayment_amount,outstanding_balance,status"
+    ).eq("loan_id", loan_id).order("repayment_date", desc=False).execute()
+    records = records_resp.data if records_resp.data else []
+
+    return jsonify({
+        "status": "success",
+        "loan": {
+            "loan_id": loan.get("loan_id"),
+            "customer_id": loan.get("customer_id"),
+            "loan_type": loan.get("loan_type"),
+            "loan_amount": loan.get("loan_amount"),
+            "interest_rate": loan.get("interest_rate"),
+            "loan_term_months": loan.get("loan_term_months"),
+            "purpose": purpose,
+            "status": loan.get("status"),
+        },
+        "records": records
+    }), 200
+
+@members_bp.route("/api/my-loans", methods=["GET"])
+def api_my_loans():
+    """
+    API to fetch all loans for the logged-in user (by customer_id).
+    Returns: { "status": "success", "loans": [ ... ] }
+    """
+    user_email = session.get("email")
+    if not user_email:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    # Get customer_id for the logged-in user
+    member_resp = supabase.table("members").select("customer_id").eq("email", user_email).execute()
+    if not member_resp.data:
+        return jsonify({"status": "error", "message": "Member not found"}), 404
+    customer_id = member_resp.data[0]["customer_id"]
+
+    # Fetch all loans for this customer_id
+    loans_resp = supabase.table("loans").select(
+        "loan_id,customer_id,loan_type,loan_amount,interest_rate,loan_term_months,purpose_of_loan,purpose_of_emergency_loan,status,rejection_reason"
+    ).eq("customer_id", customer_id).order("created_at", desc=True).execute()
+    loans = []
+    for loan in loans_resp.data or []:
+        purpose = loan.get("purpose_of_loan") or loan.get("purpose_of_emergency_loan") or "-"
+        loans.append({
+            "loan_id": loan.get("loan_id"),
+            "customer_id": loan.get("customer_id"),
+            "loan_type": loan.get("loan_type"),
+            "loan_amount": loan.get("loan_amount"),
+            "interest_rate": loan.get("interest_rate"),
+            "loan_term_months": loan.get("loan_term_months"),
+            "purpose": purpose,
+            "status": loan.get("status"),
+            "rejection_reason": loan.get("rejection_reason"),
+        })
+
+    return jsonify({"status": "success", "loans": loans}), 200
