@@ -1,5 +1,5 @@
 from . import auth_bp
-from flask import request, jsonify, session, render_template, redirect, url_for
+from flask import request, jsonify, session, render_template, redirect, url_for, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
@@ -45,9 +45,17 @@ def send_set_password_email(email, token):
     msg['Subject'] = "Set Your Password"
     msg['From'] = EMAIL_USER
     msg['To'] = email
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(EMAIL_USER, EMAIL_PASSWORD)
-        server.send_message(msg)
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        print("[EMAIL] Missing credentials, skipping email send.")
+        return False
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"[EMAIL ERROR] send_set_password_email: {e}")
+        return False
 
 def find_role(email):
     staff = supabase.table("staff").select("id,email").eq("email", email).execute()
@@ -129,16 +137,22 @@ def first_time_signin():
     role = find_role(email)
     if not role:
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
-    # Check member status if role is members
     if role == "members":
         user_status = supabase.table("members").select("status").eq("email", email).execute()
         if not user_status.data or user_status.data[0].get("status") != "approved":
             return jsonify({'status': 'error', 'message': 'Account not approved by manager'}), 403
-    # Generate token and store in DB
     token = str(uuid.uuid4())
     supabase.table(role).update({"reset_token": token}).eq("email", email).execute()
-    send_set_password_email(email, token)
-    return jsonify({'status': 'success', 'message': 'Set password link sent to email'}), 200
+    email_sent = send_set_password_email(email, token)
+    # Always return success to avoid frontend "Request failed" on email transport issues
+    response = {
+        'status': 'success',
+        'message': 'Set password link generated' + ('' if email_sent else ' (email send failed, use token)'),
+        'email_sent': email_sent
+    }
+    if current_app.debug and not email_sent:
+        response['debug_token'] = token
+    return jsonify(response), 200
 
 @auth_bp.route('/set_password', methods=['GET', 'POST'])
 def set_password():

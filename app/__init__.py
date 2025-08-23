@@ -19,17 +19,15 @@ def create_app():
     from .core import core_bp
     from app.staff.api import staff_api_bp
     
-    # Import admin blueprint and routes BEFORE registering
+    # Import admin blueprint and base routes
     from .admin import admin_bp
-    # Import admin routes before registering the blueprint
-    from .admin import routes
+    from .admin import routes  # single import (removed duplicate & dashboard_routes)
     # Only import loan_views if it exists
     try:
         from .admin import loan_views
         print("Admin loan views imported successfully")
     except ImportError:
         print("Admin loan views not found, skipping")
-    
     from .admin.api import admin_api_bp
 
     # Now register all blueprints
@@ -41,7 +39,7 @@ def create_app():
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(staff_api_bp)
-    app.register_blueprint(admin_bp)  # Register only once
+    app.register_blueprint(admin_bp)
     app.register_blueprint(admin_api_bp)
 
     return app
@@ -57,6 +55,14 @@ def list_routes(app):
     for line in sorted(output):
         print(line)
 
+# Example usage:
+# In your app.py, after creating the app:
+# from app import list_routes
+# list_routes(app)
+# Example usage:
+# In your app.py, after creating the app:
+# from app import list_routes
+# list_routes(app)
 # Example usage:
 # In your app.py, after creating the app:
 # from app import list_routes
