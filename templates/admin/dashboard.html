@@ -281,7 +281,25 @@
     </section>
   </main>
 </div>
-<script>
+  <!-- Floating Civil Score Button for Admin -->
+  <style>
+    .floating-box { transform: translateY(100%); opacity: 0; transition: transform 0.4s ease, opacity 0.4s ease; }
+    .floating-box.show { transform: translateY(0); opacity: 1; }
+  </style>
+  <button id="adminCivilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700 z-50">
+    📊 Civil Score
+  </button>
+  <div id="adminCivilBox" class="floating-box hidden fixed bottom-28 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Check Civil Score</h3>
+      <button id="closeAdminCivil" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input id="adminCivilInput" class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter Customer ID or KGID Number">
+    <button id="adminCheckCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
+    <div id="adminCivilResult" class="mt-3 text-center text-blue-700"></div>
+  </div>
+
+  <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Sidebar navigation logic
   const navBtns = document.querySelectorAll('.admin-nav-btn');
@@ -938,6 +956,77 @@ document.addEventListener('DOMContentLoaded', function() {
     renderExpenses(window.expensesRaw || []);
   });
   document.getElementById('refreshExpensesBtn')?.addEventListener('click', ()=>{ loadExpenses().catch(console.error); });
+
+  // Admin Civil Score floating button wiring (keeps parity with staff dashboard)
+  try {
+    const adminCivilBtn = document.getElementById('adminCivilBtn');
+    const adminCivilBox = document.getElementById('adminCivilBox');
+    const closeAdminCivil = document.getElementById('closeAdminCivil');
+    const adminCheckCivil = document.getElementById('adminCheckCivil');
+    const adminCivilInput = document.getElementById('adminCivilInput');
+    const adminCivilResult = document.getElementById('adminCivilResult');
+
+    if (adminCivilBtn && adminCivilBox) {
+      if (!adminCivilBtn.dataset.wired) {
+        adminCivilBtn.addEventListener('click', () => {
+          adminCivilBox.classList.toggle('hidden');
+          adminCivilBox.classList.toggle('show');
+        });
+        adminCivilBtn.dataset.wired = '1';
+      }
+    }
+    if (closeAdminCivil && adminCivilBox && !closeAdminCivil.dataset.wired) {
+      closeAdminCivil.addEventListener('click', () => {
+        adminCivilBox.classList.add('hidden');
+        adminCivilBox.classList.remove('show');
+      });
+      closeAdminCivil.dataset.wired = '1';
+    }
+
+    if (adminCheckCivil && adminCivilInput && adminCivilResult) {
+      if (!adminCheckCivil.dataset.wired) {
+        adminCheckCivil.addEventListener('click', async () => {
+          const val = adminCivilInput.value.trim();
+          adminCivilResult.textContent = '';
+          if (!val) {
+            adminCivilResult.textContent = "Please enter Customer ID or KGID.";
+            adminCivilResult.className = "mt-3 text-center text-red-600";
+            return;
+          }
+          adminCivilResult.textContent = "Checking...";
+          adminCivilResult.className = "mt-3 text-center text-blue-700";
+          try {
+            const res = await fetch(`/api/check-civil-score?customer_id=${encodeURIComponent(val)}`);
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+              const overall = data.score || data.score === 0 ? data.score : 'Unknown';
+              adminCivilResult.textContent = `Civil Score for ${val}: ${overall}`;
+              adminCivilResult.className = "mt-3 text-center text-green-700 font-bold";
+              if (Array.isArray(data.details) && data.details.length > 0) {
+                const first = data.details[0];
+                const detailsText = `${first.loan_id || ''}: ${first.score || first.message || ''}`;
+                const detailsNode = document.createElement('div');
+                detailsNode.className = 'text-sm mt-2 text-gray-700 admin-civil-details';
+                detailsNode.textContent = detailsText;
+                const existing = adminCivilResult.nextElementSibling;
+                if (existing && existing.classList && existing.classList.contains('admin-civil-details')) existing.remove();
+                adminCivilResult.insertAdjacentElement('afterend', detailsNode);
+              }
+            } else {
+              adminCivilResult.textContent = data.message || 'Not found.';
+              adminCivilResult.className = "mt-3 text-center text-red-600";
+            }
+          } catch (e) {
+            adminCivilResult.textContent = "Network error.";
+            adminCivilResult.className = "mt-3 text-center text-red-600";
+          }
+        });
+        adminCheckCivil.dataset.wired = '1';
+      }
+    }
+  } catch (e) {
+    // ignore errors silently
+  }
 });
 </script>
 {% endblock %}

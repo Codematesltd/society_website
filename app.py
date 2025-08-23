@@ -85,6 +85,16 @@ try:
     def _proxy_fetch_account():
         return fetch_account()
 
+    # Provide a public API path used by frontend: /api/check-civil-score
+    try:
+        from app.finance.api import check_civil_score
+        @app.route('/api/check-civil-score', methods=['GET'])
+        def _proxy_check_civil():
+            return check_civil_score()
+    except Exception:
+        # If import fails, skip silently; finance api may not be available at startup
+        pass
+
     # NEW: Add the missing fetch_customer_details proxy
     @app.route('/finance/api/fetch_customer_details', methods=['GET'])
     def _proxy_fetch_customer_details():

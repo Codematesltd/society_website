@@ -770,3 +770,116 @@ def repay_loan():
         print("Error in repay_loan:", e)
         print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500
+
+from flask import request, jsonify
+
+@finance_bp.route('/api/check-civil-score', methods=['GET'])
+def check_civil_score():
+    """
+    Check civil score for a customer by customer_id or kgid.
+    Returns: { status, score, message, details }
+    """
+    customer_id = request.args.get('customer_id')
+    kgid = request.args.get('kgid')
+    if not customer_id and not kgid:
+        return jsonify({"status": "error", "message": "customer_id or kgid required"}), 400
+
+    # Fetch customer by customer_id or kgid
+    customer = None
+    if customer_id:
+        resp = supabase.table("members").select("*").eq("customer_id", customer_id).execute()
+        if resp.data:
+            customer = resp.data[0]
+    elif kgid:
+        resp = supabase.table("members").select("*").eq("kgid", kgid).execute()
+        if resp.data:
+            customer = resp.data[0]
+    if not customer:
+        return jsonify({"status": "error", "message": "Customer not found"}), 404
+
+    # Fetch all loans for this customer
+    loans_resp = supabase.table("loans").select("*").eq("customer_id", customer["customer_id"]).execute()
+    loans = loans_resp.data or []
+
+    # Analyze each loan's repayment history
+    civil_results = []
+    for loan in loans:
+        loan_id = loan.get("loan_id") or loan.get("id")
+        loan_term = int(loan.get("loan_term_months") or 0)
+        # Fetch all repayments for this loan
+        records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+        records = [r for r in (records_resp.data or []) if r.get("repayment_amount") not in (None, "")]
+        if not records:
+            continue
+        # Find first and last repayment date
+        repayment_dates = sorted([r["repayment_date"] for r in records if r.get("repayment_date")])
+        if not repayment_dates:
+            continue
+        first_date = repayment_dates[0]
+        last_date = repayment_dates[-1]
+        # Calculate months taken to repay (difference in months)
+        from datetime import datetime
+        try:
+            d1 = datetime.strptime(first_date, "%Y-%m-%d")
+            d2 = datetime.strptime(last_date, "%Y-%m-%d")
+            months_taken = (d2.year - d1.year) * 12 + (d2.month - d1.month) + 1
+        except Exception:
+            months_taken = loan_term
+        # Only consider fully repaid loans
+        outstanding = 0
+        for r in records:
+            if r.get("outstanding_balance") is not None:
+                try:
+                    outstanding = float(r["outstanding_balance"])
+                except Exception:
+                    outstanding = 0
+        fully_repaid = outstanding == 0
+        if not fully_repaid:
+            continue
+        # Score logic
+        if months_taken < loan_term:
+            score = "EXCELLENT"
+            msg = f"Loan {loan_id}: Repaid in {months_taken} months (before {loan_term} months)."
+        elif months_taken == loan_term:
+            score = "GOOD"
+            msg = f"Loan {loan_id}: Repaid on time ({months_taken} months)."
+        else:
+            score = "AVERAGE"
+            msg = f"Loan {loan_id}: Repaid in {months_taken} months (after term)."
+        civil_results.append({
+            "loan_id": loan_id,
+            "loan_term": loan_term,
+            "months_taken": months_taken,
+            "score": score,
+            "message": msg
+        })
+
+    # Determine overall score
+    if not civil_results:
+        return jsonify({
+            "status": "success",
+            "score": "NO HISTORY",
+            "message": "No fully repaid loans found for this customer.",
+            "details": []
+        })
+    # If any EXCELLENT, show EXCELLENT, else if any GOOD, show GOOD, else AVERAGE
+    overall = "AVERAGE"
+    for r in civil_results:
+        if r["score"] == "EXCELLENT":
+            overall = "EXCELLENT"
+            break
+        elif r["score"] == "GOOD":
+            overall = "GOOD"
+    if overall == "EXCELLENT":
+        msg = "Excellent repayment history. Can provide loan with less interest rate."
+    elif overall == "GOOD":
+        msg = "Good repayment history. Can provide loan."
+    else:
+        msg = "Average repayment history."
+
+    return jsonify({
+        "status": "success",
+        "score": overall,
+        "message": msg,
+        "details": civil_results
+    })
