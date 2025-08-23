@@ -1,4 +1,4 @@
-from flask import request, jsonify, render_template, make_response, abort, session, url_for
+from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for
 import os
 import uuid
 import re
@@ -10,8 +10,7 @@ import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
 
-from . import finance_bp
-from app.auth.routes import notify_admin_loan_application
+finance_bp = Blueprint('finance', __name__)
 
 load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -220,18 +219,35 @@ def apply_loan():
 
 @finance_bp.route('/<loan_id>', methods=['GET'])
 def get_loan(loan_id):
-    loan = supabase.table("loans").select("*").eq("id", loan_id).execute()
-    if not loan.data:
+    """
+    Fetch loan details by either UUID (id) or textual loan_id (LNxxxx).
+    """
+    # Try to fetch by UUID first, but only if it looks like a UUID
+    import re
+    uuid_regex = re.compile(r"^[0-9a-fA-F-]{32,36}$")
+    loan = None
+
+    if uuid_regex.match(loan_id):
+        loan_resp = supabase.table("loans").select("*").eq("id", loan_id).execute()
+        if loan_resp.data:
+            loan = loan_resp.data[0]
+    if not loan:
+        # Try by textual loan_id (e.g. LN0002)
+        loan_resp = supabase.table("loans").select("*").eq("loan_id", loan_id).execute()
+        if loan_resp.data:
+            loan = loan_resp.data[0]
+    if not loan:
         return jsonify({"status": "error", "message": "Loan not found"}), 404
-    loan_data = loan.data[0]
+
+    loan_data = loan
     # Fetch customer details
     customer = supabase.table("members").select("customer_id,name,phone,photo_url,signature_url").eq("customer_id", loan_data["customer_id"]).execute()
     # Fetch sureties
-    sureties = supabase.table("sureties").select("*").eq("loan_id", loan_id).execute()
+    sureties = supabase.table("sureties").select("*").eq("loan_id", loan_data["id"]).execute()
     # Fetch repayment records for both textual loan_id and UUID
     loan_id_text = loan_data.get("loan_id")
     rec_resp1 = supabase.table("loan_records").select("*").eq("loan_id", loan_id_text).execute() if loan_id_text else None
-    rec_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+    rec_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_data["id"]).execute()
     seen = set()
     all_records = []
     for r in (rec_resp1.data if rec_resp1 and rec_resp1.data else []) + (rec_resp2.data or []):
@@ -276,19 +292,18 @@ def get_loan(loan_id):
         _auto_complete_loan_if_fully_repaid(loan_data, total_repaid)
     except Exception as e:
         print(f"Failed computing repayment summary for loan {loan_id}: {e}")
-    # Fetch staff details (already in loan_data, but can be refreshed if needed)
+
     staff_details = {
         "email": loan_data.get("staff_email"),
         "name": loan_data.get("staff_name"),
         "phone": loan_data.get("staff_phone")
     }
-    # FIX: jsonify() should only use positional OR keyword args, not both
     return jsonify(
         status="success",
         loan=loan_data,
         customer=customer.data[0] if customer.data else {},
         sureties=sureties.data,
-        records=records,  # now includes "calculated_interest" for each record
+        records=records,
         staff=staff_details
     ), 200
 
@@ -657,80 +672,87 @@ def fetch_customer_details():
 def repay_loan():
     """
     API to make a loan repayment.
-    Request JSON:
-    {
-        "loan_id": "<loan_id or uuid>",
-        "amount": <repayment_amount>,   # optional, if not provided, auto-calculate EMI
-        "repayment_date": "YYYY-MM-DD"  # optional, defaults to today
-    }
     """
     try:
         data = request.get_json() or {}
         loan_id = data.get("loan_id")
-        custom_amount = float(data.get("amount", 0) or 0)
+
+        def safe_float(val):
+            try:
+                if val is None or val == "" or str(val).lower() == "none":
+                    return 0.0
+                return float(val)
+            except Exception:
+                return 0.0
+
+        custom_amount = safe_float(data.get("amount"))
+        # principal_part and interest_part are not stored in DB, only used for UI breakdown
+        principal_part = safe_float(data.get("principal_amount"))
+        interest_part = safe_float(data.get("interest_amount"))
         repayment_date = data.get("repayment_date") or datetime.now().date().isoformat()
 
-        if not loan_id:
-            return jsonify({"status": "error", "message": "Missing loan_id"}), 400
+        if not loan_id or custom_amount <= 0:
+            return jsonify({"status": "error", "message": "Missing loan_id or amount"}), 400
 
         # Fetch loan details
         loan_resp = supabase.table("loans").select("*").eq("id", loan_id).execute()
         if not loan_resp.data:
-            # Try by textual loan_id
             loan_resp = supabase.table("loans").select("*").eq("loan_id", loan_id).execute()
             if not loan_resp.data:
                 return jsonify({"status": "error", "message": "Loan not found"}), 404
         loan = loan_resp.data[0]
 
-        # Fetch summary row from loan_records
-        summary_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).eq("repayment_amount", None).execute()
-        if not summary_resp.data:
-            summary_resp = supabase.table("loan_records").select("*").eq("loan_id", loan_id).eq("repayment_amount", None).execute()
-        if not summary_resp.data:
+        # Fetch summary row from loan_records (see previous fix)
+        loan_records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).execute()
+        loan_records = loan_records_resp.data or []
+        summary = None
+        for rec in loan_records:
+            if rec.get("repayment_amount") is None:
+                summary = rec
+                break
+        if not summary:
+            loan_records_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+            loan_records2 = loan_records_resp2.data or []
+            for rec in loan_records2:
+                if rec.get("repayment_amount") is None:
+                    summary = rec
+                    break
+        if not summary:
             return jsonify({"status": "error", "message": "Loan summary record not found"}), 404
-        summary = summary_resp.data[0]
-        outstanding = float(summary.get("outstanding_balance", 0))
-        interest_amount = float(summary.get("interest_amount", 0))
 
-        # Calculate EMI if amount not provided
-        principal = float(loan.get("loan_amount", 0))
-        rate = float(loan.get("interest_rate", 0))
-        months = int(loan.get("loan_term_months", 0))
-        monthly_rate = rate / (12 * 100)
-        if monthly_rate > 0 and months > 0:
-            emi = round(principal * monthly_rate * (1 + monthly_rate) ** months / ((1 + monthly_rate) ** months - 1), 2)
-        else:
-            emi = round(principal / months, 2) if months > 0 else principal
+        outstanding = safe_float(summary.get("outstanding_balance"))
+        interest_amount = safe_float(summary.get("interest_amount"))
 
-        # Determine repayment amount
-        repayment_amount = custom_amount if custom_amount > 0 else emi
-        repayment_amount = min(repayment_amount, outstanding)  # Don't allow overpayment
+        # Don't allow overpayment
+        repayment_amount = min(custom_amount, outstanding)
+        # If principal/interest split not provided, calculate proportionally
+        if principal_part <= 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
+            principal = safe_float(loan.get("loan_amount"))
+            total_interest = safe_float(summary.get("interest_amount"))
+            principal_out = max(principal, 1)
+            interest_out = max(total_interest, 0)
+            total_out = principal_out + interest_out
+            principal_part = round(repayment_amount * (principal_out / total_out), 2)
+            interest_part = round(repayment_amount * (interest_out / total_out), 2)
 
-        # Calculate new outstanding
         new_outstanding = max(outstanding - repayment_amount, 0)
 
-        # Calculate interest for this repayment (simple proportional)
-        # Optionally, you can use a more accurate calculation if you want
-        interest_for_this = 0
-        if interest_amount > 0 and outstanding > 0:
-            interest_for_this = round(interest_amount * (repayment_amount / (principal + interest_amount)), 2)
-
-        # Insert repayment record
+        # Insert repayment record (DO NOT include principal_amount column)
         supabase.table("loan_records").insert({
             "loan_id": loan.get("loan_id"),
             "repayment_date": repayment_date,
             "repayment_amount": repayment_amount,
             "outstanding_balance": new_outstanding,
             "status": "completed" if new_outstanding == 0 else "active",
-            "interest_amount": interest_for_this
+            "interest_amount": interest_part
+            # principal_part is NOT stored in DB, only for UI
         }).execute()
 
-        # Update summary row's outstanding_balance
         supabase.table("loan_records").update({
-            "outstanding_balance": new_outstanding
+            "outstanding_balance": new_outstanding,
+            "interest_amount": max(safe_float(summary.get("interest_amount")) - interest_part, 0)
         }).eq("id", summary["id"]).execute()
 
-        # Optionally, auto-complete loan if fully paid
         if new_outstanding == 0 and loan.get("status") == "approved":
             supabase.table("loans").update({"status": "completed"}).eq("id", loan["id"]).execute()
 
@@ -738,9 +760,13 @@ def repay_loan():
             "status": "success",
             "message": "Repayment successful",
             "repayment_amount": repayment_amount,
+            "principal_amount": principal_part,  # for UI only
+            "interest_amount": interest_part,    # for UI only
             "outstanding_balance": new_outstanding
         }), 200
 
     except Exception as e:
-        print(f"Error in repay_loan: {e}")
+        import traceback
+        print("Error in repay_loan:", e)
+        print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500

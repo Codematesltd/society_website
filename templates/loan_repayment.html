@@ -30,20 +30,34 @@
                 </form>
                 <div id="repaymentSummary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 hidden">
                     <div class="bg-gray-50 rounded p-4 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Loan Amount</div>
+                        <div class="text-xs text-gray-500 mb-1">Principal Amount</div>
                         <div id="summaryLoanAmount" class="text-lg font-bold text-gray-800">—</div>
                     </div>
                     <div class="bg-gray-50 rounded p-4 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Recovered</div>
-                        <div id="summaryRecovered" class="text-lg font-bold text-green-600">—</div>
+                        <div class="text-xs text-gray-500 mb-1">Interest Amount</div>
+                        <div id="summaryInterestAmount" class="text-lg font-bold text-purple-700">—</div>
                     </div>
                     <div class="bg-gray-50 rounded p-4 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Pending</div>
-                        <div id="summaryPending" class="text-lg font-bold text-red-600">—</div>
+                        <div class="text-xs text-gray-500 mb-1">Outstanding Amount</div>
+                        <div id="summaryOutstanding" class="text-lg font-bold text-red-600">—</div>
                     </div>
                     <div class="bg-gray-50 rounded p-4 text-center">
-                        <div class="text-xs text-gray-500 mb-1">Term</div>
-                        <div id="summaryTerm" class="text-lg font-bold text-gray-800">—</div>
+                        <div class="text-xs text-gray-500 mb-1">Repayment Amount</div>
+                        <div id="summaryRepaymentAmount" class="text-lg font-bold text-green-700">—</div>
+                    </div>
+                </div>
+                <div id="installmentDetails" class="mt-4 hidden">
+                    <div class="bg-blue-50 rounded p-4 text-center">
+                        <div class="text-xs text-gray-500 mb-1">Installment Amount (EMI)</div>
+                        <div id="emiAmount" class="text-lg font-bold text-blue-700">—</div>
+                        <div class="mt-2 text-sm">
+                            <span>Principal: <span id="emiPrincipal" class="font-semibold text-gray-800">—</span></span>
+                            <span class="ml-4">Interest: <span id="emiInterest" class="font-semibold text-purple-700">—</span></span>
+                        </div>
+                        <div class="mt-4 flex justify-center gap-4">
+                            <button id="payInstallmentBtn" class="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700">Pay Installment</button>
+                            <button id="customAmountBtn" class="px-5 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Custom Amount</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -86,55 +100,194 @@
     <script>
     // --- Loan Repayment Page Logic ---
     let selectedLoan = null;
+    let currentEMI = 0;
+    let currentEMIPrincipal = 0;
+    let currentEMIInterest = 0;
+
+    function calculateEMI(principal, rate, months) {
+        principal = Number(principal) || 0;
+        rate = Number(rate) || 0;
+        months = Number(months) || 0;
+        const monthlyRate = rate / (12 * 100);
+        if (monthlyRate > 0 && months > 0) {
+            return principal * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1);
+        } else if (months > 0) {
+            return principal / months;
+        }
+        return principal;
+    }
+
+    function splitEMI(outstanding, rate, months) {
+        // Calculate EMI and split into principal and interest for this installment
+        outstanding = Number(outstanding) || 0;
+        rate = Number(rate) || 0;
+        months = Number(months) || 0;
+        const monthlyRate = rate / (12 * 100);
+        let emi = 0, interestPart = 0, principalPart = 0;
+        if (monthlyRate > 0 && months > 0) {
+            emi = calculateEMI(outstanding, rate, months);
+            interestPart = outstanding * monthlyRate;
+            principalPart = emi - interestPart;
+        } else if (months > 0) {
+            emi = outstanding / months;
+            interestPart = 0;
+            principalPart = emi;
+        } else {
+            emi = outstanding;
+            interestPart = 0;
+            principalPart = emi;
+        }
+        return {
+            emi: Math.round(emi * 100) / 100,
+            principal: Math.round(principalPart * 100) / 100,
+            interest: Math.round(interestPart * 100) / 100
+        };
+    }
 
     document.getElementById('repaymentSearchForm').onsubmit = async function(e) {
         e.preventDefault();
         const searchType = document.querySelector('input[name="searchType"]:checked').value;
         const searchValue = document.getElementById('repaymentSearchInput').value.trim();
         document.getElementById('repaymentSummary').classList.add('hidden');
+        document.getElementById('installmentDetails').classList.add('hidden');
         selectedLoan = null;
+        currentEMI = 0;
+        currentEMIPrincipal = 0;
+        currentEMIInterest = 0;
+
         if (!searchValue) return;
-        let loan = null;
-        if (searchType === 'loanId') {
-            // Fetch by loan id
-            const res = await fetch(`/finance/${encodeURIComponent(searchValue)}`);
-            const data = await res.json();
-            if (data && data.status === 'success' && data.loan) {
-                loan = data.loan;
-                loan.repayment_records = data.records || [];
+
+        // Show loading state
+        const autoTxnMsg = document.getElementById('autoTxnMsg');
+        autoTxnMsg.textContent = "Loading...";
+        autoTxnMsg.className = "mt-3 text-center text-blue-600";
+
+        try {
+            let loan = null;
+            if (searchType === 'loanId') {
+                // Fetch by loan id
+                const res = await fetch(`/finance/${encodeURIComponent(searchValue)}`);
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+                }
+                const data = await res.json();
+                if (data && data.status === 'success' && data.loan) {
+                    loan = data.loan;
+                    loan.repayment_records = data.records || [];
+                } else {
+                    throw new Error("Invalid response format from server");
+                }
+            } else {
+                // Fetch by KGID (customer_id)
+                const res = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+                }
+                const data = await res.json();
+                if (data && data.status === 'success' && data.loans && data.loans.length > 0) {
+                    // Pick the latest active/approved loan
+                    loan = data.loans.find(l => l.status === 'approved' || l.status === 'active') || data.loans[0];
+                } else {
+                    throw new Error("No loans found for this customer");
+                }
             }
-        } else {
-            // Fetch by KGID (customer_id)
-            const res = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
-            const data = await res.json();
-            if (data && data.status === 'success' && data.loans && data.loans.length > 0) {
-                // Pick the latest active/approved loan
-                loan = data.loans.find(l => l.status === 'approved' || l.status === 'active') || data.loans[0];
+            
+            if (!loan) {
+                autoTxnMsg.textContent = "No loan found with the provided information.";
+                autoTxnMsg.className = "mt-3 text-center text-red-600";
+                return;
             }
+            
+            selectedLoan = loan;
+            // Calculate summary
+            const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
+            const principal = Number(loan.loan_amount || 0);
+            const interestAmount = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
+            const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : Math.max(principal, 0);
+            let totalRepaid = 0;
+            let lastRepayment = 0;
+            (loan.repayment_records || []).forEach(r => {
+                if (r.repayment_amount !== null && r.repayment_amount !== undefined) {
+                    totalRepaid += Number(r.repayment_amount || 0);
+                    lastRepayment = Number(r.repayment_amount || 0);
+                }
+            });
+
+            // Calculate EMI and split for this installment
+            let monthsLeft = Number(loan.loan_term_months || 1);
+            // Optionally, count how many repayments are left
+            if (loan.repayment_records) {
+                const paidCount = loan.repayment_records.filter(r => r.repayment_amount !== null && r.repayment_amount !== undefined).length;
+                monthsLeft = Math.max(1, monthsLeft - paidCount);
+            }
+            const emiSplit = splitEMI(outstanding, loan.interest_rate, monthsLeft);
+            currentEMI = emiSplit.emi;
+            currentEMIPrincipal = emiSplit.principal;
+            currentEMIInterest = emiSplit.interest;
+
+            // Update form with amount
+            document.getElementById('txnAmount').value = outstanding > 0 ? emiSplit.emi : '';
+            
+            // Render summary
+            document.getElementById('summaryLoanAmount').textContent = "₹" + principal.toLocaleString();
+            document.getElementById('summaryInterestAmount').textContent = "₹" + interestAmount.toLocaleString();
+            document.getElementById('summaryOutstanding').textContent = "₹" + outstanding.toLocaleString();
+            document.getElementById('summaryRepaymentAmount').textContent = lastRepayment > 0 ? "₹" + lastRepayment.toLocaleString() : "—";
+            document.getElementById('repaymentSummary').classList.remove('hidden');
+
+            // Render EMI/Installment details
+            document.getElementById('emiAmount').textContent = "₹" + emiSplit.emi.toLocaleString();
+            document.getElementById('emiPrincipal').textContent = "₹" + emiSplit.principal.toLocaleString();
+            document.getElementById('emiInterest').textContent = "₹" + emiSplit.interest.toLocaleString();
+            document.getElementById('installmentDetails').classList.remove('hidden');
+
+            // Default: show pay installment form prefilled
+            setRepaymentFormMode('installment');
+
+            // Clear message
+            autoTxnMsg.textContent = "";
+        } catch (err) {
+            console.error("Error fetching loan data:", err);
+            autoTxnMsg.textContent = `Error: ${err.message || "Failed to fetch loan data"}`;
+            autoTxnMsg.className = "mt-3 text-center text-red-600";
         }
-        if (!loan) {
-            document.getElementById('repaymentSummary').classList.add('hidden');
-            selectedLoan = null;
-            return;
-        }
-        selectedLoan = loan;
-        // Calculate summary
-        const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
-        const principal = Number(loan.loan_amount || 0);
-        let totalRepaid = 0;
-        (loan.repayment_records || []).forEach(r => {
-            if (r.repayment_amount !== null && r.repayment_amount !== undefined) {
-                totalRepaid += Number(r.repayment_amount || 0);
-            }
-        });
-        const pending = summaryRow ? Number(summaryRow.outstanding_balance || 0) : Math.max(principal - totalRepaid, 0);
-        // Render summary
-        document.getElementById('summaryLoanAmount').textContent = "₹" + principal.toLocaleString();
-        document.getElementById('summaryRecovered').textContent = "₹" + totalRepaid.toLocaleString();
-        document.getElementById('summaryPending').textContent = "₹" + pending.toLocaleString();
-        document.getElementById('summaryTerm').textContent = (loan.loan_term_months || '-') + " months";
-        document.getElementById('repaymentSummary').classList.remove('hidden');
     };
+
+    function setRepaymentFormMode(mode) {
+        // mode: 'installment' or 'custom'
+        const txnAmountInput = document.getElementById('txnAmount');
+        const payBtn = document.getElementById('payInstallmentBtn');
+        const customBtn = document.getElementById('customAmountBtn');
+        if (mode === 'installment') {
+            txnAmountInput.value = currentEMI > 0 ? currentEMI : '';
+            txnAmountInput.readOnly = true;
+            txnAmountInput.classList.add('bg-gray-100');
+            // Button color change
+            payBtn.classList.add('bg-green-600', 'text-white');
+            payBtn.classList.remove('bg-gray-200', 'text-gray-800');
+            customBtn.classList.add('bg-gray-200', 'text-gray-800');
+            customBtn.classList.remove('bg-green-600', 'text-white');
+        } else {
+            txnAmountInput.value = '';
+            txnAmountInput.readOnly = false;
+            txnAmountInput.classList.remove('bg-gray-100');
+            // Button color change
+            customBtn.classList.add('bg-green-600', 'text-white');
+            customBtn.classList.remove('bg-gray-200', 'text-gray-800');
+            payBtn.classList.add('bg-gray-200', 'text-gray-800');
+            payBtn.classList.remove('bg-green-600', 'text-white');
+        }
+    }
+
+    // Button handlers for Pay Installment / Custom Amount
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('payInstallmentBtn').onclick = function() {
+            setRepaymentFormMode('installment');
+        };
+        document.getElementById('customAmountBtn').onclick = function() {
+            setRepaymentFormMode('custom');
+        };
+    });
 
     document.getElementById('autoTransactionForm').onsubmit = async function(e) {
         e.preventDefault();
@@ -145,20 +298,32 @@
             msg.className = "mt-3 text-center text-red-600";
             return;
         }
-        const amount = document.getElementById('txnAmount').value;
-        if (!amount || Number(amount) <= 0) {
+        let amount = document.getElementById('txnAmount').value;
+        amount = Number(amount);
+        if (!amount || amount <= 0) {
             msg.textContent = "Enter a valid amount.";
             msg.className = "mt-3 text-center text-red-600";
             return;
         }
-        // Call /finance/repay-loan API
+        // Calculate principal and interest for this installment
+        let principalPart = currentEMIPrincipal;
+        let interestPart = currentEMIInterest;
+        // If user enters a custom amount, recalculate split proportionally
+        if (amount !== currentEMI && currentEMI > 0) {
+            const ratio = amount / currentEMI;
+            principalPart = Math.round(currentEMIPrincipal * ratio * 100) / 100;
+            interestPart = Math.round(currentEMIInterest * ratio * 100) / 100;
+        }
+        // Call /finance/repay-loan API with principal and interest breakdown
         try {
             const res = await fetch('/finance/repay-loan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     loan_id: selectedLoan.id,
-                    amount: Number(amount)
+                    amount: amount,
+                    principal_amount: principalPart,
+                    interest_amount: interestPart
                 })
             });
             const data = await res.json();

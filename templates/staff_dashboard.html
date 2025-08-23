@@ -1464,17 +1464,19 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 }
 
-// ...existing code...
-</script>
-  </div>
+    // Fix: Loan Repayment sidebar button loads loan_repayment.html as a section (not iframe)
+    const loanRepaymentBtn = document.querySelector('.nav-button[data-target="loanRepayment"]');
+    if (loanRepaymentBtn) {
+      loanRepaymentBtn.addEventListener('click', () => {
+        window.open('/loan_repayment', '_blank');
+      });
+    }
+  <div>
+    <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+      📩 Query
+    </button>
 
-  <!-- Add before closing body tag -->
-  <!-- Floating Query Button -->
-  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
-    📩 Query
-  </button>
-
-  <!-- Floating Query Box -->
+    <!-- Floating Query Box -->
   <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-lg font-bold">Send Us a Query</h3>

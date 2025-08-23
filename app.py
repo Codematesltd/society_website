@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Flask, redirect, url_for, session, request, abort  # Add session import
+from flask import Flask, redirect, url_for, session, request, abort, render_template  # Add session import
 from app import create_app
 from app.certificate import certificate_bp
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -139,19 +139,58 @@ except ImportError as e:
 
 try:
     from app.finance.api import get_loan
-    from flask import request
+    from flask import request, jsonify
 
-    # Add this proxy route for loan details by UUID
-    @app.route('/finance/<loan_uuid>', methods=['GET'])
-    def _proxy_finance_loan_detail(loan_uuid):
-        return get_loan(loan_uuid)
+    @app.route('/finance/<loan_id>', methods=['GET'])
+    def _proxy_finance_loan_detail(loan_id):
+        try:
+            # Defensive: always return JSON, never propagate HTML errors
+            resp = get_loan(loan_id)
+            # If get_loan returns a tuple (jsonify, status), just return it
+            if isinstance(resp, tuple):
+                return resp
+            # If resp is a Flask Response, check content type
+            if hasattr(resp, 'content_type') and resp.content_type.startswith('application/json'):
+                return resp
+            # If resp is a dict, jsonify it
+            if isinstance(resp, dict):
+                return jsonify(resp)
+            # If resp is a string, try to parse as JSON, else wrap as error
+            try:
+                import json
+                return jsonify(json.loads(resp))
+            except Exception:
+                return jsonify({
+                    "status": "error",
+                    "message": "Loan API returned invalid response"
+                }), 500
+        except Exception as e:
+            import traceback
+            print("Loan fetch error:", traceback.format_exc())
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to fetch loan details: {str(e)}"
+            }), 500
 except Exception as e:
-    print(f"Failed to register /finance/<loan_uuid> proxy: {e}")
+    print(f"Failed to register /finance/<loan_id> proxy: {e}")
+    # Provide a fallback implementation if the import fails
+    @app.route('/finance/<loan_id>', methods=['GET'])
+    def _fallback_finance_loan_detail(loan_id):
+        return jsonify({
+            "status": "error",
+            "message": "Finance API not available"
+        }), 500
 
 @app.route("/first_time_signin")
 def first_time_signin_root():
     # Redirect legacy /first_time_signin to the auth blueprint page
     return redirect(url_for("auth.first_time_signin_page"))
+
+# Add loan repayment route to serve the template
+@app.route('/loan_repayment')
+def loan_repayment():
+    """Serve the loan repayment page"""
+    return render_template('loan_repayment.html')
 
 # Add alias endpoint so url_for('manager.manager_login') resolves.
 # Redirects to the actual manager endpoint suggested by the BuildError.
@@ -257,6 +296,15 @@ def block_sql_injection_and_ddos():
         if count >= RATE_LIMIT_MAX:
             abort(429, "Too many requests. Please try again later.")
         RATE_LIMITS[key] = count + 1
+
+# Ensure /finance/repay-loan POST is routed to the blueprint handler
+# This must be present in your main app file to forward POST requests to the blueprint
+
+@app.route('/finance/repay-loan', methods=['POST'])
+def proxy_repay_loan():
+    # Import inside function to avoid circular import issues
+    from app.finance.api import repay_loan
+    return repay_loan()
 
 if __name__ == "__main__":
     app.run(debug=True)
