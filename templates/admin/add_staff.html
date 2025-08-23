@@ -1,129 +1,263 @@
-{% extends 'base.html' %}
+{% extends 'admin/base.html' %}
 
 {% block title %}Add Staff - Chit Fund Management{% endblock %}
-
 {% block header %}Add New Staff{% endblock %}
 
 {% block content %}
-<div class="bg-white shadow rounded-lg overflow-hidden max-w-2xl mx-auto">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-xl font-semibold text-gray-800">Staff Information</h2>
+<div class="max-w-2xl mx-auto bg-white rounded-xl shadow p-8">
+  <h2 class="text-2xl font-bold text-blue-700 mb-6">Add New Staff</h2>
+  <div id="addStaffMsg" class="hidden mb-4 text-center text-sm"></div>
+  <!-- Debug details (hidden by default) -->
+  <pre id="addStaffDebug" class="hidden bg-gray-900 text-green-200 text-xs p-3 rounded mb-4 overflow-x-auto"></pre>
+  <div id="debugToggleWrapper" class="hidden mb-4 text-right">
+    <button id="toggleDebugBtn" type="button" class="text-xs text-blue-600 hover:underline">Show Details</button>
+  </div>
+  <form id="addStaffForm" enctype="multipart/form-data" class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Full Name</label>
+        <input type="text" name="name" required class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">KGID <span class="text-xs text-gray-500">(Optional)</span></label>
+        <input type="text" name="kgid" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Phone Number</label>
+        <input type="text" name="phone" required class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Email</label>
+        <div class="flex gap-2">
+          <input type="email" name="email" id="staffEmailInput" required class="border p-2 rounded w-full" />
+          <button type="button" id="staffVerifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">Verify</button>
+        </div>
+      </div>
+      <div id="staffOtpContainer" class="col-span-1 md:col-span-2 hidden">
+        <label class="block text-sm font-medium mb-1">Enter OTP</label>
+        <input type="text" id="staffOtpInput" name="otp" placeholder="Enter OTP" class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Aadhar Number</label>
+        <input type="text" name="aadhar_no" required class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">PAN Number</label>
+        <input type="text" name="pan_no" required class="border p-2 rounded w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Organization Name</label>
+        <input type="text" name="organization_name" required class="border p-2 rounded w-full" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium mb-1">Address</label>
+        <textarea name="address" required class="border p-2 rounded w-full"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 2MB)</span></label>
+        <input type="file" name="photo" id="staffPhoto" class="border p-2 rounded w-full" accept="image/*" required />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 2MB)</span></label>
+        <input type="file" name="signature" id="staffSignature" class="border p-2 rounded w-full" accept="image/*" required />
+      </div>
     </div>
-    
-    <form action="{{ url_for('admin_add_staff') }}" method="post" enctype="multipart/form-data" class="p-6">
-        {% if message %}
-        <div class="mb-6 p-4 rounded-md {% if success %}bg-green-50 text-green-800{% else %}bg-red-50 text-red-800{% endif %}">
-            {{ message }}
-        </div>
-        {% endif %}
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input type="text" name="name" id="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            
-            <div>
-                <label for="staff_id" class="block text-sm font-medium text-gray-700 mb-1">Staff ID</label>
-                <input type="text" name="staff_id" id="staff_id" required pattern="[A-Z]{2}[0-9]{4}" title="Staff ID must be in format XX0000" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                <p class="mt-1 text-xs text-gray-500">Format: XX0000 (2 letters + 4 digits)</p>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input type="email" name="email" id="email" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            
-            <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input type="tel" name="phone" id="phone" required pattern="[0-9]{10}" title="Phone number must be 10 digits" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                <select name="position" id="position" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">Select a position</option>
-                    <option value="manager">Manager</option>
-                    <option value="accountant">Accountant</option>
-                    <option value="loan_officer">Loan Officer</option>
-                    <option value="customer_service">Customer Service</option>
-                    <option value="admin">Administrator</option>
-                </select>
-            </div>
-            
-            <div>
-                <label for="joining_date" class="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                <input type="date" name="joining_date" id="joining_date" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-        
-        <div class="mb-6">
-            <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <textarea name="address" id="address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input type="text" name="username" id="username" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" name="password" id="password" required minlength="6" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                <p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
-                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <div class="flex text-sm text-gray-600">
-                            <label for="profile_image" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                <span>Upload a file</span>
-                                <input id="profile_image" name="profile_image" type="file" accept="image/*" required class="sr-only">
-                            </label>
-                            <p class="pl-1">or drag and drop</p>
-                        </div>
-                        <p class="text-xs text-gray-500">PNG, JPG, GIF up to 2MB</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Signature</label>
-                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <div class="flex text-sm text-gray-600">
-                            <label for="signature" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                <span>Upload a file</span>
-                                <input id="signature" name="signature" type="file" accept="image/*" required class="sr-only">
-                            </label>
-                            <p class="pl-1">or drag and drop</p>
-                        </div>
-                        <p class="text-xs text-gray-500">PNG, JPG, GIF up to 2MB</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="flex justify-end">
-            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Add Staff
-            </button>
-        </div>
-    </form>
+    <button id="addStaffBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded w-full">Add Staff</button>
+  </form>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const verifyBtn = document.getElementById('staffVerifyEmailBtn');
+  const emailInput = document.getElementById('staffEmailInput');
+  const otpContainer = document.getElementById('staffOtpContainer');
+  const otpInput = document.getElementById('staffOtpInput');
+  const form = document.getElementById('addStaffForm');
+  const msg = document.getElementById('addStaffMsg');
+  const submitBtn = document.getElementById('addStaffBtn');
+  const debugBox = document.getElementById('addStaffDebug');
+  const toggleWrapper = document.getElementById('debugToggleWrapper');
+  const toggleBtn = document.getElementById('toggleDebugBtn');
+  let submitting = false;
+  let debugVisible = false;
+
+  function clearFieldHighlights(){
+    form.querySelectorAll('.field-error').forEach(el=>el.classList.remove('field-error','border-red-500'));
+  }
+  function highlightField(name){
+    const el = form.querySelector(`[name="${name}"]`);
+    if(el){ el.classList.add('field-error','border-red-500'); el.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  function showMsg(text, type){
+    msg.textContent = text;
+    msg.className = 'mb-4 text-center text-sm ' + (type==='error'?'text-red-600':'text-green-600');
+    msg.classList.remove('hidden');
+  }
+  function updateToggleButton(){
+    if (debugBox.classList.contains('hidden')) {
+      toggleBtn.textContent = 'Show Details';
+    } else {
+      toggleBtn.textContent = 'Hide Details';
+    }
+  }
+  function showDebug(obj, opts={}){
+    // opts.force => always show (errors), otherwise keep hidden until user toggles
+    if(!obj){
+      debugBox.textContent = '';
+      debugBox.classList.add('hidden');
+      toggleWrapper.classList.add('hidden');
+      return;
+    }
+    debugBox.textContent = JSON.stringify(obj,null,2);
+    // Only auto-show if forced (typically errors)
+    if (opts.force){
+      debugBox.classList.remove('hidden');
+    } else {
+      debugBox.classList.add('hidden');
+    }
+    toggleWrapper.classList.remove('hidden');
+    updateToggleButton();
+  }
+  function validateFiles(){
+    const maxBytes = 2*1024*1024;
+    const allowed = ['image/jpeg','image/png','image/jpg'];
+    for(const input of [photoInput, signatureInput]){
+      if(!input || !input.files || !input.files[0]) return true;
+      const f = input.files[0];
+      if(f.size > maxBytes){
+        showMsg(`${input.name === 'photo' ? 'Photo' : 'Signature'} exceeds 2MB.`, 'error');
+        return false;
+      }
+      if(!allowed.includes(f.type)){
+        showMsg(`${f.name} must be JPEG or PNG.`, 'error');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (verifyBtn){
+    verifyBtn.addEventListener('click', async () => {
+      msg.classList.add('hidden');
+      debugBox.classList.add('hidden');
+      const email = emailInput.value.trim();
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if(!email || !emailRegex.test(email)){
+        showMsg('Enter a valid email.', 'error');
+        return;
+      }
+      verifyBtn.disabled = true;
+      const original = verifyBtn.textContent;
+      verifyBtn.textContent = 'Sending...';
+      try{
+        const fd = new FormData();
+        fd.append('email', email);
+        const res = await fetch('/manager/add-staff/send-otp', { method: 'POST', body: fd });
+        let data = {};
+        try { data = await res.json(); } catch{}
+        if(res.ok && data.status === 'success'){
+          showMsg('OTP sent. Check email.', 'success');
+          otpContainer.classList.remove('hidden');
+          verifyBtn.textContent = 'Resend OTP';
+        } else {
+          showMsg((data && (data.message || data.error)) || 'Failed to send OTP.', 'error');
+          showDebug(data);
+          verifyBtn.textContent = original;
+        }
+      }catch(e){
+        showMsg('Network error sending OTP.', 'error');
+        showDebug({error:String(e)});
+        verifyBtn.textContent = original;
+      } finally {
+        verifyBtn.disabled = false;
+      }
+    });
+  }
+
+  if (form){
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if(submitting) return;
+      clearFieldHighlights();
+      msg.classList.add('hidden');
+      debugBox.classList.add('hidden');
+
+      if(otpContainer.classList.contains('hidden') || !otpInput.value.trim()){
+        showMsg('Please verify email & provide OTP.', 'error');
+        highlightField('email');
+        return;
+      }
+      if(!validateFiles()) return;
+
+      submitting = true;
+      submitBtn.disabled = true;
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.textContent = 'Adding...';
+
+      const fd = new FormData();
+      const requiredFields = ['name','phone','email','aadhar_no','pan_no','organization_name','address'];
+      const payloadSnapshot = {};
+      for(const f of requiredFields){
+        const el = form.querySelector(`[name="${f}"]`);
+        const val = el ? el.value.trim() : '';
+        fd.append(f, val);
+        payloadSnapshot[f] = val;
+      }
+      const kgidEl = form.querySelector('[name="kgid"]');
+      if (kgidEl && kgidEl.value.trim()){
+        fd.append('kgid', kgidEl.value.trim());
+        payloadSnapshot.kgid = kgidEl.value.trim();
+      } else {
+        // Backend still treats kgid as required -> send placeholder
+        fd.append('kgid','NA');
+        payloadSnapshot.kgid = 'NA (auto)';
+      }
+      fd.append('otp', otpInput.value.trim());
+      payloadSnapshot.otp = '***';
+      fd.append('photo', photoInput.files[0]);
+      fd.append('signature', signatureInput.files[0]);
+
+      try{
+        const res = await fetch('/manager/add-staff', { method: 'POST', body: fd });
+        let raw = {};
+        try { raw = await res.json(); } catch{}
+        // NEW: normalize possible array response
+        let data = raw;
+        let primary = null;
+        if (Array.isArray(raw)) {
+          // Some backends send [ {obj}, status_code ] or similar
+            if (raw.length === 1) primary = raw[0];
+            else if (raw.length > 1 && typeof raw[0] === 'object') primary = raw[0];
+        } else if (raw && typeof raw === 'object') {
+          primary = raw;
+        }
+        const statusFlag = primary && (primary.status || primary.Status);
+        const success = res.ok && statusFlag === 'success';
+        // Preserve old debug but include both raw & primary
+        if(success){
+          const idInfo = primary.staff_id || (primary.staff && (primary.staff.id || primary.staff.staff_id)) || primary.id || primary.customer_id || '';
+          showMsg(`Staff added successfully${idInfo ? ' ('+idInfo+')' : ''}.`, 'success');
+          showDebug(null); // clear & hide
+          // If you still want to keep a snapshot quietly (developer mode), remove above line and use below:
+          // showDebug({request:payloadSnapshot, raw_response:raw, normalized:primary});
+          form.reset();
+          otpContainer.classList.add('hidden');
+          verifyBtn.textContent = 'Verify';
+        } else {
+          const serverMsg = (primary && (primary.message || primary.error)) || (raw && (raw.message || raw.error)) || 'Failed to add staff.';
+          showMsg(serverMsg, 'error');
+          showDebug({request:payloadSnapshot, raw_response:raw, normalized:primary}, {force:true});
+          if(primary && primary.field) highlightField(primary.field);
+        }
+      }catch(e){
+        showMsg('Network error submitting form.', 'error');
+        showDebug({error:String(e),request:payloadSnapshot}, {force:true});
+      } finally {
+        submitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

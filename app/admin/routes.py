@@ -11,6 +11,16 @@ def index():
 def dashboard():
     return render_template('admin/dashboard.html')
 
+# NEW: Add Staff page route (used by dashboard iframe)
+@admin_bp.route('/add_staff')
+def admin_add_staff():
+    return render_template('admin/add_staff.html')
+
+# NEW: Staff Expense page route (if referenced elsewhere)
+@admin_bp.route('/staff_expense')
+def admin_staff_expense():
+    return render_template('admin/staff_expense.html')
+
 @admin_bp.route('/account-requests')
 def admin_account_requests():
     # Fetch pending member requests from database
