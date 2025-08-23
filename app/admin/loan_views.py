@@ -3,65 +3,94 @@ from . import admin_bp
 from app.auth.routes import supabase
 from datetime import datetime, date
 import math  # NEW
+try:
+    from httpx import RemoteProtocolError
+except Exception:
+    RemoteProtocolError = Exception  # fallback if import not available
+
+def sb_exec(qb, attempts=3):
+    """
+    Execute a Supabase query builder with simple retries to handle transient
+    'RemoteProtocolError: Server disconnected' issues.
+    """
+    last_err = None
+    for i in range(attempts):
+        try:
+            return qb.execute()
+        except RemoteProtocolError as e:
+            last_err = e
+            if i < attempts - 1:
+                continue
+            raise
+        except Exception as e:
+            # Pass through non protocol errors immediately
+            raise
+    if last_err:
+        raise last_err
 
 @admin_bp.route('/pending-loans')
 def pending_loan_approvals():
     """View for pending loan applications"""
     # Fetch loans with pending_approval status
-    loans = supabase.table("loans").select("*").eq("status", "pending_approval").execute()
+    loans_resp = sb_exec(supabase.table("loans").select("*").eq("status", "pending_approval"))
+    loans = loans_resp.data if loans_resp.data else []
     
     return render_template('admin/loan_approvals.html', 
-                          loans=loans.data if loans.data else [],
+                          loans=loans,
                           status="pending")
 
 @admin_bp.route('/approved-loans')
 def approved_loans():
     """View for approved loan applications"""
     # Fetch loans with approved status
-    loans = supabase.table("loans").select("*").eq("status", "approved").execute()
+    loans_resp = sb_exec(supabase.table("loans").select("*").eq("status", "approved"))
+    loans = loans_resp.data if loans_resp.data else []
     
     return render_template('admin/loan_approvals.html', 
-                          loans=loans.data if loans.data else [],
+                          loans=loans,
                           status="approved")
 
 @admin_bp.route('/rejected-loans')
 def rejected_loans():
     """View for rejected loan applications"""
     # Fetch loans with rejected status
-    loans = supabase.table("loans").select("*").eq("status", "rejected").execute()
+    loans_resp = sb_exec(supabase.table("loans").select("*").eq("status", "rejected"))
+    loans = loans_resp.data if loans_resp.data else []
     
     return render_template('admin/loan_approvals.html', 
-                          loans=loans.data if loans.data else [],
+                          loans=loans,
                           status="rejected")
 
 @admin_bp.route('/loan-details/<loan_id>')
 def loan_details(loan_id):
     """View detailed information about a loan"""
     # Fetch loan details
-    loan = supabase.table("loans").select("*").eq("id", loan_id).execute()
-    if not loan.data:
+    loan_resp = sb_exec(supabase.table("loans").select("*").eq("id", loan_id))
+    if not loan_resp.data:
         return jsonify({"status": "error", "message": "Loan not found"}), 404
-    loan_data = loan.data[0]
+    loan_data = loan_resp.data[0]
 
     # Fetch customer details
     customer = None
     if loan_data.get("customer_id"):
-        customer_data = supabase.table("members").select("*").eq("customer_id", loan_data["customer_id"]).execute()
-        if customer_data.data:
-            customer = customer_data.data[0]
+        customer_resp = sb_exec(supabase.table("members").select("*").eq("customer_id", loan_data["customer_id"]))
+        if customer_resp.data:
+            customer = customer_resp.data[0]
+        else:
+            customer = None
 
     # Fetch sureties
     sureties = []
-    sureties_data = supabase.table("sureties").select("*").eq("loan_id", loan_id).execute()
-    if sureties_data.data:
-        sureties = sureties_data.data
+    sureties_resp = sb_exec(supabase.table("sureties").select("*").eq("loan_id", loan_id))
+    if sureties_resp.data:
+        sureties = sureties_resp.data
 
     # --- FIX: Fetch repayment records for both textual loan_id and UUID ---
     loan_id_text = loan_data.get("loan_id")
     records = []
     if loan_id_text:
-        rec_resp1 = supabase.table("loan_records").select("*").eq("loan_id", loan_id_text).execute()
-        rec_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
+        rec_resp1 = sb_exec(supabase.table("loan_records").select("*").eq("loan_id", loan_id_text))
+        rec_resp2 = sb_exec(supabase.table("loan_records").select("*").eq("loan_id", loan_id))
         # Merge and deduplicate by id
         seen = set()
         all_records = []

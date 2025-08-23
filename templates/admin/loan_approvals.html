@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ status|title }} Loans</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Prevent background scroll when modal open */
+      body.modal-open { overflow: hidden; }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto p-4">
@@ -12,11 +16,80 @@
             {{ status|title }} Loan Applications
         </h1>
 
-        {% if not loans %}
+        {% if status == 'pending' %}
+            {% if not loans %}
+            <div class="bg-gray-100 p-8 rounded-xl text-center">
+                <div class="text-5xl mb-4">💰</div>
+                <p class="text-gray-600">No pending loan applications.</p>
+            </div>
+            {% else %}
+            <!-- Cards Layout (Pending Loans) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="loanCards">
+                {% for loan in loans %}
+                <div class="bg-white rounded-xl shadow p-6 flex flex-col justify-between border hover:shadow-lg transition group">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-lg text-green-700">
+                                {{ loan.loan_id or 'Pending ID' }}
+                            </h3>
+                            <span class="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
+                        </div>
+                        <div class="space-y-1 text-sm">
+                            <p><span class="font-medium">Customer ID:</span> {{ loan.customer_id }}</p>
+                            <p><span class="font-medium">Type:</span> {{ loan.loan_type|title }}</p>
+                            <p><span class="font-medium">Amount:</span> ₹{{ loan.loan_amount|float|round(2) }}</p>
+                            <p><span class="font-medium">Interest:</span> {{ loan.interest_rate }}%</p>
+                            <p><span class="font-medium">Term:</span> {{ loan.loan_term_months }} mo</p>
+                            <p><span class="font-medium">Applied:</span> {{ loan.created_at }}</p>
+                        </div>
+                    </div>
+                    <button 
+                        class="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition view-loan-btn"
+                        data-loan-id="{{ loan.id }}"
+                    >View Details</button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Modal (updated layout) -->
+            <div id="loanModal" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 overflow-y-auto">
+              <div class="min-h-full flex items-start justify-center p-4 md:p-6">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl p-6 relative max-h-[calc(100vh-4rem)] overflow-y-auto">
+                  <button id="closeLoanModal" class="absolute top-2 right-3 text-2xl text-gray-400 hover:text-gray-700">&times;</button>
+                  <div id="loanModalContent">
+                    <!-- Filled dynamically -->
+                  </div>
+                  <div class="mt-6 flex flex-wrap gap-3 justify-end" id="loanActionBar" hidden>
+                    <form id="approveLoanForm" method="post">
+                      <button type="submit" class="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 flex items-center gap-2">
+                        <span>Approve</span>
+                      </button>
+                    </form>
+                    <form id="rejectLoanForm" method="post" class="flex items-stretch gap-2">
+                      <div id="rejectReasonWrap" class="hidden md:flex">
+                        <input name="reason" id="rejectReasonInput" placeholder="Rejection reason" class="border rounded px-3 py-2 text-sm w-56" />
+                      </div>
+                      <button type="button" id="showRejectReasonBtn" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                        Reject
+                      </button>
+                      <button type="submit" id="doRejectBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                        Confirm
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <!-- Original Table for approved / rejected -->
+            {% if not loans %}
             <div class="bg-gray-100 p-4 rounded-lg text-center">
                 <p class="text-gray-600">No {{ status }} loan applications found.</p>
             </div>
-        {% else %}
+            {% else %}
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white border border-gray-200 rounded-lg">
                     <thead>
@@ -28,7 +101,6 @@
                             <th class="py-2 px-4 border-b">Interest Rate</th>
                             <th class="py-2 px-4 border-b">Term (months)</th>
                             <th class="py-2 px-4 border-b">Applied</th>
-                            {# Removed Actions column #}
                         </tr>
                     </thead>
                     <tbody>
@@ -41,12 +113,12 @@
                             <td class="py-2 px-4 border-b">{{ loan.interest_rate }}%</td>
                             <td class="py-2 px-4 border-b">{{ loan.loan_term_months }}</td>
                             <td class="py-2 px-4 border-b">{{ loan.created_at }}</td>
-                            {# Removed Actions cell #}
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% endif %}
         {% endif %}
     </div>
 
@@ -76,6 +148,214 @@
         function hideRejectModal() {
             document.getElementById('rejectModal').classList.add('hidden');
         }
+    </script>
+
+    <script>
+    // Only attach JS for pending layout
+    {% if status == 'pending' %}
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('loanModal');
+        const modalContent = document.getElementById('loanModalContent');
+        const closeBtn = document.getElementById('closeLoanModal');
+        const actionBar = document.getElementById('loanActionBar');
+        const approveForm = document.getElementById('approveLoanForm');
+        const rejectForm = document.getElementById('rejectLoanForm');
+        const showRejectBtn = document.getElementById('showRejectReasonBtn');
+        const doRejectBtn = document.getElementById('doRejectBtn');
+        const rejectReasonWrap = document.getElementById('rejectReasonWrap');
+        const rejectReasonInput = document.getElementById('rejectReasonInput');
+
+        function openModal(){
+            document.body.classList.add('modal-open');
+            modal.classList.remove('hidden');
+        }
+        function closeModal(){
+            document.body.classList.remove('modal-open');
+            modal.classList.add('hidden');
+            modalContent.innerHTML='';
+            actionBar.hidden=true;
+            rejectReasonWrap.classList.add('hidden');
+            doRejectBtn.classList.add('hidden');
+            showRejectBtn.classList.remove('hidden');
+            rejectReasonInput.value='';
+        }
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => { if(e.target === modal) closeModal(); });
+
+        showRejectBtn.addEventListener('click', () => {
+            rejectReasonWrap.classList.remove('hidden');
+            doRejectBtn.classList.remove('hidden');
+            showRejectBtn.classList.add('hidden');
+            rejectReasonInput.focus();
+        });
+
+        approveForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!approveForm.action) return;
+            setLoading(approveForm, true);
+            fetch(approveForm.action, { method: 'POST' })
+              .then(r => {
+                if (!r.ok) throw new Error('Approve failed');
+                return r.text();
+              })
+              .then(() => location.reload())
+              .catch(err => showError(err.message))
+              .finally(()=> setLoading(approveForm,false));
+        });
+
+        rejectForm.addEventListener('submit', e => {
+            if (doRejectBtn.classList.contains('hidden')) return;
+            e.preventDefault();
+            if (!rejectForm.action) return;
+            if (!rejectReasonInput.value.trim()) { rejectReasonInput.focus(); return; }
+            setLoading(rejectForm,true);
+            const formData = new FormData();
+            formData.append('reason', rejectReasonInput.value.trim());
+            fetch(rejectForm.action, { method:'POST', body: formData })
+              .then(r => {
+                if(!r.ok) throw new Error('Reject failed');
+                return r.text();
+              })
+              .then(()=> location.reload())
+              .catch(err => showError(err.message))
+              .finally(()=> setLoading(rejectForm,false));
+        });
+
+        function setLoading(formEl, state){
+            const btns = formEl.querySelectorAll('button');
+            btns.forEach(b=>{
+                if(state){
+                    b.dataset.oldText = b.innerHTML;
+                    b.innerHTML = '<span class="animate-pulse">Processing...</span>';
+                    b.disabled = true;
+                    b.classList.add('opacity-70','cursor-not-allowed');
+                } else {
+                    if(b.dataset.oldText) b.innerHTML = b.dataset.oldText;
+                    b.disabled = false;
+                    b.classList.remove('opacity-70','cursor-not-allowed');
+                }
+            });
+        }
+
+        function showError(msg){
+            modalContent.insertAdjacentHTML('beforeend', `<div class="mt-4 text-red-600 text-sm">${msg}</div>`);
+        }
+
+        function fmtCurrency(n){ return '₹'+Number(n||0).toLocaleString(); }
+
+        function renderLoanDetails(data){
+            const loan = data.loan || {};
+            const customer = data.customer || {};
+            const sureties = data.sureties || [];
+            const records = data.records || [];
+            let totalRepaid = 0;
+            records.forEach(r=> totalRepaid += Number(r.repayment_amount||0));
+            const outstanding = Math.max(Number(loan.loan_amount||0) - totalRepaid,0);
+
+            modalContent.innerHTML = `
+              <h2 class="text-2xl font-bold text-green-700 mb-4">Loan Details - ${loan.loan_id || 'Pending'}</h2>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2 space-y-4">
+                  <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div class="font-medium">Customer ID:</div><div>${loan.customer_id || ''}</div>
+                    <div class="font-medium">Loan Type:</div><div class="capitalize">${loan.loan_type || ''}</div>
+                    <div class="font-medium">Amount:</div><div>${fmtCurrency(loan.loan_amount)}</div>
+                    <div class="font-medium">Interest Rate:</div><div>${loan.interest_rate || 0}%</div>
+                    <div class="font-medium">Term:</div><div>${loan.loan_term_months || 0} months</div>
+                    <div class="font-medium">Status:</div><div><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">${(loan.status||'pending').replace('_',' ')}</span></div>
+                    ${loan.purpose_of_loan ? `<div class="font-medium">Purpose:</div><div>${loan.purpose_of_loan}</div>`:''}
+                    ${loan.purpose_of_emergency_loan ? `<div class="font-medium">Emergency Purpose:</div><div>${loan.purpose_of_emergency_loan}</div>`:''}
+                    <div class="font-medium">Applied On:</div><div>${loan.created_at || ''}</div>
+                    <div class="font-medium">Total Repaid:</div><div>${fmtCurrency(totalRepaid)}</div>
+                    <div class="font-medium">Outstanding:</div><div>${fmtCurrency(outstanding)}</div>
+                  </div>
+
+                  <div>
+                    <h3 class="font-semibold mb-2">Sureties (${sureties.length})</h3>
+                    ${sureties.length ? `
+                      <ul class="list-disc ml-5 text-sm space-y-1">
+                        ${sureties.map(s=>`<li>${s.surety_name || 'N/A'} (${s.surety_customer_id}) - <span class="text-xs px-2 py-0.5 rounded ${s.active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-600'}">${s.active?'Active':'Inactive'}</span></li>`).join('')}
+                      </ul>` : `<p class="text-gray-500 text-sm">No sureties added.</p>`
+                    }
+                  </div>
+
+                  <div>
+                    <h3 class="font-semibold mb-2">Recent Repayments</h3>
+                    ${records.length ? `
+                      <div class="overflow-x-auto border rounded">
+                        <table class="min-w-full text-xs">
+                          <thead class="bg-gray-100">
+                            <tr>
+                              <th class="px-2 py-1 text-left">Date</th>
+                              <th class="px-2 py-1 text-left">Amount</th>
+                              <th class="px-2 py-1 text-left">Outstanding After</th>
+                              <th class="px-2 py-1 text-left">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${records.slice(-5).reverse().map(r=>`
+                              <tr class="border-t">
+                                <td class="px-2 py-1">${r.repayment_date||'—'}</td>
+                                <td class="px-2 py-1">${fmtCurrency(r.repayment_amount)}</td>
+                                <td class="px-2 py-1">${fmtCurrency(r.outstanding_balance)}</td>
+                                <td class="px-2 py-1">
+                                  <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">${(r.status||'active').toUpperCase()}</span>
+                                </td>
+                              </tr>`).join('')}
+                          </tbody>
+                        </table>
+                      </div>
+                    ` : `<p class="text-gray-500 text-sm">No repayments yet.</p>`}
+                  </div>
+                </div>
+                <div class="flex flex-col items-center gap-6">
+                  <div class="text-center">
+                    <h4 class="font-medium mb-2">Customer</h4>
+                    ${customer.photo_url ? `<img src="${customer.photo_url}" class="w-40 h-40 rounded-full object-cover border shadow" alt="Customer Photo" />` :
+                      `<div class="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">No Photo</div>`}
+                    <p class="mt-3 font-semibold">${customer.name || '—'}</p>
+                    <p class="text-xs text-gray-500">${customer.customer_id || ''}</p>
+                  </div>
+                </div>
+              </div>
+            `;
+            actionBar.hidden = false;
+        }
+
+        document.querySelectorAll('.view-loan-btn').forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+                const loanId = btn.dataset.loanId;
+                modalContent.innerHTML = `
+                  <div class="py-16 flex flex-col items-center text-green-600">
+                    <svg class="h-10 w-10 animate-spin mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle>
+                      <path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path>
+                    </svg>
+                    <p class="font-medium">Loading loan details...</p>
+                  </div>`;
+                actionBar.hidden = true;
+                approveForm.action = '/admin/approve-loan/' + loanId;
+                rejectForm.action = '/admin/reject-loan/' + loanId;
+                openModal();
+                fetch('/finance/' + loanId)
+                  .then(r=>{
+                    if(!r.ok) throw new Error('Fetch failed');
+                    return r.json();
+                  })
+                  .then(data=>{
+                    if(data.status!=='success') throw new Error('Invalid response');
+                    renderLoanDetails(data);
+                  })
+                  .catch(err=>{
+                    modalContent.innerHTML = `<div class="text-red-600 p-6 text-center">Error loading loan: ${err.message}</div>`;
+                  });
+            });
+        });
+
+        document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+    });
+    {% endif %}
     </script>
 </body>
 </html>
