@@ -580,15 +580,18 @@
   </button>
 
   <!-- Floating Query Box -->
-  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-96 bg-white rounded-xl shadow-2xl p-4 z-50">
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-lg font-bold">Send Us a Query</h3>
       <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
     </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
-    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <input id="queryName" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Full name">
+    <input id="queryId" class="w-full mb-2 px-4 py-2 border rounded" placeholder="KGID or Customer ID">
+    <input id="queryPhone" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Phone number">
+    <input id="queryEmail" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Email">
+    <textarea id="queryDescription" class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
     <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+    <div id="queryMsg" class="mt-2 text-sm text-center"></div>
   </div>
 
   
@@ -596,6 +599,49 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       initializeFloatingBoxes();
+    });
+  </script>
+
+  <script>
+    // Wire the query form submission on user dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      const sendQuery = document.getElementById('sendQuery');
+      const queryMsg = document.getElementById('queryMsg');
+      if (sendQuery) {
+        sendQuery.addEventListener('click', async () => {
+          const name = (document.getElementById('queryName')||{}).value.trim();
+          const id = (document.getElementById('queryId')||{}).value.trim();
+          const phone = (document.getElementById('queryPhone')||{}).value.trim();
+          const email = (document.getElementById('queryEmail')||{}).value.trim();
+          const description = (document.getElementById('queryDescription')||{}).value.trim();
+          queryMsg.textContent = '';
+          if (!name || !description) {
+            queryMsg.textContent = 'Please provide name and description.';
+            queryMsg.className = 'text-center text-red-600';
+            return;
+          }
+          queryMsg.textContent = 'Sending...';
+          queryMsg.className = 'text-center text-blue-700';
+          try {
+            const payload = { name, customer_id: id, kgid: id, phone, email, description, source: 'user_dashboard' };
+            const res = await fetch('/api/submit-query', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(()=>null);
+            if (res.ok && data && data.status === 'success') {
+              queryMsg.textContent = 'Query submitted. Thank you.';
+              queryMsg.className = 'text-center text-green-600';
+              setTimeout(()=>{ document.getElementById('queryBox').classList.remove('show'); setTimeout(()=>document.getElementById('queryBox').classList.add('hidden'),400); }, 1200);
+            } else {
+              queryMsg.textContent = (data && (data.message || data.error)) || 'Submission failed.';
+              queryMsg.className = 'text-center text-red-600';
+            }
+          } catch (e) {
+            queryMsg.textContent = 'Network error.';
+            queryMsg.className = 'text-center text-red-600';
+          }
+        });
+      }
     });
   </script>
 

@@ -95,6 +95,17 @@ try:
         # If import fails, skip silently; finance api may not be available at startup
         pass
 
+    # Proxy /api/next-installment -> finance.routes.next_installment_compat
+    # Import inside the route so startup import errors in finance package don't prevent this route from being registered.
+    @app.route('/api/next-installment', methods=['GET'])
+    def _proxy_next_installment():
+        try:
+            from app.finance.routes import next_installment_compat
+            return next_installment_compat()
+        except Exception as _e:
+            # If finance routes are not available, return a helpful 404-like JSON
+            return jsonify({'message': 'Next-installment API not available', 'error': str(_e)}), 503
+
     # NEW: Add the missing fetch_customer_details proxy
     @app.route('/finance/api/fetch_customer_details', methods=['GET'])
     def _proxy_fetch_customer_details():
@@ -256,6 +267,18 @@ def is_sql_injection(value: str) -> bool:
         if re.search(pat, value, re.IGNORECASE):
             return True
     return False
+
+
+# Debug helper: list registered routes (only enabled in debug mode)
+@app.route('/_routes', methods=['GET'])
+def _list_routes():
+    try:
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({'rule': str(rule), 'endpoint': rule.endpoint, 'methods': sorted(list(rule.methods))})
+        return jsonify({'status': 'success', 'routes': routes}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 from flask import request, abort
 from functools import wraps

@@ -559,6 +559,8 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
+  <!-- Queries Button -->
+  <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
         <!-- New Buttons -->
         <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
         <button id="mailNotificationBtn" class="w-full text-left px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">📧 Mail Notification</button>
@@ -1306,17 +1308,40 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="content space-y-6">
     <h2 class="text-xl font-bold text-blue-700 mb-4">Next Installment Details</h2>
     <div class="flex gap-2 mb-4">
-      <input type="text" id="nextInstallmentAccount" placeholder="Enter Account Number" class="border p-2 w-full rounded" />
+      <input type="text" id="nextInstallmentAccount" placeholder="Enter LOAN ID" class="border p-2 w-full rounded" />
       <button id="nextInstallmentSearchBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
     </div>
     <div id="nextInstallmentResult" class="space-y-4">
-      <div><strong>Loan Amount:</strong> <span id="loanAmount">-</span></div>
+  <div><strong>Loan / Customer:</strong> <span id="loanIdentifier">-</span></div>
       <div><strong>Paid Amount:</strong> <span id="paidAmount">-</span></div>
       <div><strong>Remaining Amount:</strong> <span id="remainingAmount">-</span></div>
       <div><strong>Next Month Installment:</strong> <span id="nextMonthAmount">-</span></div>
     </div>
   </div>
 </section>
+      <section id="queriesSection" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-bold text-blue-700 mb-4">Queries</h2>
+        <div id="queriesMsg" class="mb-4"></div>
+        <div class="overflow-x-auto">
+          <table id="queriesTable" class="min-w-full table-auto border-collapse">
+            <thead>
+              <tr class="bg-gray-100 text-left">
+                <th class="px-4 py-2">#</th>
+                <th class="px-4 py-2">Name</th>
+                <th class="px-4 py-2">Email</th>
+                <th class="px-4 py-2">Phone</th>
+                <th class="px-4 py-2">KGID / Customer ID</th>
+                <th class="px-4 py-2">Description</th>
+                <th class="px-4 py-2">Status</th>
+                <th class="px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="queriesTbody">
+              <!-- Rows populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // Next Installment functionality
@@ -1348,19 +1373,39 @@ document.addEventListener('DOMContentLoaded', () => {
         remainingAmountEl.textContent = 'Loading...';
         nextMonthAmountEl.textContent = 'Loading...';
         try {
-          const res = await fetch(`/api/next-installment?account=${encodeURIComponent(account)}`);
-          if (!res.ok) throw new Error('Network error');
-          const data = await res.json();
-          // Expected: { loanAmount, paidAmount, remainingAmount, nextMonthAmount }
+          // Try top-level API first, then the blueprint-prefixed path as a fallback.
+          const tryUrls = [
+            `/api/next-installment?account=${encodeURIComponent(account)}`,
+            `/loan/api/next-installment?loan_id=${encodeURIComponent(account)}`
+          ];
+          let data = null;
+          for (const url of tryUrls) {
+            try {
+              const res = await fetch(url);
+              if (!res.ok) continue; // try next
+              data = await res.json();
+              break;
+            } catch (e) {
+              // network error - try next URL
+              continue;
+            }
+          }
+          if (!data) {
+            throw new Error('Failed to fetch from all endpoints');
+          }
+          const loanIdentifierEl = document.getElementById('loanIdentifier');
+          if (loanIdentifierEl) {
+            loanIdentifierEl.textContent = data.loan_id || data.customer_id || data.account || '-';
+          }
           loanAmountEl.textContent = data.loanAmount ? `₹${Number(data.loanAmount).toLocaleString()}` : '-';
           paidAmountEl.textContent = data.paidAmount ? `₹${Number(data.paidAmount).toLocaleString()}` : '-';
           remainingAmountEl.textContent = data.remainingAmount ? `₹${Number(data.remainingAmount).toLocaleString()}` : '-';
           nextMonthAmountEl.textContent = data.nextMonthAmount ? `₹${Number(data.nextMonthAmount).toLocaleString()}` : '-';
-        } catch {
-          const err = document.createElement('div');
-          err.className = 'error-msg text-red-600 mb-2';
-          err.textContent = 'Error fetching installment details.';
-          nextInstallmentSection.prepend(err);
+        } catch (err) {
+          const e = document.createElement('div');
+          e.className = 'error-msg text-red-600 mb-2';
+          e.textContent = 'Error fetching installment details.';
+          nextInstallmentSection.prepend(e);
           loanAmountEl.textContent = '-';
           paidAmountEl.textContent = '-';
           remainingAmountEl.textContent = '-';
@@ -1373,24 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
   </div>
 
-  <!-- Add before closing body tag -->
-  <!-- Floating Query Button -->
-  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
-    📩 Query
-  </button>
-
-  <!-- Floating Query Box -->
-  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
-    <div class="flex justify-between items-center mb-3">
-      <h3 class="text-lg font-bold">Send Us a Query</h3>
-      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-    </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
-    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
-    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
-  </div>
-
+  
   <!-- Floating Civil Score Button -->
   <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
     📊 Civil Score
@@ -1476,6 +1504,99 @@ document.addEventListener('DOMContentLoaded', () => {
           checkCivilBtn.dataset.wired = '1';
         }
       }
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const queriesTbody = document.getElementById('queriesTbody');
+      const queriesMsg = document.getElementById('queriesMsg');
+      const queriesNavBtn = document.querySelector('[data-target="queriesSection"]');
+
+      async function fetchQueries() {
+        if (!queriesTbody) return;
+        queriesMsg.textContent = '';
+        queriesTbody.innerHTML = '<tr><td colspan="8" class="px-4 py-2">Loading...</td></tr>';
+        try {
+          const res = await fetch('/api/queries');
+          if (!res.ok) throw new Error('Network error');
+          const payload = await res.json();
+          if (payload.status !== 'success') throw new Error(payload.message || 'Failed to load');
+          renderQueries(payload.data || []);
+        } catch (err) {
+          queriesTbody.innerHTML = '<tr><td colspan="8" class="px-4 py-2 text-red-600">Error loading queries.</td></tr>';
+          queriesMsg.textContent = err.message || String(err);
+          queriesMsg.className = 'text-red-600';
+        }
+      }
+
+      function renderQueries(list) {
+        if (!queriesTbody) return;
+        if (!Array.isArray(list) || list.length === 0) {
+          queriesTbody.innerHTML = '<tr><td colspan="8" class="px-4 py-2">No queries found.</td></tr>';
+          return;
+        }
+        const rows = list.map((q, idx) => {
+          const id = q.id || '';
+          const name = q.name || '';
+          const email = q.email || '';
+          const phone = q.phone || '';
+          const ident = q.kgid || q.customer_id || '';
+          const desc = (q.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const status = q.status || 'open';
+          const created = q.created_at ? new Date(q.created_at).toLocaleString() : '';
+          const actionBtn = status === 'solved' ?
+            `<button class="px-3 py-1 bg-gray-300 text-gray-700 rounded" disabled>Solved</button>` :
+            `<button data-id="${id}" class="markSolvedBtn px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Mark Solved</button>`;
+          return `
+            <tr class="border-t">
+              <td class="px-4 py-2 align-top">${idx + 1}</td>
+              <td class="px-4 py-2 align-top">${name}</td>
+              <td class="px-4 py-2 align-top">${email}</td>
+              <td class="px-4 py-2 align-top">${phone}</td>
+              <td class="px-4 py-2 align-top">${ident}</td>
+              <td class="px-4 py-2 align-top"><div title="${created}">${desc}</div></td>
+              <td class="px-4 py-2 align-top">${status}</td>
+              <td class="px-4 py-2 align-top">${actionBtn}</td>
+            </tr>`;
+        }).join('\n');
+        queriesTbody.innerHTML = rows;
+        // attach handlers
+        document.querySelectorAll('.markSolvedBtn').forEach(btn => {
+          if (btn.dataset.wired) return;
+          btn.addEventListener('click', async (e) => {
+            const qid = btn.getAttribute('data-id');
+            if (!qid) return;
+            btn.disabled = true;
+            btn.textContent = 'Marking...';
+            try {
+              const res = await fetch(`/api/queries/${qid}/mark-solved`, { method: 'POST' });
+              const data = await res.json();
+              if (res.ok && data.status === 'success') {
+                fetchQueries();
+              } else {
+                alert(data.message || 'Failed to mark solved');
+                btn.disabled = false;
+                btn.textContent = 'Mark Solved';
+              }
+            } catch (err) {
+              alert('Network error');
+              btn.disabled = false;
+              btn.textContent = 'Mark Solved';
+            }
+          });
+          btn.dataset.wired = '1';
+        });
+      }
+
+      // fetch when Queries nav is clicked
+      if (queriesNavBtn) {
+        queriesNavBtn.addEventListener('click', () => {
+          // small delay to allow section to become visible
+          setTimeout(fetchQueries, 150);
+        });
+      }
+      // also fetch on load so numbers are available
+      fetchQueries();
     });
   </script>
 </body>

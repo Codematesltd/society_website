@@ -105,15 +105,18 @@
   </button>
 
   <!-- Floating Query Box -->
-  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-96 bg-white rounded-xl shadow-2xl p-4 z-50">
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-lg font-bold">Send Us a Query</h3>
       <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
     </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
-    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
+    <input id="queryName" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Full name">
+    <input id="queryId" class="w-full mb-2 px-4 py-2 border rounded" placeholder="KGID or Customer ID">
+    <input id="queryPhone" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Phone number">
+    <input id="queryEmail" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Email">
+    <textarea id="queryDescription" class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
     <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+    <div id="queryMsg" class="mt-2 text-sm text-center"></div>
   </div>
 
   <!-- Floating Civil Score Button -->
@@ -145,24 +148,59 @@
       showSlide(currentSlide);
     }, 3000);
 
-    // Query Popup
+    // Query Popup with form and API submit
     const queryBtn = document.getElementById('queryBtn');
     const queryBox = document.getElementById('queryBox');
     const closeQuery = document.getElementById('closeQuery');
     const sendQuery = document.getElementById('sendQuery');
+    const queryMsg = document.getElementById('queryMsg');
 
-    queryBtn.addEventListener('click', () => {
+    function openQueryBox(){
       queryBox.classList.remove('hidden');
       setTimeout(() => queryBox.classList.add('show'), 10);
-    });
-    closeQuery.addEventListener('click', () => {
+    }
+    function closeQueryBox(){
       queryBox.classList.remove('show');
       setTimeout(() => queryBox.classList.add('hidden'), 400);
-    });
-    sendQuery.addEventListener('click', () => {
-      alert("✅ Your query has been sent successfully!");
-      queryBox.classList.remove('show');
-      setTimeout(() => queryBox.classList.add('hidden'), 400);
+    }
+
+    queryBtn.addEventListener('click', openQueryBox);
+    closeQuery.addEventListener('click', closeQueryBox);
+
+    sendQuery.addEventListener('click', async () => {
+      const name = document.getElementById('queryName').value.trim();
+      const id = document.getElementById('queryId').value.trim();
+      const phone = document.getElementById('queryPhone').value.trim();
+      const email = document.getElementById('queryEmail').value.trim();
+      const description = document.getElementById('queryDescription').value.trim();
+      queryMsg.textContent = '';
+      if(!name || !description){
+        queryMsg.textContent = 'Please provide your name and description.';
+        queryMsg.className = 'text-center text-red-600';
+        return;
+      }
+      queryMsg.textContent = 'Sending...';
+      queryMsg.className = 'text-center text-blue-700';
+      try{
+        const payload = { name, customer_id: id, kgid: id, phone, email, description, source: 'landing' };
+        const res = await fetch('/api/submit-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(()=>null);
+        if(res.ok && data && data.status === 'success'){
+          queryMsg.textContent = 'Thanks — your query was submitted.';
+          queryMsg.className = 'text-center text-green-600';
+          setTimeout(()=>{ closeQueryBox(); queryMsg.textContent = ''; }, 1500);
+        } else {
+          queryMsg.textContent = (data && (data.message || data.error)) || 'Submission failed.';
+          queryMsg.className = 'text-center text-red-600';
+        }
+      } catch (e){
+        queryMsg.textContent = 'Network error.';
+        queryMsg.className = 'text-center text-red-600';
+      }
     });
 
     // Civil Score Popup
