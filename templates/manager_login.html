@@ -130,6 +130,19 @@
           return;
         }
 
+        // Strict password validation: min 8 chars, 1 cap, 1 small, 1 number, 1 special
+        const pwPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+        if (!password.value || !pwPattern.test(password.value)) {
+          passwordError.textContent = "Password must be at least 8 characters, include 1 uppercase, 1 lowercase, 1 number, and 1 special character.";
+          passwordError.classList.remove('hidden');
+          password.classList.add('border-red-500');
+          e.preventDefault();
+          return;
+        } else {
+          passwordError.classList.add('hidden');
+          password.classList.remove('border-red-500');
+        }
+
         // Prevent multiple submissions
         document.getElementById('submitBtn').disabled = true;
         document.getElementById('btnText').textContent = "Logging in...";

@@ -114,16 +114,20 @@ def apply_loan():
     try:
         # Get JSON data from request
         data = request.get_json() or {}
-        
+
         # Validate required fields
         required_fields = ["loan_type", "customer_id", "loan_amount", "interest_rate", "loan_term_months", "sureties"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"status": "error", "message": f"Missing required field: {field}"}), 400
-        
+
         # Extract sureties from request data before creating loan record
         sureties = data.get("sureties", [])
-        
+
+        # Enforce exactly 2 sureties
+        if not isinstance(sureties, list) or len(sureties) != 2:
+            return jsonify({"status": "error", "message": "Exactly 2 sureties are required for loan application."}), 400
+
         # Generate a unique loan ID in format LNXXXX
         loan_id = generate_loan_id()
         
@@ -236,6 +240,36 @@ def get_loan(loan_id):
             seen.add(r["id"])
     # Sort by repayment_date (oldest first, nulls last)
     records = sorted(all_records, key=lambda r: (r["repayment_date"] or "9999-12-31"))
+
+    # --- Interest calculation for each repayment record ---
+    interest_rate = float(loan_data.get("interest_rate", 0))
+    prev_date = None
+    prev_balance = float(loan_data.get("loan_amount", 0))
+    for rec in records:
+        # Calculate days since last payment
+        curr_date = rec.get("repayment_date")
+        if curr_date and prev_date:
+            days = (datetime.strptime(curr_date, "%Y-%m-%d") - datetime.strptime(prev_date, "%Y-%m-%d")).days
+        elif curr_date:
+            # First payment: since loan start (assume created_at or repayment_date)
+            loan_start = loan_data.get("created_at")
+            if loan_start:
+                loan_start_date = loan_start.split("T")[0]
+                days = (datetime.strptime(curr_date, "%Y-%m-%d") - datetime.strptime(loan_start_date, "%Y-%m-%d")).days
+            else:
+                days = 0
+        else:
+            days = 0
+
+        # Calculate interest for this period
+        if days > 0 and interest_rate > 0:
+            interest = prev_balance * (interest_rate / 100) * (days / 365)
+        else:
+            interest = 0.0
+        rec["calculated_interest"] = round(interest, 2)
+        prev_date = curr_date
+        prev_balance = float(rec.get("outstanding_balance", prev_balance))
+
     # NEW: compute total repaid & auto-complete
     try:
         total_repaid = sum(float(r.get("repayment_amount") or 0) for r in records)
@@ -248,14 +282,15 @@ def get_loan(loan_id):
         "name": loan_data.get("staff_name"),
         "phone": loan_data.get("staff_phone")
     }
-    return jsonify({
-        "status": "success",
-        "loan": loan_data,
-        "customer": customer.data[0] if customer.data else {},
-        "sureties": sureties.data,
-        "records": records,
-        "staff": staff_details
-    }), 200
+    # FIX: jsonify() should only use positional OR keyword args, not both
+    return jsonify(
+        status="success",
+        loan=loan_data,
+        customer=customer.data[0] if customer.data else {},
+        sureties=sureties.data,
+        records=records,  # now includes "calculated_interest" for each record
+        staff=staff_details
+    ), 200
 
 @finance_bp.route('/approve/<loan_id>', methods=['POST'])
 def approve_loan(loan_id):
@@ -265,14 +300,39 @@ def approve_loan(loan_id):
     resp = supabase.table("loans").update({"status": "approved", "loan_id": unique_loan_id}).eq("id", loan_id).execute()
     if not resp.data:
         return jsonify({"status": "error", "message": "Loan not found or update failed"}), 404
+
     # Mark sureties as active for this loan
     supabase.table("sureties").update({"active": True}).eq("loan_id", loan_id).execute()
-    # Create loan record
+
+    # --- Calculate principal, interest, outstanding, and EMI ---
+    loan_row = resp.data[0]
+    principal = float(loan_row["loan_amount"])
+    rate = float(loan_row["interest_rate"])
+    months = int(loan_row["loan_term_months"])
+
+    # Calculate total interest for the full term (simple interest)
+    total_interest = round(principal * rate * months / (12 * 100), 2)
+    outstanding = round(principal + total_interest, 2)
+
+    # Calculate EMI (Equated Monthly Installment)
+    monthly_rate = rate / (12 * 100)
+    if monthly_rate > 0:
+        emi = round(principal * monthly_rate * (1 + monthly_rate) ** months / ((1 + monthly_rate) ** months - 1), 2)
+    else:
+        emi = round(principal / months, 2) if months > 0 else principal
+
+    # Store only a single summary row for the loan in loan_records
     supabase.table("loan_records").insert({
         "loan_id": unique_loan_id,
-        "outstanding_balance": resp.data[0]["loan_amount"],
-        "status": "active"
+        "repayment_date": None,
+        "repayment_amount": None,
+        "outstanding_balance": outstanding,
+        "status": "active",
+        "interest_amount": total_interest  # You must add this column to your DB if not present
     }).execute()
+
+    # Do NOT pre-create repayment schedule rows for each month
+
     # Send mail to user
     member = get_member_by_customer_id(resp.data[0]["customer_id"])
     if member and member.get("name"):
@@ -591,4 +651,96 @@ def fetch_customer_details():
         return jsonify(response_data), 200
     except Exception as e:
         print(f"Error fetching customer details: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@finance_bp.route('/repay-loan', methods=['POST'])
+def repay_loan():
+    """
+    API to make a loan repayment.
+    Request JSON:
+    {
+        "loan_id": "<loan_id or uuid>",
+        "amount": <repayment_amount>,   # optional, if not provided, auto-calculate EMI
+        "repayment_date": "YYYY-MM-DD"  # optional, defaults to today
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        loan_id = data.get("loan_id")
+        custom_amount = float(data.get("amount", 0) or 0)
+        repayment_date = data.get("repayment_date") or datetime.now().date().isoformat()
+
+        if not loan_id:
+            return jsonify({"status": "error", "message": "Missing loan_id"}), 400
+
+        # Fetch loan details
+        loan_resp = supabase.table("loans").select("*").eq("id", loan_id).execute()
+        if not loan_resp.data:
+            # Try by textual loan_id
+            loan_resp = supabase.table("loans").select("*").eq("loan_id", loan_id).execute()
+            if not loan_resp.data:
+                return jsonify({"status": "error", "message": "Loan not found"}), 404
+        loan = loan_resp.data[0]
+
+        # Fetch summary row from loan_records
+        summary_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).eq("repayment_amount", None).execute()
+        if not summary_resp.data:
+            summary_resp = supabase.table("loan_records").select("*").eq("loan_id", loan_id).eq("repayment_amount", None).execute()
+        if not summary_resp.data:
+            return jsonify({"status": "error", "message": "Loan summary record not found"}), 404
+        summary = summary_resp.data[0]
+        outstanding = float(summary.get("outstanding_balance", 0))
+        interest_amount = float(summary.get("interest_amount", 0))
+
+        # Calculate EMI if amount not provided
+        principal = float(loan.get("loan_amount", 0))
+        rate = float(loan.get("interest_rate", 0))
+        months = int(loan.get("loan_term_months", 0))
+        monthly_rate = rate / (12 * 100)
+        if monthly_rate > 0 and months > 0:
+            emi = round(principal * monthly_rate * (1 + monthly_rate) ** months / ((1 + monthly_rate) ** months - 1), 2)
+        else:
+            emi = round(principal / months, 2) if months > 0 else principal
+
+        # Determine repayment amount
+        repayment_amount = custom_amount if custom_amount > 0 else emi
+        repayment_amount = min(repayment_amount, outstanding)  # Don't allow overpayment
+
+        # Calculate new outstanding
+        new_outstanding = max(outstanding - repayment_amount, 0)
+
+        # Calculate interest for this repayment (simple proportional)
+        # Optionally, you can use a more accurate calculation if you want
+        interest_for_this = 0
+        if interest_amount > 0 and outstanding > 0:
+            interest_for_this = round(interest_amount * (repayment_amount / (principal + interest_amount)), 2)
+
+        # Insert repayment record
+        supabase.table("loan_records").insert({
+            "loan_id": loan.get("loan_id"),
+            "repayment_date": repayment_date,
+            "repayment_amount": repayment_amount,
+            "outstanding_balance": new_outstanding,
+            "status": "completed" if new_outstanding == 0 else "active",
+            "interest_amount": interest_for_this
+        }).execute()
+
+        # Update summary row's outstanding_balance
+        supabase.table("loan_records").update({
+            "outstanding_balance": new_outstanding
+        }).eq("id", summary["id"]).execute()
+
+        # Optionally, auto-complete loan if fully paid
+        if new_outstanding == 0 and loan.get("status") == "approved":
+            supabase.table("loans").update({"status": "completed"}).eq("id", loan["id"]).execute()
+
+        return jsonify({
+            "status": "success",
+            "message": "Repayment successful",
+            "repayment_amount": repayment_amount,
+            "outstanding_balance": new_outstanding
+        }), 200
+
+    except Exception as e:
+        print(f"Error in repay_loan: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500

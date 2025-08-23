@@ -60,6 +60,7 @@
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Loan ID</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Interest</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
@@ -162,6 +163,37 @@
             const customerInfo = data.customer;
             const loanSummary = data.summary;
             const loans = data.loans || [];
+            // Calculate total outstanding from loan_records summary rows (only for active or completed loans)
+            let totalOutstanding = 0;
+            loans.forEach(loan => {
+                if (loan.status === 'approved' || loan.status === 'completed') {
+                    const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
+                    if (summaryRow && summaryRow.outstanding_balance !== undefined && summaryRow.outstanding_balance !== null) {
+                        totalOutstanding += Number(summaryRow.outstanding_balance);
+                    }
+                }
+            });
+
+            // Populate loan summary
+            const loanSummaryContainer = document.getElementById('loanSummaryInfo');
+            loanSummaryContainer.innerHTML = `
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-600">${loanSummary.total_loans}</p>
+                    <p class="text-sm text-gray-600">Total Loans</p>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <p class="text-2xl font-bold text-green-600">${loanSummary.active_loans}</p>
+                    <p class="text-sm text-gray-600">Active Loans</p>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                    <p class="text-2xl font-bold text-yellow-600">${loanSummary.pending_loans}</p>
+                    <p class="text-sm text-gray-600">Pending</p>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                    <p class="text-2xl font-bold text-red-600">₹${totalOutstanding.toLocaleString()}</p>
+                    <p class="text-sm text-gray-600">Outstanding</p>
+                </div>
+            `;
             
             // Populate basic customer info with photos on the right side
             const basicInfoContainer = document.getElementById('customerBasicInfo');
@@ -246,33 +278,17 @@
               </div>
             `;
             
-            // Populate loan summary
-            const loanSummaryContainer = document.getElementById('loanSummaryInfo');
-            loanSummaryContainer.innerHTML = `
-                <div class="text-center p-4 bg-blue-50 rounded-lg">
-                    <p class="text-2xl font-bold text-blue-600">${loanSummary.total_loans}</p>
-                    <p class="text-sm text-gray-600">Total Loans</p>
-                </div>
-                <div class="text-center p-4 bg-green-50 rounded-lg">
-                    <p class="text-2xl font-bold text-green-600">${loanSummary.active_loans}</p>
-                    <p class="text-sm text-gray-600">Active Loans</p>
-                </div>
-                <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                    <p class="text-2xl font-bold text-yellow-600">${loanSummary.pending_loans}</p>
-                    <p class="text-sm text-gray-600">Pending</p>
-                </div>
-                <div class="text-center p-4 bg-red-50 rounded-lg">
-                    <p class="text-2xl font-bold text-red-600">₹${(loanSummary.total_outstanding || 0).toLocaleString()}</p>
-                    <p class="text-sm text-gray-600">Outstanding</p>
-                </div>
-            `;
-            
             // Populate loans table
             const loansTableBody = document.getElementById('loansTableBody');
             if (loans.length === 0) {
-                loansTableBody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+                loansTableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
             } else {
                 loansTableBody.innerHTML = loans.map(loan => {
+                    // Find the summary row for this loan to get interest_amount and outstanding_balance
+                    const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
+                    const principal = Number(loan.loan_amount || 0);
+                    const interestAmount = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
+                    const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : 0;
                     let statusLabel = "PENDING";
                     let statusClass = "bg-yellow-100 text-yellow-800";
                     if (loan.status === 'approved') {
@@ -286,14 +302,19 @@
                         <tr class="border-t">
                             <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
                             <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
-                            <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
+                            <td class="px-4 py-3">₹${principal.toLocaleString()}</td>
+                            <td class="px-4 py-3">₹${interestAmount.toLocaleString()}</td>
                             <td class="px-4 py-3">
                                 <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
                                     ${statusLabel}
                                 </span>
                             </td>
                             <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
-                            <td class="px-4 py-3">₹${(loan.remaining_balance || 0).toLocaleString()}</td>
+                            <td class="px-4 py-3">
+                                <span title="Outstanding from loan_records">
+                                    ₹${outstanding.toLocaleString()}
+                                </span>
+                            </td>
                             <td class="px-4 py-3">
                                 <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                                         onclick="fetchLoanDeepDetails('${loan.id}')">
@@ -376,38 +397,67 @@
 
         function renderSelectedLoan(loan, customer, sureties, records) {
             records = records || [];
-            const principal = Number(loan.loan_amount||0);
+            // Find the summary row (the one with repayment_amount == null)
+            const summaryRow = records.find(r => r.repayment_amount === null || r.repayment_amount === undefined);
+            const principal = Number(loan.loan_amount || 0);
+            const totalInterest = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
+            const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : 0;
+            // Only sum actual repayments (exclude summary row)
             let totalRepaid = 0;
-            records.forEach(rp => totalRepaid += Number(rp.repayment_amount||0));
-            const outstanding = Math.max(principal - totalRepaid, 0);
+            records.forEach(rp => {
+                if (rp.repayment_amount !== null && rp.repayment_amount !== undefined) {
+                    totalRepaid += Number(rp.repayment_amount || 0);
+                }
+            });
 
             const container = document.getElementById('selectedLoanContent');
             container.innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${principal.toLocaleString()}</p></div>
-                    <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p></div>
-                    <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p></div>
-                    <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${Number(loan.interest_rate||0)}%</p></div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    <div class="p-3 bg-blue-50 rounded">
+                        <p class="text-xs text-gray-500">Principal</p>
+                        <p class="font-semibold">₹${principal.toLocaleString()}</p>
+                    </div>
+                    <div class="p-3 bg-purple-50 rounded">
+                        <p class="text-xs text-gray-500">Interest</p>
+                        <p class="font-semibold text-purple-700">₹${Math.round(totalInterest*100)/100}</p>
+                    </div>
+                    <div class="p-3 bg-green-50 rounded">
+                        <p class="text-xs text-gray-500">Total Repaid</p>
+                        <p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p>
+                    </div>
+                    <div class="p-3 bg-yellow-50 rounded">
+                        <p class="text-xs text-gray-500">Outstanding</p>
+                        <p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p>
+                    </div>
+                    <div class="p-3 bg-indigo-50 rounded">
+                        <p class="text-xs text-gray-500">Interest Rate</p>
+                        <p class="font-semibold">${Number(loan.interest_rate||0)}%</p>
+                    </div>
                 </div>
                 <h4 class="font-semibold mb-2">Repayment History</h4>
-                ${records.length===0 ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>' :
-                    `<div class="overflow-x-auto mb-4">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-2 py-2 text-left">#</th>
-                                    <th class="px-2 py-2 text-left">Date</th>
-                                    <th class="px-2 py-2 text-left">Amount</th>
-                                    <th class="px-2 py-2 text-left">Outstanding After</th>
-                                    <th class="px-2 py-2 text-left">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${records.map((r,i)=>`
+                ${records.filter(r => r.repayment_amount !== null && r.repayment_amount !== undefined).length === 0
+                    ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>'
+                    : `<div class="overflow-x-auto mb-4">
+                    <table class="min-w-full text-xs">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-2 py-2 text-left">#</th>
+                                <th class="px-2 py-2 text-left">Date</th>
+                                <th class="px-2 py-2 text-left">Amount</th>
+                                <th class="px-2 py-2 text-left">Interest</th>
+                                <th class="px-2 py-2 text-left">Outstanding After</th>
+                                <th class="px-2 py-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${records
+                                .filter(r => r.repayment_amount !== null && r.repayment_amount !== undefined)
+                                .map((r,i)=>`
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-2 py-1">${i+1}</td>
                                         <td class="px-2 py-1">${r.repayment_date || '—'}</td>
                                         <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
+                                        <td class="px-2 py-1 text-purple-700">₹${typeof r.interest_amount !== "undefined" ? Number(r.interest_amount).toLocaleString() : (typeof r.calculated_interest !== "undefined" ? Number(r.calculated_interest).toLocaleString() : "—")}</td>
                                         <td class="px-2 py-1">₹${Number(r.outstanding_balance||0).toLocaleString()}</td>
                                         <td class="px-2 py-1">
                                             <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">
@@ -415,12 +465,12 @@
                                             </span>
                                         </td>
                                     </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>`}
-            `;
-            document.getElementById('selectedLoanDetails').classList.remove('hidden');
-        }
+                        </tbody>
+                    </table>
+                </div>`}
+        `;
+        document.getElementById('selectedLoanDetails').classList.remove('hidden');
+    }
 
         // Hide details panel when Hide button is clicked
         document.getElementById('hideLoanDetailsBtn').onclick = function() {
