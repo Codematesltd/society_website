@@ -97,9 +97,9 @@
 
     const balanceData = `
       <h2 class="text-2xl font-bold text-blue-700 mb-6">Check Balance</h2>
-      <input type="password" placeholder="Enter 6-digit PIN" class="border p-3 rounded-lg w-60 mb-4" />
-      <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Check</button>
-      <p class="mt-4 text-red-600 font-medium">Your current balance is ₹45,500</p>`;
+      <input type="password" id="balancePassword" placeholder="Enter your login password" class="border p-3 rounded-lg w-60 mb-4" />
+      <button id="checkBalanceBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Check</button>
+      <p id="balanceResult" class="mt-4 font-medium"></p>`;
 
     async function fetchData(tabId) {
       const section = document.getElementById(tabId);
@@ -124,6 +124,34 @@
         requestAnimationFrame(() => {
           section.classList.add("fade-enter-active");
         });
+
+        // Attach balance check handler
+        if (tabId === "balance") {
+          const btn = document.getElementById("checkBalanceBtn");
+          btn.onclick = async function() {
+            const pw = document.getElementById("balancePassword").value;
+            const resultP = document.getElementById("balanceResult");
+            resultP.textContent = "Checking...";
+            try {
+              const res = await fetch("/members/api/check-balance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: pw })
+              });
+              const data = await res.json();
+              if (res.ok && data.status === "success") {
+                resultP.textContent = `Your current balance is ₹${Number(data.balance).toLocaleString()}`;
+                resultP.className = "mt-4 text-green-600 font-medium";
+              } else {
+                resultP.textContent = data.message || "Error checking balance";
+                resultP.className = "mt-4 text-red-600 font-medium";
+              }
+            } catch {
+              resultP.textContent = "Network error";
+              resultP.className = "mt-4 text-red-600 font-medium";
+            }
+          };
+        }
       }, 600);
     }
 
