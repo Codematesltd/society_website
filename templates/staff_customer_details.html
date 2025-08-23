@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Details - Staff Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-6">
+    <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-2xl font-bold text-blue-700 mb-6">Customer Details</h2>
+        
+        <!-- Search Form -->
+        <div class="mb-6">
+            <form id="customerSearchForm" class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search Customer</label>
+                    <input type="text" id="customerSearchInput" placeholder="Enter Customer ID or KGID" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Search
+                </button>
+            </form>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="customerSearchLoading" class="hidden text-center py-4">
+            <div class="inline-flex items-center">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                <span class="text-blue-600">Searching...</span>
+            </div>
+        </div>
+        
+        <!-- Search Results -->
+        <div id="customerSearchResults" class="hidden">
+            <!-- Customer Basic Info Card -->
+            <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Customer Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="customerBasicInfo">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Loans Summary -->
+            <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Loan Summary</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="loanSummaryInfo">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Detailed Loans Table -->
+            <div class="bg-white border rounded-lg overflow-hidden">
+                <h3 class="text-lg font-bold text-gray-800 p-4 border-b bg-gray-50">Loan Details</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Loan ID</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loansTableBody">
+                            <!-- Content will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Selected Loan Detailed Panel -->
+            <div id="selectedLoanDetails" class="hidden bg-white border rounded-lg overflow-hidden mt-6">
+                <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+                    <h3 class="text-lg font-bold text-gray-800">Selected Loan Comprehensive View</h3>
+                    <button id="hideLoanDetailsBtn" class="text-sm text-gray-500 hover:text-gray-700">Hide ✕</button>
+                </div>
+                <div id="selectedLoanContent" class="p-4 text-sm">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error State -->
+        <div id="customerSearchError" class="hidden">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-red-800 font-medium" id="customerSearchErrorMessage">Customer not found</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const customerSearchForm = document.getElementById('customerSearchForm');
+        const customerSearchInput = document.getElementById('customerSearchInput');
+        const customerSearchLoading = document.getElementById('customerSearchLoading');
+        const customerSearchResults = document.getElementById('customerSearchResults');
+        const customerSearchError = document.getElementById('customerSearchError');
+        const customerSearchErrorMessage = document.getElementById('customerSearchErrorMessage');
+        
+        if (customerSearchForm) {
+            customerSearchForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const searchValue = customerSearchInput.value.trim();
+                if (!searchValue) {
+                    showError('Please enter a Customer ID or KGID');
+                    return;
+                }
+                
+                // Reset previous states
+                hideAllSearchStates();
+                customerSearchLoading.classList.remove('hidden');
+                
+                try {
+                    // Call the fetch_customer_details API
+                    const response = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        displayCustomerDetails(data);
+                    } else {
+                        showError(data.message || 'Customer not found');
+                    }
+                } catch (error) {
+                    console.error('Error fetching customer details:', error);
+                    showError('Network error. Please try again.');
+                } finally {
+                    customerSearchLoading.classList.add('hidden');
+                }
+            });
+        }
+        
+        function hideAllSearchStates() {
+            customerSearchLoading.classList.add('hidden');
+            customerSearchResults.classList.add('hidden');
+            customerSearchError.classList.add('hidden');
+        }
+        
+        function showError(message) {
+            hideAllSearchStates();
+            customerSearchErrorMessage.textContent = message;
+            customerSearchError.classList.remove('hidden');
+        }
+        
+        function displayCustomerDetails(data) {
+            hideAllSearchStates();
+            
+            const customerInfo = data.customer;
+            const loanSummary = data.summary;
+            const loans = data.loans || [];
+            
+            // Populate basic customer info with photos on the right side
+            const basicInfoContainer = document.getElementById('customerBasicInfo');
+            basicInfoContainer.className = ""; // reset grid classes (we'll control layout)
+            basicInfoContainer.innerHTML = `
+              <div class="flex flex-col lg:flex-row gap-8">
+                <!-- LEFT: Details -->
+                <div class="flex-1">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Name</p>
+                      <p class="font-semibold text-gray-800">${customerInfo.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Customer ID</p>
+                      <p class="font-semibold">${customerInfo.customer_id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">KGID</p>
+                      <p class="font-semibold">${customerInfo.kgid || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Phone</p>
+                      <p class="font-medium">${customerInfo.phone || 'N/A'}</p>
+                    </div>
+                    <div class="">
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Email</p>
+                      <p class="font-medium break-all">${customerInfo.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Current Balance</p>
+                      <p class="font-semibold text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Organization</p>
+                      <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Address</p>
+                      <p class="font-medium">${customerInfo.address || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-gray-500">Account Status</p>
+                      <span class="inline-block mt-1 px-2 py-1 rounded-full text-xs font-semibold
+                        ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-700'
+                          : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-700'
+                          : 'bg-yellow-100 text-yellow-700'}">
+                        ${(customerInfo.status || 'pending').toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT: Images -->
+                <div class="w-full lg:w-72 flex flex-col items-center gap-8">
+                  <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Profile Photo</h4>
+                    ${customerInfo.photo_url ? `
+                      <img src="${customerInfo.photo_url}"
+                           alt="Customer Photo"
+                           class="mx-auto w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
+                           onclick="showImageModal('${customerInfo.photo_url}','Customer Photo')" />`
+                      : `
+                      <div class="mx-auto w-48 h-48 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-sm">
+                        No Photo
+                      </div>`}
+                  </div>
+
+                  <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Signature</h4>
+                    ${customerInfo.signature_url ? `
+                      <img src="${customerInfo.signature_url}"
+                           alt="Customer Signature"
+                           class="mx-auto w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow"
+                           onclick="showImageModal('${customerInfo.signature_url}','Customer Signature')" />`
+                      : `
+                      <div class="mx-auto w-48 h-28 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-xs">
+                        No Signature
+                      </div>`}
+                  </div>
+                </div>
+              </div>
+            `;
+            
+            // Populate loan summary
+            const loanSummaryContainer = document.getElementById('loanSummaryInfo');
+            loanSummaryContainer.innerHTML = `
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-600">${loanSummary.total_loans}</p>
+                    <p class="text-sm text-gray-600">Total Loans</p>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <p class="text-2xl font-bold text-green-600">${loanSummary.active_loans}</p>
+                    <p class="text-sm text-gray-600">Active Loans</p>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                    <p class="text-2xl font-bold text-yellow-600">${loanSummary.pending_loans}</p>
+                    <p class="text-sm text-gray-600">Pending</p>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                    <p class="text-2xl font-bold text-red-600">₹${(loanSummary.total_outstanding || 0).toLocaleString()}</p>
+                    <p class="text-sm text-gray-600">Outstanding</p>
+                </div>
+            `;
+            
+            // Populate loans table
+            const loansTableBody = document.getElementById('loansTableBody');
+            if (loans.length === 0) {
+                loansTableBody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+            } else {
+                loansTableBody.innerHTML = loans.map(loan => {
+                    let statusLabel = "PENDING";
+                    let statusClass = "bg-yellow-100 text-yellow-800";
+                    if (loan.status === 'approved') {
+                        statusLabel = "ACTIVE";
+                        statusClass = "bg-green-100 text-green-800";
+                    } else if (loan.status === 'rejected') {
+                        statusLabel = "REJECTED";
+                        statusClass = "bg-red-100 text-red-800";
+                    }
+                    return `
+                        <tr class="border-t">
+                            <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
+                            <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
+                            <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
+                                    ${statusLabel}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
+                            <td class="px-4 py-3">₹${(loan.remaining_balance || 0).toLocaleString()}</td>
+                            <td class="px-4 py-3">
+                                <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                        onclick="fetchLoanDeepDetails('${loan.id}')">
+                                    Details
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            
+            customerSearchResults.classList.remove('hidden');
+        }
+
+        // Add image modal functionality
+        window.showImageModal = function(imageSrc, imageTitle) {
+            const existingModal = document.getElementById('imageModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.id = 'imageModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="relative max-w-4xl max-h-full">
+                    <div class="bg-white p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">${imageTitle}</h3>
+                            <button onclick="closeImageModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">
+                                &times;
+                            </button>
+                        </div>
+                        <img src="${imageSrc}" 
+                             alt="${imageTitle}" 
+                             class="max-w-full max-h-[70vh] object-contain rounded shadow-lg" />
+                    </div>
+                </div>
+            `;
+            
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    closeImageModal();
+                }
+            };
+            
+            document.body.appendChild(modal);
+        };
+        
+        window.closeImageModal = function() {
+            const modal = document.getElementById('imageModal');
+            if (modal) {
+                modal.remove();
+            }
+        };
+
+        // Loan details functionality
+        window.fetchLoanDeepDetails = async function(loanUuid) {
+            const detailsPanel = document.getElementById('selectedLoanDetails');
+            const detailsContent = document.getElementById('selectedLoanContent');
+            detailsContent.innerHTML = `<div class="flex items-center py-8 justify-center text-blue-600">
+                <svg class="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+                <span>Loading loan details...</span>
+            </div>`;
+            detailsPanel.classList.remove('hidden');
+            try {
+                const res = await fetch(`/finance/${loanUuid}`);
+                const json = await res.json();
+                if(json.status !== 'success'){ throw new Error('Fetch failed'); }
+                renderSelectedLoan(json.loan, json.customer, json.sureties, json.records);
+            } catch(e){
+                console.error(e);
+                detailsContent.innerHTML = `<p class="text-red-600">Failed to load loan details.</p>`;
+                detailsPanel.classList.remove('hidden');
+            }
+        };
+
+        function renderSelectedLoan(loan, customer, sureties, records) {
+            records = records || [];
+            const principal = Number(loan.loan_amount||0);
+            let totalRepaid = 0;
+            records.forEach(rp => totalRepaid += Number(rp.repayment_amount||0));
+            const outstanding = Math.max(principal - totalRepaid, 0);
+
+            const container = document.getElementById('selectedLoanContent');
+            container.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${principal.toLocaleString()}</p></div>
+                    <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p></div>
+                    <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p></div>
+                    <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${Number(loan.interest_rate||0)}%</p></div>
+                </div>
+                <h4 class="font-semibold mb-2">Repayment History</h4>
+                ${records.length===0 ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>' :
+                    `<div class="overflow-x-auto mb-4">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-2 py-2 text-left">#</th>
+                                    <th class="px-2 py-2 text-left">Date</th>
+                                    <th class="px-2 py-2 text-left">Amount</th>
+                                    <th class="px-2 py-2 text-left">Outstanding After</th>
+                                    <th class="px-2 py-2 text-left">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${records.map((r,i)=>`
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="px-2 py-1">${i+1}</td>
+                                        <td class="px-2 py-1">${r.repayment_date || '—'}</td>
+                                        <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
+                                        <td class="px-2 py-1">₹${Number(r.outstanding_balance||0).toLocaleString()}</td>
+                                        <td class="px-2 py-1">
+                                            <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">
+                                                ${(r.status||'active').toUpperCase()}
+                                            </span>
+                                        </td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>`}
+            `;
+            document.getElementById('selectedLoanDetails').classList.remove('hidden');
+        }
+
+        // Hide details panel when Hide button is clicked
+        document.getElementById('hideLoanDetailsBtn').onclick = function() {
+            document.getElementById('selectedLoanDetails').classList.add('hidden');
+        };
+    });
+    </script>
+</body>
+</html>

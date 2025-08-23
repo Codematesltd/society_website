@@ -442,7 +442,35 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      initializeFloatingBoxes();
+      // Initialize floating boxes functionality
+      const queryBtn = document.getElementById('queryBtn');
+      const queryBox = document.getElementById('queryBox');
+      const closeQuery = document.getElementById('closeQuery');
+      const civilBtn = document.getElementById('civilBtn');
+      const civilBox = document.getElementById('civilBox');
+      const closeCivil = document.getElementById('closeCivil');
+
+      function toggleBox(box) {
+        box.classList.toggle('hidden');
+        if (!box.classList.contains('hidden')) {
+          setTimeout(() => box.classList.add('show'), 10);
+        } else {
+          box.classList.remove('show');
+        }
+      }
+
+      if (queryBtn && queryBox) {
+        queryBtn.addEventListener('click', () => toggleBox(queryBox));
+      }
+      if (closeQuery && queryBox) {
+        closeQuery.addEventListener('click', () => toggleBox(queryBox));
+      }
+      if (civilBtn && civilBox) {
+        civilBtn.addEventListener('click', () => toggleBox(civilBox));
+      }
+      if (closeCivil && civilBox) {
+        closeCivil.addEventListener('click', () => toggleBox(civilBox));
+      }
     });
   </script>
     <!-- Add before closing body tag -->
@@ -477,6 +505,7 @@
     <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Enter KGID Number">
     <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
   </div>
+
   
   <script src="shared.js"></script>
   <script>
@@ -527,6 +556,8 @@
       #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
     }
   </style>
+=======
+>>>>>>> f03d5d5cb5b82865f6b479f176467c2a41de591b
 </body>
 </html>
 

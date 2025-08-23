@@ -1,6 +1,7 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from . import admin_bp
 from app.auth.routes import supabase
+from app.manager.api import send_status_email  # added import
 
 @admin_bp.route('/')
 def index():
@@ -22,42 +23,32 @@ def admin_account_requests():
         print(f"Error fetching account requests: {e}")
         return render_template('admin/account_requests.html', requests=[])
 
-@admin_bp.route('/account_requests/approve/<email>', methods=['POST'])
+@admin_bp.route('/account_requests/approve/<path:email>', methods=['POST'])
 def approve_member(email):
-    """Approve a pending member account request"""
+    """Approve member (moved/duplicated here so route is registered)."""
     try:
         resp = supabase.table("members").update({"status": "approved"}).eq("email", email).execute()
-        if resp.data:
-            # Send approval email
-            try:
-                from app.manager.api import send_status_email
-                send_status_email(email, "approved")
-            except Exception as e:
-                print(f"Error sending approval email: {e}")
-            flash("Member approved!", "success")
-        else:
-            flash("Member not found.", "error")
+        if not resp.data:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        try:
+            send_status_email(email, "approved")
+        except Exception as e:
+            print(f"Approval email failed: {e}")
+        return jsonify({'status': 'success'}), 200
     except Exception as e:
-        print(f"Error approving member: {e}")
-        flash("Failed to approve member.", "error")
-    return redirect(url_for("admin.admin_account_requests"))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@admin_bp.route('/account_requests/reject/<email>', methods=['POST'])
+@admin_bp.route('/account_requests/reject/<path:email>', methods=['POST'])
 def reject_member(email):
-    """Reject a pending member account request"""
+    """Reject member (moved/duplicated here so route is registered)."""
     try:
         resp = supabase.table("members").update({"status": "rejected"}).eq("email", email).execute()
-        if resp.data:
-            # Send rejection email
-            try:
-                from app.manager.api import send_status_email
-                send_status_email(email, "rejected")
-            except Exception as e:
-                print(f"Error sending rejection email: {e}")
-            flash("Member rejected.", "success")
-        else:
-            flash("Member not found.", "error")
+        if not resp.data:
+            return jsonify({'status': 'error', 'message': 'Member not found'}), 404
+        try:
+            send_status_email(email, "rejected")
+        except Exception as e:
+            print(f"Rejection email failed: {e}")
+        return jsonify({'status': 'success'}), 200
     except Exception as e:
-        print(f"Error rejecting member: {e}")
-        flash("Failed to reject member.", "error")
-    return redirect(url_for("admin.admin_account_requests"))
+        return jsonify({'status': 'error', 'message': str(e)}), 500

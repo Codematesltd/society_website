@@ -90,6 +90,50 @@ def compress_image(file_storage, max_size_kb=100):
     buffer.seek(0)
     return buffer
 
+def send_member_otp():
+    email = request.form.get('email')
+    if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({'status': 'error', 'message': 'Invalid email'}), 400
+    
+    otp = str(uuid.uuid4().int)[-6:]
+    try:
+        # Check if member exists
+        member_rows = supabase.table("members").select("id").eq("email", email).execute()
+        if member_rows.data and len(member_rows.data) > 0:
+            # Update OTP only
+            supabase.table("members").update({"otp": otp}).eq("email", email).execute()
+        else:
+            # Insert only email and OTP for a new user.
+            # The rest of the data will be added when the form is submitted.
+            # We need to provide temporary values for NOT NULL fields
+            supabase.table("members").insert({
+                "email": email,
+                "otp": otp,
+                "name": "temp_pending",
+                "phone": "temp_pending", 
+                "organization_name": "temp_pending",
+                "address": "temp_pending",
+                "status": "pending_otp"
+            }).execute()
+        send_otp_email(email, otp)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to send OTP', 'error': str(e)}), 500
+    return jsonify({'status': 'success', 'message': 'OTP sent'})
+
+def compress_image(file_storage, max_size_kb=100):
+    img = Image.open(file_storage)
+    img_format = img.format if img.format else 'JPEG'
+    quality = 85
+    buffer = BytesIO()
+    img.save(buffer, format=img_format, optimize=True, quality=quality)
+    while buffer.tell() > max_size_kb * 1024 and quality > 10:
+        quality -= 5
+        buffer.seek(0)
+        buffer.truncate()
+        img.save(buffer, format=img_format, optimize=True, quality=quality)
+    buffer.seek(0)
+    return buffer
+
 def send_status_email(email, status):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
@@ -146,16 +190,13 @@ def generate_stid():
 
 @staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
-    photo = request.files.get('photo')
-    signature = request.files.get('signature')
-
-    # Strip whitespace from form and file keys
+    # Use old working logic, kgid optional
     form = {k.strip(): v for k, v in request.form.items()}
     files = {k.strip(): v for k, v in request.files.items()}
     required_fields = ['name', 'phone', 'email', 'aadhar_no', 'pan_no', 'salary', 'organization_name', 'address', 'otp']
     data = {field: form.get(field, '').strip() for field in required_fields}
-    # Handle kgid as optional
-    kgid = form.get('kgid', '').strip()
+    kgid = form.get('kgid', '').strip()  # optional
+
     missing = [f for f, v in data.items() if not v]
     if missing:
         return jsonify({'status': 'error', 'message': f'Missing fields: {", ".join(missing)}'}), 400
@@ -179,14 +220,12 @@ def add_member():
     if not signature or signature.filename == "":
         return jsonify({'status': 'error', 'message': 'Missing or empty signature file'}), 400
 
-    # Validate file type (basic check)
     allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
     if photo.mimetype not in allowed_types:
         return jsonify({'status': 'error', 'message': 'Photo must be a JPEG or PNG image'}), 400
     if signature.mimetype not in allowed_types:
         return jsonify({'status': 'error', 'message': 'Signature must be a JPEG or PNG image'}), 400
 
-    # Optionally check file size (e.g., max 2MB)
     max_size = 2 * 1024 * 1024
     photo.seek(0, 2)
     photo_size = photo.tell()
@@ -217,10 +256,9 @@ def add_member():
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Image upload failed', 'error': str(e)}), 500
 
-    # Prepare member_data
     member_data = {
         "name": data['name'],
-        "kgid": kgid,  # kgid is now optional
+        "kgid": kgid,  # optional
         "phone": data['phone'],
         "email": data['email'],
         "aadhar_no": data['aadhar_no'],
@@ -233,10 +271,8 @@ def add_member():
         "status": "pending"
     }
 
-    # Generate customer_id if not already present
     customer_id = member_rows.data[0].get("customer_id") if member_rows.data and "customer_id" in member_rows.data[0] else None
     if not customer_id:
-        # Ensure uniqueness (very unlikely to collide, but check anyway)
         for _ in range(5):
             new_customer_id = generate_customer_id()
             exists = supabase.table("members").select("id").eq("customer_id", new_customer_id).execute()
@@ -255,9 +291,7 @@ def add_member():
         if not insert_resp.data or len(insert_resp.data) == 0:
             raise Exception("Failed to insert/update member record")
         member_data['id'] = insert_resp.data[0]['id']
-        # Always return customer_id in response
         member_data['customer_id'] = insert_resp.data[0].get('customer_id', customer_id)
-        # Send pending email
         send_status_email(member_data['email'], "pending")
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Database insert failed', 'error': str(e)}), 500
@@ -517,6 +551,10 @@ def staff_logout():
 @staff_bp.route('/dashboard')
 def staff_dashboard():
     return render_template('staff_dashboard.html')
+
+@staff_bp.route('/customer-details')
+def staff_customer_details():
+    return render_template('staff_customer_details.html')
 
 @staff_bp.route('/transaction/check/<stid>')
 def check_transaction(stid):

@@ -47,10 +47,14 @@
     </div>
     <div class="flex gap-4 mt-6 justify-end">
       <form id="approveForm" method="post">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Approve</button>
+        <button type="submit" id="approveBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center justify-center gap-2">
+          <span>Approve</span>
+        </button>
       </form>
       <form id="rejectForm" method="post">
-        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject</button>
+        <button type="submit" id="rejectBtn" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center justify-center gap-2">
+          <span>Reject</span>
+        </button>
       </form>
     </div>
   </div>
@@ -62,6 +66,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalContent = document.getElementById('modalContent');
   const closeModalBtn = document.getElementById('closeModalBtn');
   let currentEmail = null;
+
+  const approveForm = document.getElementById('approveForm');
+  const rejectForm  = document.getElementById('rejectForm');
+  const approveBtn  = document.getElementById('approveBtn');
+  const rejectBtn   = document.getElementById('rejectBtn');
+
+  function spinnerSvg(color="white"){
+    return `
+      <svg class="animate-spin h-4 w-4 text-${color}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>`;
+  }
+
+  function setLoading(which, state){
+    const btn = which === 'approve' ? approveBtn : rejectBtn;
+    if(!btn) return;
+    if(state){
+      btn.dataset.originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.classList.add('opacity-80','cursor-not-allowed');
+      btn.innerHTML = `<span class="flex items-center gap-2">${spinnerSvg()}<span>Processing...</span></span>`;
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('opacity-80','cursor-not-allowed');
+      if(btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
 
   // Show modal with member details
   document.querySelectorAll('.view-details-btn').forEach(btn => {
@@ -141,35 +173,45 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Approve member
-  document.getElementById('approveForm').addEventListener('submit', function(e) {
+  approveForm.addEventListener('submit', function(e){
     e.preventDefault();
-    if (!currentEmail) return;
-    fetch(`/admin/account_requests/approve/${currentEmail}`, {
-      method: 'POST'
-    }).then(res => {
-      if (res.ok) {
-        modalContent.innerHTML += `<div class="mt-4 text-green-600 font-semibold">Member approved!</div>`;
-        setTimeout(() => { modal.classList.add('hidden'); location.reload(); }, 1200);
-      } else {
-        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to approve.</div>`;
-      }
-    });
+    if(!currentEmail) return;
+    const safeEmail = encodeURIComponent(currentEmail.trim());
+    setLoading('approve', true);
+    fetch(`/admin/account_requests/approve/${safeEmail}`, { method: 'POST' })
+      .then(res => {
+        if(res.ok){
+          modalContent.innerHTML += `<div class="mt-4 text-green-600 font-semibold">Member approved!</div>`;
+          setTimeout(()=>{ document.getElementById('memberModal').classList.add('hidden'); location.reload(); }, 1000);
+        } else {
+          modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to approve (HTTP ${res.status}).</div>`;
+        }
+      })
+      .catch(err=>{
+        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Error: ${err.message}</div>`;
+      })
+      .finally(()=> setLoading('approve', false));
   });
 
   // Reject member
-  document.getElementById('rejectForm').addEventListener('submit', function(e) {
+  rejectForm.addEventListener('submit', function(e){
     e.preventDefault();
-    if (!currentEmail) return;
-    fetch(`/admin/account_requests/reject/${currentEmail}`, {
-      method: 'POST'
-    }).then(res => {
-      if (res.ok) {
-        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Member rejected.</div>`;
-        setTimeout(() => { modal.classList.add('hidden'); location.reload(); }, 1200);
-      } else {
-        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to reject.</div>`;
-      }
-    });
+    if(!currentEmail) return;
+    const safeEmail = encodeURIComponent(currentEmail.trim());
+    setLoading('reject', true);
+    fetch(`/admin/account_requests/reject/${safeEmail}`, { method: 'POST' })
+      .then(res => {
+        if(res.ok){
+          modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Member rejected.</div>`;
+          setTimeout(()=>{ document.getElementById('memberModal').classList.add('hidden'); location.reload(); }, 1000);
+        } else {
+          modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Failed to reject (HTTP ${res.status}).</div>`;
+        }
+      })
+      .catch(err=>{
+        modalContent.innerHTML += `<div class="mt-4 text-red-600 font-semibold">Error: ${err.message}</div>`;
+      })
+      .finally(()=> setLoading('reject', false));
   });
 
   // Image overlay logic
