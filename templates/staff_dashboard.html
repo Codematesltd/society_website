@@ -553,7 +553,7 @@
       <nav class="space-y-3">
         <button type="button" id="homeBtn" class="w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">🏠 Home</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
-        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="customerDetails">👤 Customer Details</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Add Expense</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
@@ -751,251 +751,210 @@
           </div>
         </div>
       </section>
-      <section id="accountInfo" class="dynamic-section hidden bg-white p-6 rounded shadow">
+      <section id="customerDetails" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
         <div class="content">
-          <h2 class="text-xl font-bold text-blue-700 mb-4">Customer Account Info</h2>
-          <form id="customerSearchForm" class="mb-4 flex gap-2">
-            <input type="text" id="kgidInput" placeholder="Enter Customer ID" class="border p-2 w-full rounded" />
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+          <iframe src="/staff/customer-details" class="w-full min-h-[700px] border-0 rounded-xl shadow"></iframe>
+        </div>
+      </section>
+      <section id="addUser" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content">
+          <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
+          <!-- Move message box here, styled as alert -->
+          <div id="addUserMsg" class="mb-4 text-center hidden"></div>
+          <form id="addUserForm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Single Name Field -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Full Name</label>
+                <input type="text" name="name" placeholder="Full Name" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">KGID</label>
+                <input type="text" name="kgid" placeholder="KGID" class="border p-2 rounded w-full" />
+              </div>
+              <!-- Phone & Email Row -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Phone Number</label>
+                <input type="text" name="phone" placeholder="Phone Number" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <div class="flex gap-2">
+                  <input type="email" name="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" required />
+                  <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">
+                    Verify
+                  </button>
+                </div>
+              </div>
+              <!-- OTP Input -->
+              <div id="otpContainer" class="col-span-1 md:col-span-2 hidden">
+                <label class="block text-sm font-medium mb-1">Enter OTP</label>
+                <input type="text" id="otpInput" name="otp" placeholder="Enter OTP" class="border p-2 rounded w-full" />
+              </div>
+              <!-- More User Details -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Father's Name</label>
+                <input type="text" name="father_name" placeholder="Father's Name" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Salary</label>
+                <input type="text" name="salary" placeholder="Salary" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Organization Name</label>
+                <input type="text" name="organization_name" placeholder="Organization Name" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Aadhar Number</label>
+                <input type="text" name="aadhar_no" placeholder="Aadhar Number" class="border p-2 rounded w-full" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">PAN Number</label>
+                <input type="text" name="pan_no" placeholder="PAN Number" class="border p-2 rounded w-full" required />
+              </div>
+              <!-- Address -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-sm font-medium mb-1">Address</label>
+                <textarea name="address" placeholder="Address" class="border p-2 rounded w-full" required></textarea>
+              </div>
+              <!-- Photo Upload -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+                <input type="file" name="photo" class="border p-2 rounded w-full" accept="image/*" required />
+              </div>
+              <!-- Signature Upload -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
+                <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" required />
+              </div>
+            </div>
+            <!-- Warning Message -->
+            <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
+            <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
           </form>
-          <div id="customerInfoResult"></div>
+          <!-- Remove the old message box from below the form -->
         </div>
       </section>
 
-<section id="addUser" class="dynamic-section hidden bg-white p-6 rounded shadow">
-  <div class="loader hidden text-center text-blue-600">Loading...</div>
-  <div class="content">
-    <h2 class="text-xl font-bold text-blue-700 mb-4">Add New User</h2>
-    <!-- Move message box here, styled as alert -->
-    <div id="addUserMsg" class="mb-4 text-center hidden"></div>
-    <form id="addUserForm">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Single Name Field -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Full Name</label>
-          <input type="text" name="name" placeholder="Full Name" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">KGID</label>
-          <input type="text" name="kgid" placeholder="KGID" class="border p-2 rounded w-full" required />
-        </div>
-        <!-- Phone & Email Row -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Phone Number</label>
-          <input type="text" name="phone" placeholder="Phone Number" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Email</label>
-          <div class="flex gap-2">
-            <input type="email" name="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" required />
-            <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-600">
-              Verify
-            </button>
-          </div>
-        </div>
-        <!-- OTP Input -->
-        <div id="otpContainer" class="col-span-1 md:col-span-2 hidden">
-          <label class="block text-sm font-medium mb-1">Enter OTP</label>
-          <input type="text" id="otpInput" name="otp" placeholder="Enter OTP" class="border p-2 rounded w-full" />
-        </div>
-        <!-- More User Details -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Father's Name</label>
-          <input type="text" name="father_name" placeholder="Father's Name" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Salary</label>
-          <input type="text" name="salary" placeholder="Salary" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Organization Name</label>
-          <input type="text" name="organization_name" placeholder="Organization Name" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Aadhar Number</label>
-          <input type="text" name="aadhar_no" placeholder="Aadhar Number" class="border p-2 rounded w-full" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">PAN Number</label>
-          <input type="text" name="pan_no" placeholder="PAN Number" class="border p-2 rounded w-full" required />
-        </div>
-        <!-- Address -->
-        <div class="col-span-1 md:col-span-2">
-          <label class="block text-sm font-medium mb-1">Address</label>
-          <textarea name="address" placeholder="Address" class="border p-2 rounded w-full" required></textarea>
-        </div>
-        <!-- Photo Upload -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Upload Photo <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
-          <input type="file" name="photo" class="border p-2 rounded w-full" accept="image/*" required />
-        </div>
-        <!-- Signature Upload -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
-          <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" required />
-        </div>
-      </div>
-      <!-- Warning Message -->
-      <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
-      <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
-    </form>
-    <!-- Remove the old message box from below the form -->
-  </div>
-</section>
-<script>
+      <script>
 document.addEventListener('DOMContentLoaded', () => {
-  let emailVerified = false;
-  let otpSent = false;
-  let otpVerified = false;
-
-  const verifyBtn = document.getElementById('verifyEmailBtn');
-  const otpContainer = document.getElementById('otpContainer');
-  const otpInput = document.getElementById('otpInput');
-  const warning = document.getElementById('verifyWarning');
-  const addUserBtn = document.getElementById('addUserBtn');
-  const addUserForm = document.getElementById('addUserForm');
-  const addUserMsg = document.getElementById('addUserMsg');
+  const verifyEmailBtn = document.getElementById('verifyEmailBtn');
   const emailInput = document.getElementById('emailInput');
+  const otpContainer = document.getElementById('otpContainer');
+  const addUserMsg = document.getElementById('addUserMsg');
 
-  // Send OTP to email
-  verifyBtn.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    if (!email) {
-      addUserMsg.textContent = "Please enter an email.";
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-      return;
-    }
-    
-    verifyBtn.disabled = true;
-    verifyBtn.textContent = "Sending...";
-    addUserMsg.textContent = "Sending OTP...";
-    addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
-    addUserMsg.classList.remove('hidden');
-    
-    try {
-      // Create a FormData with only the 'email' field
-      const formData = new FormData();
-      formData.append('email', email);
-      
-      const res = await fetch('/staff/api/add-member/send-otp', {
-        method: 'POST',
-        body: formData
-      });
-      
-      console.log('Response status:', res.status);
-      
-      // Handle both JSON and non-JSON responses
-      let data;
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        console.log('Non-JSON response:', text);
-        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
-      }
-      
-      console.log('Response data:', data);
-      
-      if (res.ok && data.status === 'success') {
-        otpContainer.classList.remove('hidden');
-        otpInput.focus();
-        addUserMsg.textContent = "OTP sent to email. Enter the 6-digit OTP to continue.";
-        addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
-        otpSent = true;
-        verifyBtn.textContent = "Sent ✓";
-      } else {
-        addUserMsg.textContent = data?.message || "Failed to send OTP. Please try again.";
-        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-        verifyBtn.disabled = false;
-        verifyBtn.textContent = "Verify";
-      }
-    } catch (err) {
-      console.error('Error sending OTP:', err);
-      addUserMsg.textContent = "Network error: " + err.message;
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      verifyBtn.disabled = false;
-      verifyBtn.textContent = "Verify";
-    }
-  });
-
-  // OTP input handler - check for 6 digits
-  otpInput.addEventListener('input', () => {
-    const otpValue = otpInput.value.trim();
-    if (otpValue.length === 6 && /^\d{6}$/.test(otpValue)) {
-      otpVerified = true;
-      otpInput.classList.add('border-green-500', 'bg-green-50');
-      addUserMsg.textContent = "OTP verified! You can now submit the form.";
-      addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-    } else {
-      otpVerified = false;
-      otpInput.classList.remove('border-green-500', 'bg-green-50');
-      if (otpValue.length > 0) {
-        addUserMsg.textContent = "Please enter a valid 6-digit OTP.";
-        addUserMsg.className = "mb-4 text-center bg-yellow-100 text-yellow-700 px-4 py-2 rounded shadow";
-      }
-    }
-  });
-
-  // Form submit handler
-  addUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    if (!otpSent || !otpVerified) {
-      warning.classList.remove('hidden');
-      addUserMsg.textContent = "Please verify your email and enter the 6-digit OTP first.";
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-      return;
-    }
-    
-    warning.classList.add('hidden');
-    addUserMsg.textContent = "Submitting user registration...";
-    addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
-    addUserMsg.classList.remove('hidden');
-    
-    const formData = new FormData(addUserForm);
-
-    try {
-      const res = await fetch('/staff/api/add-member', {
-        method: 'POST',
-        body: formData
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok && data.status === 'success') {
-        addUserMsg.textContent = "User added successfully! Customer ID: " + (data.member?.customer_id || "Generated");
-        addUserMsg.className = "mb-4 text-center bg-green-100 text-green-700 px-4 py-2 rounded shadow";
+  if (verifyEmailBtn) {
+    verifyEmailBtn.addEventListener('click', async () => {
+      const email = emailInput.value;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        addUserMsg.textContent = 'Please enter a valid email address.';
+        addUserMsg.className = 'mb-4 text-center text-red-600';
         addUserMsg.classList.remove('hidden');
-        
-        // Reset form and state
-        addUserForm.reset();
-        otpContainer.classList.add('hidden');
-        verifyBtn.disabled = false;
-        verifyBtn.textContent = "Verify";
-        otpSent = false;
-        otpVerified = false;
-        otpInput.classList.remove('border-green-500', 'bg-green-50');
-      } else {
-        addUserMsg.textContent = data?.message || "Failed to add user. Please try again.";
-        addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-        addUserMsg.classList.remove('hidden');
+        return;
       }
-    } catch (err) {
-      console.error('Error adding user:', err);
-      addUserMsg.textContent = "Network error: " + err.message;
-      addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
-      addUserMsg.classList.remove('hidden');
-    }
-  });
+
+      // Disable button to prevent multiple clicks
+      verifyEmailBtn.disabled = true;
+      verifyEmailBtn.textContent = 'Sending...';
+      addUserMsg.textContent = '';
+      addUserMsg.classList.add('hidden');
+
+      try {
+        const formData = new FormData();
+        formData.append('email', email);
+
+        const response = await fetch('/staff/api/add-member/send-otp', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          addUserMsg.textContent = 'OTP sent successfully! Please check your email.';
+          addUserMsg.className = 'mb-4 text-center text-green-600';
+          otpContainer.classList.remove('hidden');
+          verifyEmailBtn.textContent = 'Resend OTP';
+        } else {
+          addUserMsg.textContent = data.message || 'Failed to send OTP.';
+          addUserMsg.className = 'mb-4 text-center text-red-600';
+        }
+      } catch (error) {
+        addUserMsg.textContent = 'An error occurred. Please try again.';
+        addUserMsg.className = 'mb-4 text-center text-red-600';
+      } finally {
+        addUserMsg.classList.remove('hidden');
+        verifyEmailBtn.disabled = false;
+      }
+    });
+  }
+
+  // Handle Add User form submission
+  const addUserForm = document.getElementById('addUserForm');
+  if (addUserForm) {
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(addUserForm);
+      
+      // Validate that OTP field is visible and filled
+      const otpInput = document.getElementById('otpInput');
+      if (!otpInput || otpContainer.classList.contains('hidden')) {
+        addUserMsg.textContent = 'Please verify your email first.';
+        addUserMsg.className = 'mb-4 text-center text-red-600';
+        addUserMsg.classList.remove('hidden');
+        return;
+      }
+      
+      if (!otpInput.value.trim()) {
+        addUserMsg.textContent = 'Please enter the OTP.';
+        addUserMsg.className = 'mb-4 text-center text-red-600';
+        addUserMsg.classList.remove('hidden');
+        return;
+      }
+
+      // Show loading state
+      const addUserBtn = document.getElementById('addUserBtn');
+      addUserBtn.disabled = true;
+      addUserBtn.textContent = 'Adding User...';
+      addUserMsg.textContent = '';
+      addUserMsg.classList.add('hidden');
+
+      try {
+        const response = await fetch('/staff/api/add-member', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+          addUserMsg.textContent = 'Member added successfully!';
+          addUserMsg.className = 'mb-4 text-center text-green-600';
+          addUserForm.reset();
+          otpContainer.classList.add('hidden');
+          verifyEmailBtn.textContent = 'Verify';
+        } else {
+          addUserMsg.textContent = data.message || 'Failed to add member.';
+          addUserMsg.className = 'mb-4 text-center text-red-600';
+        }
+      } catch (error) {
+        addUserMsg.textContent = 'An error occurred. Please try again.';
+        addUserMsg.className = 'mb-4 text-center text-red-600';
+      } finally {
+        addUserMsg.classList.remove('hidden');
+        addUserBtn.disabled = false;
+        addUserBtn.textContent = 'Add User';
+      }
+    });
+  }
 });
 </script>
 
-      <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
+<section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
   <div class="loader hidden text-center text-blue-600">Loading...</div>
   
   <!-- Header with Download Button -->
@@ -1320,8 +1279,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // ...existing code...
-});
+  // Customer Details section: iframe loading and error handling
+  (function() {
+    const customerDetailsSection = document.getElementById('customerDetails');
+    if (!customerDetailsSection) return;
+
+    const iframe = customerDetailsSection.querySelector('iframe');
+    const loader = customerDetailsSection.querySelector('.loader');
+    const content = customerDetailsSection.querySelector('.content');
+
+    function showLoader() {
+      loader.classList.remove('hidden');
+      content.classList.add('hidden');
+    }
+
+    function hideLoader() {
+      loader.classList.add('hidden');
+      content.classList.remove('hidden');
+    }
+
+    // Initial load
+    showLoader();
+    iframe.onload = hideLoader;
+    iframe.onerror = function() {
+      hideLoader();
+      content.innerHTML = '<div class="text-red-600">Failed to load customer details. Please try again later.</div>';
+    };
+  })();
 </script>
       <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
@@ -1346,19 +1330,19 @@ document.addEventListener("DOMContentLoaded", function () {
           <div id="autoTransactionFormContainer" class="mt-6"></div>
         </div>
       </section>
-      <section id="nextInstallment" class="dynamic-section hidden bg-white p-6 rounded shadow">
-  <div class="loader hidden text-center text-blue-600">Loading...</div>
-  <div class="content space-y-6">
-    <h2 class="text-xl font-bold text-blue-700 mb-4">Next Installment Details</h2>
-    <div class="flex gap-2 mb-4">
-      <input type="text" id="nextInstallmentAccount" placeholder="Enter Account Number" class="border p-2 w-full rounded" />
-      <button id="nextInstallmentSearchBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
-    </div>
-    <div id="nextInstallmentResult" class="space-y-4">
-      <div><strong>Loan Amount:</strong> <span id="loanAmount">-</span></div>
-      <div><strong>Paid Amount:</strong> <span id="paidAmount">-</span></div>
-      <div><strong>Remaining Amount:</strong> <span id="remainingAmount">-</span></div>
-      <div><strong>Next Month Installment:</strong> <span id="nextMonthAmount">-</span></div>
+      <section id="nextInstallment" class="dynamic-section hidden p-6 bg-gray-50">
+    <div class="content hidden">
+      <h2 class="text-2xl font-bold mb-4">Next Installment Details</h2>
+      <div class="mb-4">
+        <input type="text" id="nextInstallmentKgid" placeholder="Enter KGID" class="w-full px-4 py-2 border rounded">
+        <button id="nextInstallmentSearchBtn" class="bg-blue-500 text-white px-4 py-2 rounded mt-2">Search</button>
+      </div>
+      <div id="nextInstallmentResult" class="space-y-4" style="display: none;">
+        <div><strong>Loan Amount:</strong> <span id="loanAmount"></span></div>
+        <div><strong>Paid Amount:</strong> <span id="paidAmount"></span></div>
+        <div><strong>Remaining Amount:</strong> <span id="remainingAmount"></span></div>
+        <div><strong>Next Month Installment:</strong> <span id="nextMonthAmount"></span></div>
+      </div>
     </div>
   </div>
 </section>
@@ -1368,48 +1352,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextInstallmentSection = document.getElementById('nextInstallment');
   if (nextInstallmentSection) {
     const searchBtn = document.getElementById('nextInstallmentSearchBtn');
-    const searchInput = document.getElementById('nextInstallmentAccount');
-    const loanAmountEl = document.getElementById('loanAmount');
-    const paidAmountEl = document.getElementById('paidAmount');
-    const remainingAmountEl = document.getElementById('remainingAmount');
-    const nextMonthAmountEl = document.getElementById('nextMonthAmount');
-    if (searchBtn && searchInput && loanAmountEl && paidAmountEl && remainingAmountEl && nextMonthAmountEl) {
+    if (searchBtn) {
       searchBtn.addEventListener('click', async () => {
-        nextInstallmentSection.querySelector('.error-msg')?.remove();
-        const account = searchInput.value.trim();
-        if (!account) {
+        const kgid = document.getElementById('nextInstallmentKgid').value;
+        const resultDiv = document.getElementById('nextInstallmentResult');
+        const loanAmountEl = document.getElementById('loanAmount');
+        const paidAmountEl = document.getElementById('paidAmount');
+        const remainingAmountEl = document.getElementById('remainingAmount');
+        const nextMonthAmountEl = document.getElementById('nextMonthAmount');
+
+        // Clear previous results and errors
+        loanAmountEl.textContent = '';
+        paidAmountEl.textContent = '';
+        remainingAmountEl.textContent = '';
+        nextMonthAmountEl.textContent = '';
+        resultDiv.style.display = 'none';
+        
+        const existingError = nextInstallmentSection.querySelector('.error-msg');
+        if (existingError) {
+          existingError.remove();
+        }
+
+        if (!kgid) {
           const err = document.createElement('div');
           err.className = 'error-msg text-red-600 mb-2';
-          err.textContent = 'Please enter a valid account number.';
+          err.textContent = 'Please enter a KGID.';
           nextInstallmentSection.prepend(err);
-          loanAmountEl.textContent = '-';
-          paidAmountEl.textContent = '-';
-          remainingAmountEl.textContent = '-';
-          nextMonthAmountEl.textContent = '-';
           return;
         }
-        loanAmountEl.textContent = 'Loading...';
-        paidAmountEl.textContent = 'Loading...';
-        remainingAmountEl.textContent = 'Loading...';
-        nextMonthAmountEl.textContent = 'Loading...';
+
         try {
-          const res = await fetch(`/api/next-installment?account=${encodeURIComponent(account)}`);
-          if (!res.ok) throw new Error('Network error');
-          const data = await res.json();
-          // Expected: { loanAmount, paidAmount, remainingAmount, nextMonthAmount }
+          const response = await fetch(`/finance/api/next-installment?kgid=${kgid}`);
+          const data = await response.json();
+
+          if (!response.ok || data.error) {
+            throw new Error(data.error || 'Failed to fetch');
+          }
+          
+          resultDiv.style.display = 'block'; // Show the results block
+
           loanAmountEl.textContent = data.loanAmount ? `₹${Number(data.loanAmount).toLocaleString()}` : '-';
           paidAmountEl.textContent = data.paidAmount ? `₹${Number(data.paidAmount).toLocaleString()}` : '-';
           remainingAmountEl.textContent = data.remainingAmount ? `₹${Number(data.remainingAmount).toLocaleString()}` : '-';
           nextMonthAmountEl.textContent = data.nextMonthAmount ? `₹${Number(data.nextMonthAmount).toLocaleString()}` : '-';
-        } catch {
+        } catch (error) {
           const err = document.createElement('div');
           err.className = 'error-msg text-red-600 mb-2';
-          err.textContent = 'Error fetching installment details.';
+          err.textContent = error.message || 'Error fetching installment details.';
           nextInstallmentSection.prepend(err);
-          loanAmountEl.textContent = '-';
-          paidAmountEl.textContent = '-';
-          remainingAmountEl.textContent = '-';
-          nextMonthAmountEl.textContent = '-';
+          resultDiv.style.display = 'none';
         }
       });
     }
@@ -1426,14 +1417,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- Floating Query Box -->
   <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
-    <div class="flex justify-between items-center mb-3">
-      <h3 class="text-lg font-bold">Send Us a Query</h3>
-      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-    </div>
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="Name">
-    <input class="w-full mb-3 px-4 py-2 border rounded" placeholder="KGID">
-    <textarea class="w-full mb-3 px-4 py-2 border rounded" placeholder="Description"></textarea>
-    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-lg font-bold">Send Us a Query</h3>
       <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
