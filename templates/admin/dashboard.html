@@ -210,6 +210,29 @@
         </div>
       </div>
     </section>
+    <!-- Queries Section (Admin) -->
+    <section id="adminQueries" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">User Queries</h2>
+        <div id="adminQueriesMsg" class="mb-4"></div>
+        <div class="overflow-x-auto">
+          <table id="adminQueriesTable" class="min-w-full table-auto border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-4 py-2 text-left">#</th>
+                <th class="px-4 py-2 text-left">Name</th>
+                <th class="px-4 py-2 text-left">Email / Phone</th>
+                <th class="px-4 py-2 text-left">KGID / Customer</th>
+                <th class="px-4 py-2 text-left">Description</th>
+                <th class="px-4 py-2 text-left">Status</th>
+                <th class="px-4 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminQueriesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
     
     <!-- Expenses Section -->
     <section id="expenses" class="admin-section hidden">
@@ -1026,6 +1049,104 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   } catch (e) {
     // ignore errors silently
+  }
+});
+// Admin Queries client logic
+document.addEventListener('DOMContentLoaded', () => {
+  const queriesNavBtn = document.createElement('button');
+  // attempt to wire if there is a nav area (non-destructive)
+  try {
+    const nav = document.querySelector('aside nav');
+    if (nav && !nav.querySelector('[data-target="adminQueries"]')) {
+      const btn = document.createElement('button');
+      btn.className = 'admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all';
+      btn.setAttribute('data-target','adminQueries');
+      btn.textContent = '📬 Queries';
+      nav.appendChild(btn);
+      btn.addEventListener('click', () => {
+        // reveal queries section and load
+        document.querySelectorAll('.admin-section').forEach(s=>s.classList.add('hidden'));
+        document.getElementById('adminQueries').classList.remove('hidden');
+        loadAdminQueries();
+      });
+    }
+  } catch(e){/* ignore */}
+
+  async function loadAdminQueries(){
+    const tbody = document.getElementById('adminQueriesTbody');
+    const msg = document.getElementById('adminQueriesMsg');
+    if (!tbody) return;
+    msg.textContent = '';
+    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center">Loading...</td></tr>';
+    try {
+      const res = await fetch('/api/queries');
+      const payload = await res.json().catch(()=>null);
+      if (!res.ok || !payload || payload.status !== 'success') {
+        const err = payload && payload.message ? payload.message : 'Failed to load queries';
+        msg.textContent = err;
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-red-600">'+err+'</td></tr>';
+        return;
+      }
+      renderAdminQueries(payload.data || []);
+    } catch (err) {
+      msg.textContent = 'Network error';
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-red-600">Network error</td></tr>';
+    }
+  }
+
+  function renderAdminQueries(list){
+    const tbody = document.getElementById('adminQueriesTbody');
+    if (!tbody) return;
+    if (!Array.isArray(list) || list.length === 0){
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">No queries found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map((q, idx) => {
+      return `
+        <tr class="border-t hover:bg-gray-50">
+          <td class="px-4 py-3">${idx+1}</td>
+          <td class="px-4 py-3">${escapeHtml(q.name||'')}</td>
+          <td class="px-4 py-3">${escapeHtml(q.email||'')}<br>${escapeHtml(q.phone||'')}</td>
+          <td class="px-4 py-3">${escapeHtml(q.customer_id || q.kgid || '')}</td>
+          <td class="px-4 py-3">${escapeHtml(q.description||'')}</td>
+          <td class="px-4 py-3">${escapeHtml(q.status||'new')}</td>
+          <td class="px-4 py-3">
+            ${q.status === 'solved' ? '<span class="text-sm text-green-700">Solved</span>' : `<button class="mark-solved-btn px-3 py-1 text-xs bg-green-600 text-white rounded" data-id="${q.id}">Mark Solved</button>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // attach handlers
+    document.querySelectorAll('.mark-solved-btn').forEach(btn => {
+      if (btn.dataset.wired) return;
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', async () => {
+        const qid = btn.dataset.id;
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/api/queries/${qid}/mark-solved`, { method: 'POST' });
+          const data = await res.json().catch(()=>null);
+          if (res.ok && data && data.status === 'success') {
+            btn.parentElement.innerHTML = '<span class="text-sm text-green-700">Solved</span>';
+          } else {
+            btn.disabled = false;
+            alert((data && data.message) || 'Failed to mark solved');
+          }
+        } catch (e) {
+          btn.disabled = false;
+          alert('Network error');
+        }
+      });
+    });
+  }
+
+  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
+
+  // Auto-load Queries when nav clicked (if nav button exists)
+  const adminQueriesNav = document.querySelector('.admin-nav-btn[data-target="adminQueries"]');
+  if (adminQueriesNav) {
+    adminQueriesNav.addEventListener('click', () => loadAdminQueries());
   }
 });
 </script>
