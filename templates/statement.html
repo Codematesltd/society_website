@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>KSTHST Account Statement</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-900">
+  <div class="max-w-3xl mx-auto bg-white shadow p-6 md:p-10 rounded-lg mt-6 mb-6">
+    <!-- Header -->
+    <div class="flex items-center border-b-4 border-blue-700 pb-4 mb-6">
+      <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="KSTHST Logo" class="w-20 h-20 object-contain mr-4">
+      <div>
+        <div class="text-2xl md:text-3xl font-bold text-blue-800 tracking-wide">KSTHST</div>
+        <div class="text-lg md:text-xl font-semibold text-blue-700">Account Statement</div>
+      </div>
+    </div>
+    <!-- User Info -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+      <div class="flex items-center gap-4 mb-4 md:mb-0">
+        {% if photo_url %}
+          <img src="{{ photo_url }}" alt="User Photo" class="w-16 h-16 rounded-full object-cover border-2 border-blue-200 shadow">
+        {% else %}
+          <div class="w-16 h-16 rounded-full bg-blue-200 flex items-center justify-center text-2xl font-bold text-blue-700 shadow">?</div>
+        {% endif %}
+        <div>
+          <div class="font-semibold text-lg">{{ name or '-' }}</div>
+          <div class="text-gray-700 text-sm">{{ org_name or '-' }}</div>
+          <div class="text-gray-700 text-sm">Customer ID: {{ customer_id or '-' }}</div>
+          <div class="text-gray-700 text-sm">KGID: {{ kgid or '-' }}</div>
+          <div class="text-gray-700 text-sm">Email: {{ email or '-' }}</div>
+          <div class="text-gray-700 text-sm">Phone: {{ phone or '-' }}</div>
+          <div class="text-gray-700 text-sm font-semibold mt-2">
+            Present Balance:
+            <span class="text-blue-700 font-bold">
+              {% if present_balance is not none and present_balance != '' and present_balance != 'None' %}
+                ₹{{ '{:,.2f}'.format(present_balance|float) }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="text-sm text-gray-700">
+        <div><span class="font-semibold">Period:</span> {{ period_text or '-' }}</div>
+      </div>
+    </div>
+    <!-- Address -->
+    <div class="mb-6 text-sm text-gray-700">
+      <span class="font-semibold">Address:</span>
+      <span>{{ address or '-' }}</span>
+    </div>
+    <!-- Statement Table -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full border border-gray-300 text-xs md:text-sm">
+        <thead>
+          <tr class="bg-blue-100 text-blue-900">
+            <th class="py-2 px-2 border">Date</th>
+            <th class="py-2 px-2 border">Narration</th>
+            <th class="py-2 px-2 border">STID</th>
+            <th class="py-2 px-2 border">Withdrawal (Dr)</th>
+            <th class="py-2 px-2 border">Deposit (Cr)</th>
+            <th class="py-2 px-2 border">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tr in transactions %}
+          <tr class="bg-white even:bg-gray-50">
+            <td class="py-1 px-2 border">{{ tr.date.split('T')[0] if tr.date else '-' }}</td>
+            <td class="py-1 px-2 border">{{ tr.remarks if tr.remarks and tr.remarks != 'null' else '-' }}</td>
+            <td class="py-1 px-2 border text-gray-500">{{ tr.stid or '-' }}</td>
+            <td class="py-1 px-2 border text-red-600 font-semibold">
+              {% if tr.type == 'withdraw' %}₹{{ '{:,.2f}'.format(tr.amount|float) }}{% endif %}
+            </td>
+            <td class="py-1 px-2 border text-green-600 font-semibold">
+              {% if tr.type == 'deposit' %}₹{{ '{:,.2f}'.format(tr.amount|float) }}{% endif %}
+            </td>
+            <td class="py-1 px-2 border font-semibold">
+              {% if tr.balance_after is not none %}₹{{ '{:,.2f}'.format(tr.balance_after|float) }}{% else %}-{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <!-- Footer -->
+    <div class="mt-8 text-xs text-gray-500 text-right">
+      Generated on: {{ generated_on or '' }}
+    </div>
+    {% if error_message %}
+      <div class="mt-4 text-center text-red-600 font-semibold">{{ error_message }}</div>
+    {% endif %}
+  </div>
+</body>
+</html>
