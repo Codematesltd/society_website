@@ -16,8 +16,12 @@
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="customerDetails">👤 Customer Details</button>
       <!-- New: View Expenses -->
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="expenses">📋 View Expenses</button>
-      <!-- NEW: Add Staff -->
-      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaff">👥 Add Staff</button>
+  <!-- NEW: Add Staff -->
+  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaff">👥 Add Staff</button>
+  <!-- NEW: Add Staff Salary -->
+  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaffSalary">� Add Staff Salary</button>
+  <!-- NEW: Loan Info Button -->
+  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanInfo">📄 Loan Info</button>
     </nav>
   </aside>
 
@@ -170,27 +174,6 @@
               <!-- Filled dynamically -->
             </div>
           </div>
-          
-          <!-- Transactions History -->
-          <div class="bg-white border rounded-lg overflow-hidden mt-6">
-            <h3 class="text-lg font-bold text-gray-800 p-4 border-b bg-gray-50">Recent Transactions</h3>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-100">
-                  <tr>
-                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
-                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
-                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
-                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance After</th>
-                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody id="transactionsTableBody">
-                  <!-- Content will be populated by JavaScript -->
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
         
         <!-- Error State -->
@@ -302,6 +285,93 @@
         <iframe src="{{ url_for('admin.admin_add_staff') }}" class="w-full min-h-[850px] border-0 rounded-xl shadow" title="Add Staff"></iframe>
       </div>
     </section>
+
+    <!-- NEW: Add Staff Salary Section -->
+    <section id="addStaffSalary" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow max-w-xl mx-auto">
+        <h2 class="text-2xl font-bold text-indigo-700 mb-4">Add Staff Salary</h2>
+        <form id="addStaffSalaryForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input type="text" name="name" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">KGID</label>
+            <input type="text" name="kgid" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Salary Amount</label>
+            <input type="number" name="salary" step="0.01" min="0" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">To Account</label>
+            <input type="text" name="to_account" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">From Account</label>
+            <input type="text" name="from_account" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Transaction ID</label>
+            <input type="text" name="transaction_id" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <input type="date" name="date" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <button type="submit" id="addSalaryBtn" class="w-full flex items-center justify-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+              <span id="addSalaryBtnText">Add Salary</span>
+              <svg id="addSalarySpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="addSalaryMsg" class="text-center text-sm mt-2"></div>
+        </form>
+
+        <!-- Recent Salaries Table -->
+        <div class="mt-8">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Recent Staff Salaries</h3>
+          <div id="salaryTableContainer" class="overflow-x-auto">
+            <table class="w-full table-auto border rounded-lg">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-4 py-2 text-left">Name</th>
+                  <th class="px-4 py-2 text-left">KGID</th>
+                  <th class="px-4 py-2 text-left">Salary</th>
+                  <th class="px-4 py-2 text-left">To Account</th>
+                  <th class="px-4 py-2 text-left">From Account</th>
+                  <th class="px-4 py-2 text-left">Transaction ID</th>
+                  <th class="px-4 py-2 text-left">Date</th>
+                </tr>
+              </thead>
+              <tbody id="salaryTableBody">
+                <tr><td colspan="7" class="text-center text-gray-500 py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex justify-between items-center mt-4">
+            <button id="salaryPrevPage" class="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50" disabled>Prev</button>
+            <span id="salaryPageInfo" class="text-sm text-gray-600"></span>
+            <button id="salaryNextPage" class="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loan Info Section -->
+    <section id="loanInfo" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow max-w-lg mx-auto">
+        <h2 class="text-2xl font-bold text-indigo-700 mb-4">Loan Info Search</h2>
+        <form id="loanInfoSearchForm" class="flex gap-2 mb-4">
+          <input type="text" id="loanInfoSearchInput" placeholder="Enter Loan ID " class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+          <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Search</button>
+        </form>
+        <div id="loanInfoSearchResult"></div>
+      </div>
+    </section>
   </main>
 </div>
   <!-- Floating Civil Score Button for Admin -->
@@ -323,7 +393,158 @@
   </div>
 
   <script>
+// Add Staff Salary form logic and salary table with pagination
 document.addEventListener('DOMContentLoaded', function() {
+  const addStaffSalaryForm = document.getElementById('addStaffSalaryForm');
+  const salaryTableBody = document.getElementById('salaryTableBody');
+  const salaryPrevPage = document.getElementById('salaryPrevPage');
+  const salaryNextPage = document.getElementById('salaryNextPage');
+  const salaryPageInfo = document.getElementById('salaryPageInfo');
+  let salaryPage = 1;
+  let salaryPageSize = 10;
+  let salaryTotal = 0;
+
+  async function loadSalaries(page=1) {
+    salaryTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-4">Loading...</td></tr>';
+    try {
+      const res = await fetch(`/admin/api/list-staff-salaries?page=${page}&page_size=${salaryPageSize}`);
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        const list = data.salaries || [];
+        salaryTotal = data.total || 0;
+        if (list.length === 0) {
+          salaryTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-4">No salaries found.</td></tr>';
+        } else {
+          salaryTableBody.innerHTML = list.map(s => `
+            <tr class="border-t">
+              <td class="px-4 py-2">${s.name}</td>
+              <td class="px-4 py-2">${s.kgid}</td>
+              <td class="px-4 py-2">₹${Number(s.salary).toLocaleString()}</td>
+              <td class="px-4 py-2">${s.to_account}</td>
+              <td class="px-4 py-2">${s.from_account}</td>
+              <td class="px-4 py-2">${s.transaction_id}</td>
+              <td class="px-4 py-2">${s.date ? new Date(s.date).toLocaleDateString() : ''}</td>
+            </tr>
+          `).join('');
+        }
+        // Update page info and buttons
+        const totalPages = Math.ceil(salaryTotal / salaryPageSize) || 1;
+        salaryPageInfo.textContent = `Page ${salaryPage} of ${totalPages}`;
+        salaryPrevPage.disabled = salaryPage <= 1;
+        salaryNextPage.disabled = salaryPage >= totalPages;
+      } else {
+        salaryTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-red-600 py-4">Failed to load salaries.</td></tr>';
+        salaryPageInfo.textContent = '';
+      }
+    } catch (e) {
+      salaryTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-red-600 py-4">Network error.</td></tr>';
+      salaryPageInfo.textContent = '';
+    }
+  }
+
+  if (salaryPrevPage && salaryNextPage) {
+    salaryPrevPage.addEventListener('click', function() {
+      if (salaryPage > 1) {
+        salaryPage--;
+        loadSalaries(salaryPage);
+      }
+    });
+    salaryNextPage.addEventListener('click', function() {
+      const totalPages = Math.ceil(salaryTotal / salaryPageSize) || 1;
+      if (salaryPage < totalPages) {
+        salaryPage++;
+        loadSalaries(salaryPage);
+      }
+    });
+  }
+
+  // Initial load
+  loadSalaries(salaryPage);
+
+  if (addStaffSalaryForm) {
+    const addSalaryBtn = document.getElementById('addSalaryBtn');
+    const addSalarySpinner = document.getElementById('addSalarySpinner');
+    const addSalaryBtnText = document.getElementById('addSalaryBtnText');
+    const addSalaryMsg = document.getElementById('addSalaryMsg');
+    addStaffSalaryForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      addSalaryMsg.textContent = '';
+      addSalaryBtn.disabled = true;
+      addSalarySpinner.classList.remove('hidden');
+      addSalaryBtnText.textContent = 'Adding...';
+      const formData = new FormData(addStaffSalaryForm);
+      const payload = {};
+      formData.forEach((v, k) => payload[k] = v);
+      try {
+        const res = await fetch('/admin/api/add-staff-salary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          addSalaryMsg.textContent = 'Salary added successfully!';
+          addSalaryMsg.className = 'text-center text-green-600 text-sm mt-2';
+          addStaffSalaryForm.reset();
+          // Reload salaries
+          salaryPage = 1;
+          loadSalaries(salaryPage);
+        } else {
+          addSalaryMsg.textContent = data.message || 'Failed to add salary.';
+          addSalaryMsg.className = 'text-center text-red-600 text-sm mt-2';
+        }
+      } catch (err) {
+        addSalaryMsg.textContent = 'Network error.';
+        addSalaryMsg.className = 'text-center text-red-600 text-sm mt-2';
+      } finally {
+        addSalaryBtn.disabled = false;
+        addSalarySpinner.classList.add('hidden');
+        addSalaryBtnText.textContent = 'Add Salary';
+      }
+    });
+  }
+
+  // Loan Info Search logic
+  const loanInfoSearchForm = document.getElementById('loanInfoSearchForm');
+  const loanInfoSearchInput = document.getElementById('loanInfoSearchInput');
+  const loanInfoSearchResult = document.getElementById('loanInfoSearchResult');
+  if (loanInfoSearchForm && loanInfoSearchInput && loanInfoSearchResult) {
+    loanInfoSearchForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const val = loanInfoSearchInput.value.trim();
+      loanInfoSearchResult.innerHTML = '';
+      if (!val) {
+        loanInfoSearchResult.innerHTML = '<div class="text-red-600">Please enter Loan ID or Customer ID.</div>';
+        return;
+      }
+      loanInfoSearchResult.innerHTML = '<div class="text-blue-600">Searching...</div>';
+      let url = '/admin/api/loan-info?';
+      // Always treat input as loan_id for this endpoint
+      url += 'loan_id=' + encodeURIComponent(val);
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (res.ok && data.status === 'success' && data.loan_info) {
+          const info = data.loan_info;
+          loanInfoSearchResult.innerHTML = `
+            <div class="bg-gray-50 p-4 rounded shadow">
+              <div><strong>Name:</strong> ${info.name || '-'} </div>
+              <div><strong>Loan Amount:</strong> ₹${info.loan_amount || '-'} </div>
+              <div><strong>Loan Term (months):</strong> ${info.loan_term_months || '-'} </div>
+              <div><strong>Interest Rate:</strong> ${info.interest_rate || '-'}% </div>
+              <div><strong>Next Installment Amount:</strong> ₹${info.next_installment_amount || '-'} </div>
+              <div><strong>Outstanding Amount:</strong> ₹${info.outstanding_amount || '-'} </div>
+            </div>
+          `;
+        } else {
+          loanInfoSearchResult.innerHTML = `<div class="text-red-600">${data.message || 'No loan found.'}</div>`;
+        }
+      } catch (err) {
+        loanInfoSearchResult.innerHTML = '<div class="text-red-600">Network error.</div>';
+      }
+    });
+  }
+
   // Sidebar navigation logic
   const navBtns = document.querySelectorAll('.admin-nav-btn');
   const sections = document.querySelectorAll('.admin-section');
@@ -331,10 +552,15 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', function() {
       const target = btn.getAttribute('data-target');
       sections.forEach(sec => sec.classList.add('hidden'));
-      document.getElementById(target).classList.remove('hidden');
+      // Defensive: only show if exists
+      const tgt = document.getElementById(target);
+      if (tgt) tgt.classList.remove('hidden');
     });
   });
-  
+  // Show welcome section by default
+  sections.forEach(sec => sec.classList.add('hidden'));
+  document.getElementById('welcome').classList.remove('hidden');
+
   // Loan tab navigation
   const loanTabBtns = document.querySelectorAll('.loan-tab-btn');
   const loanTabContents = document.querySelectorAll('.loan-tab-content');
@@ -347,14 +573,35 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       btn.classList.remove('border-transparent', 'text-gray-500');
       btn.classList.add('border-green-500', 'text-green-700');
-      
       // Show selected tab content
       const target = btn.getAttribute('data-target');
       loanTabContents.forEach(content => content.classList.add('hidden'));
-      document.getElementById(target).classList.remove('hidden');
+      // Defensive: only show if exists
+      const tgt = document.getElementById(target);
+      if (tgt) tgt.classList.remove('hidden');
     });
   });
-  
+
+  // Ensure the first tab and its content are visible by default
+  // (fix for: approved/rejected tabs not showing on first load)
+  if (loanTabBtns.length && loanTabContents.length) {
+    // Remove all tab content hidden
+    loanTabContents.forEach(content => content.classList.add('hidden'));
+    // Find the active tab (with border-green-500), else default to first
+    let activeIdx = Array.from(loanTabBtns).findIndex(btn => btn.classList.contains('border-green-500'));
+    if (activeIdx < 0) activeIdx = 0;
+    loanTabBtns.forEach((btn, idx) => {
+      if (idx === activeIdx) {
+        btn.classList.add('border-green-500', 'text-green-700');
+        btn.classList.remove('border-transparent', 'text-gray-500');
+        loanTabContents[idx].classList.remove('hidden');
+      } else {
+        btn.classList.remove('border-green-500', 'text-green-700');
+        btn.classList.add('border-transparent', 'text-gray-500');
+      }
+    });
+  }
+
   // Customer Details Search functionality
   const customerSearchForm = document.getElementById('customerSearchForm');
   const customerSearchInput = document.getElementById('customerSearchInput');
@@ -362,26 +609,48 @@ document.addEventListener('DOMContentLoaded', function() {
   const customerSearchResults = document.getElementById('customerSearchResults');
   const customerSearchError = document.getElementById('customerSearchError');
   const customerSearchErrorMessage = document.getElementById('customerSearchErrorMessage');
-  
+
   if (customerSearchForm) {
     customerSearchForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-      
+
       const searchValue = customerSearchInput.value.trim();
       if (!searchValue) {
         showError('Please enter a Customer ID or KGID');
         return;
       }
-      
+
       // Reset previous states
       hideAllSearchStates();
       customerSearchLoading.classList.remove('hidden');
-      
+
       try {
-        // Call the fetch_customer_details API
-        const response = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+        let customerId = searchValue;
+        // If input looks like a KGID (not all digits), resolve to customer_id first
+        if (!/^\d+$/.test(searchValue)) {
+          // Looks like KGID, resolve to customer_id via API
+          const resp = await fetch(`/admin/api/member-details-by-kgid?kgid=${encodeURIComponent(searchValue)}`);
+          const data = await resp.json();
+          if (data.status === 'success' && data.member && data.member.customer_id) {
+            customerId = data.member.customer_id;
+          } else {
+            // Try fallback: search by KGID as customer_id (for legacy/edge cases)
+            const fallbackResp = await fetch(`/admin/api/customer-info?customer_id=${encodeURIComponent(searchValue)}`);
+            const fallbackData = await fallbackResp.json();
+            if (fallbackData.status === 'success') {
+              displayCustomerDetails(fallbackData);
+              customerSearchLoading.classList.add('hidden');
+              return;
+            }
+            showError('KGID not found or not mapped to a customer.');
+            customerSearchLoading.classList.add('hidden');
+            return;
+          }
+        }
+        let url = '/admin/api/customer-info?customer_id=' + encodeURIComponent(customerId);
+        const response = await fetch(url);
         const data = await response.json();
-        
+
         if (data.status === 'success') {
           displayCustomerDetails(data);
         } else {
@@ -395,33 +664,33 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   function hideAllSearchStates() {
     customerSearchLoading.classList.add('hidden');
     customerSearchResults.classList.add('hidden');
     customerSearchError.classList.add('hidden');
   }
-  
+
   function showError(message) {
     hideAllSearchStates();
     customerSearchErrorMessage.textContent = message;
     customerSearchError.classList.remove('hidden');
   }
-  
+
   function displayCustomerDetails(data) {
     hideAllSearchStates();
-    
-    const customerInfo = data.customer; // CHANGED from data.customer_info
-    const loanSummary = data.summary;   // CHANGED from data.loan_summary
-    const loans = data.loans || [];
-    const transactions = data.transactions || [];
-    
+
+    const customerInfo = data.customer;
+    // Only include loans that are not rejected for outstanding calculation
+    const loans = (data.loans || []);
+    const activeLoans = loans.filter(l => String(l.status).toLowerCase() !== 'rejected');
+
     // Populate basic customer info with photos on the right side
     const basicInfoContainer = document.getElementById('customerBasicInfo');
     basicInfoContainer.innerHTML = `
       <div class="col-span-1 md:col-span-2 lg:col-span-2">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="space-y-1"
+          <div class="space-y-1">
             <p class="text-sm text-gray-600">Name</p>
             <p class="font-medium">${customerInfo.name || 'N/A'}</p>
           </div>
@@ -442,43 +711,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="font-medium">${customerInfo.email || 'N/A'}</p>
           </div>
           <div class="space-y-1">
-            <p class="text-sm text-gray-600">Current Balance</p>
-            <p class="font-medium text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
-          </div>
-          <div class="space-y-1">
             <p class="text-sm text-gray-600">Organization</p>
             <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
           </div>
-          <div class="space-y-1">
-            <p class="text-sm text-gray-600">Address</p>
-            <p class="font-medium">${customerInfo.address || 'N/A'}</p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-gray-600">Aadhar No</p>
-            <p class="font-medium">${customerInfo.aadhar_no || 'N/A'}</p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-gray-600">PAN No</p>
-            <p class="font-medium">${customerInfo.pan_no || 'N/A'}</p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-gray-600">Salary</p>
-            <p class="font-medium">₹${(customerInfo.salary || 0).toLocaleString()}</p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-gray-600">Account Status</p>
-            <p class="font-medium">
-              <span class="px-2 py-1 rounded-full text-xs ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-800' : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
-                ${(customerInfo.status || 'pending').toUpperCase()}
-              </span>
-            </p>
-          </div>
         </div>
       </div>
-      
-      <!-- Customer Photos on the Right Side -->
       <div class="col-span-1 lg:col-span-1 flex flex-col items-center space-y-4">
-        <!-- Profile Photo -->
         <div class="text-center">
           <h4 class="font-medium text-gray-700 mb-2">Profile Photo</h4>
           ${customerInfo.photo_url ? `
@@ -492,8 +730,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           `}
         </div>
-        
-        <!-- Customer Signature -->
         <div class="text-center">
           <h4 class="font-medium text-gray-700 mb-2">Signature</h4>
           ${customerInfo.signature_url ? `
@@ -509,645 +745,50 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
     `;
-    
-    // Remove the separate photos section creation since it's now integrated
-    
-    // Populate loan summary
+
+    // Populate loan summary (exclude rejected loans from outstanding)
     const loanSummaryContainer = document.getElementById('loanSummaryInfo');
+    let totalLoans = loans.length;
+    let totalOutstanding = activeLoans.reduce((sum, l) => sum + (Number(l.outstanding_amount) || 0), 0);
     loanSummaryContainer.innerHTML = `
       <div class="text-center p-4 bg-blue-50 rounded-lg">
-        <p class="text-2xl font-bold text-blue-600">${loanSummary.total_loans}</p>
+        <p class="text-2xl font-bold text-blue-600">${totalLoans}</p>
         <p class="text-sm text-gray-600">Total Loans</p>
       </div>
-      <div class="text-center p-4 bg-green-50 rounded-lg">
-        <p class="text-2xl font-bold text-green-600">${loanSummary.active_loans}</p>
-        <p class="text-sm text-gray-600">Active Loans</p>
-      </div>
-      <div class="text-center p-4 bg-yellow-50 rounded-lg">
-        <p class="text-2xl font-bold text-yellow-600">${loanSummary.pending_loans}</p>
-        <p class="text-sm text-gray-600">Pending</p>
-      </div>
       <div class="text-center p-4 bg-red-50 rounded-lg">
-        <p class="text-2xl font-bold text-red-600">₹${(loanSummary.total_outstanding || 0).toLocaleString()}</p>
+        <p class="text-2xl font-bold text-red-600">₹${(totalOutstanding || 0).toLocaleString()}</p>
         <p class="text-sm text-gray-600">Outstanding</p>
       </div>
     `;
-    
+
     // Populate loans table
     const loansTableBody = document.getElementById('loansTableBody');
     if (loans.length === 0) {
-      loansTableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+      loansTableBody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
     } else {
-      loansTableBody.innerHTML = loans.map(loan => {
-        // Map status to display: "ACTIVE" if approved, "REJECTED" if rejected, else "PENDING"
-        let statusLabel = "PENDING";
-        let statusClass = "bg-yellow-100 text-yellow-800";
-        if (loan.status === 'approved') {
-          statusLabel = "ACTIVE";
-          statusClass = "bg-green-100 text-green-800";
-        } else if (loan.status === 'rejected') {
-          statusLabel = "REJECTED";
-          statusClass = "bg-red-100 text-red-800";
-        }
-        return `
-          <tr class="border-t">
-            <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
-            <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
-            <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
-            <td class="px-4 py-3">
-              <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
-                ${statusLabel}
-              </span>
-            </td>
-            <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
-            <td class="px-4 py-3">₹${(loan.remaining_balance || 0).toLocaleString()}</td>
-            <td class="px-4 py-3">
-              <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                      onclick="fetchLoanDeepDetails('${loan.id}')">
-                Details
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      loansTableBody.innerHTML = loans.map(loan => `
+        <tr class="border-t">
+          <td class="px-4 py-3">${loan.loan_id || '-'}</td>
+          <td class="px-4 py-3">${loan.loan_type || '-'}</td>
+          <td class="px-4 py-3">₹${(loan.loan_amount || 0).toLocaleString()}</td>
+          <td class="px-4 py-3">${loan.status || '-'}</td>
+          <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : '-'}</td>
+          <td class="px-4 py-3">₹${(loan.outstanding_amount || 0).toLocaleString()}</td>
+          <td class="px-4 py-3"></td>
+        </tr>
+      `).join('');
     }
-    
-    // Populate transactions table
+
+    // Transactions table is not available from this API, so clear it
     const transactionsTableBody = document.getElementById('transactionsTableBody');
-    if (transactions.length === 0) {
+    if (transactionsTableBody) {
       transactionsTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No transactions found</td></tr>';
-    } else {
-      transactionsTableBody.innerHTML = transactions.slice(0, 10).map(transaction => {
-        const typeClass = transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600';
-        
-        return `
-          <tr class="border-t">
-            <td class="px-4 py-3">${transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
-            <td class="px-4 py-3">
-              <span class="capitalize ${typeClass} font-medium">${transaction.type || 'N/A'}</span>
-            </td>
-            <td class="px-4 py-3">₹${(transaction.amount || 0).toLocaleString()}</td>
-            <td class="px-4 py-3">₹${(transaction.balance_after || 0).toLocaleString()}</td>
-            <td class="px-4 py-3">${transaction.remarks || transaction.description || 'N/A'}</td>
-          </tr>
-        `;
-      }).join('');
     }
-    
+
     customerSearchResults.classList.remove('hidden');
   }
-  
-  // Add image modal functionality - Make functions global
-  window.showImageModal = function(imageSrc, imageTitle) {
-    // Remove existing modal if present
-    const existingModal = document.getElementById('imageModal');
-    if (existingModal) {
-      existingModal.remove();
-    }
-    
-    // Create modal
-    const modal = document.createElement('div');
-    modal.id = 'imageModal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
-    modal.innerHTML = `
-      <div class="relative max-w-4xl max-h-full">
-        <div class="bg-white p-4 rounded-lg">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">${imageTitle}</h3>
-            <button onclick="closeImageModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">
-              &times;
-            </button>
-          </div>
-          <img src="${imageSrc}" 
-               alt="${imageTitle}" 
-               class="max-w-full max-h-[70vh] object-contain rounded shadow-lg" />
-        </div>
-      </div>
-    `;
-    
-    // Close modal when clicking outside
-    modal.onclick = function(e) {
-      if (e.target === modal) {
-        closeImageModal();
-      }
-    };
-    
-    document.body.appendChild(modal);
-  };
-  
-  window.closeImageModal = function() {
-    const modal = document.getElementById('imageModal');
-    if (modal) {
-      modal.remove();
-    }
-  };
-  
-  // Close modal with Escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeImageModal();
-    }
-  });
-  
-  // Show welcome section by default
-  sections.forEach(sec => sec.classList.add('hidden'));
-  document.getElementById('welcome').classList.remove('hidden');
-  
-  // Enhance loans table after data load by overriding displayCustomerDetails (wrap original)
-  const originalDisplayCustomerDetails = displayCustomerDetails;
-  window.displayCustomerDetails = function(data){
-    originalDisplayCustomerDetails(data);
-    const loansTableBody = document.getElementById('loansTableBody');
-    loansTableBody.querySelectorAll('tr').forEach((row, idx) => {
-      const loan = data.loans[idx];
-      if (!loan) return;
-      let cell = document.createElement('td');
-      cell.className = "px-4 py-3";
-      cell.innerHTML = `
-        <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                onclick="fetchLoanDeepDetails('${loan.id}')">
-          Details
-        </button>
-      `;
-      row.appendChild(cell);
-    });
-  };
 
-  // Hide details panel when Hide button is clicked
-  document.getElementById('hideLoanDetailsBtn').onclick = function() {
-    document.getElementById('selectedLoanDetails').classList.add('hidden');
-  };
-
-  // NEW: Fetch single loan deep details
-  window.fetchLoanDeepDetails = async function(loanUuid){
-    // Show loading indicator in the details panel
-    const detailsPanel = document.getElementById('selectedLoanDetails');
-    const detailsContent = document.getElementById('selectedLoanContent');
-    detailsContent.innerHTML = `<div class="flex items-center py-8 justify-center text-blue-600">
-      <svg class="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-      </svg>
-      <span>Loading loan details...</span>
-    </div>`;
-    detailsPanel.classList.remove('hidden');
-    try {
-      const res = await fetch(`/finance/${loanUuid}`);
-      const json = await res.json();
-      if(json.status !== 'success'){ throw new Error('Fetch failed'); }
-      renderSelectedLoan(json.loan, json.customer, json.sureties, json.records);
-    } catch(e){
-      console.error(e);
-      detailsContent.innerHTML = `<p class="text-red-600">Failed to load loan details.</p>`;
-      detailsPanel.classList.remove('hidden');
-    }
-  };
-
-  function computeMetrics(loan, records){
-    const principal = Number(loan.loan_amount||0);
-    const rateAnnual = Number(loan.interest_rate||0);
-    const term = Number(loan.loan_term_months||0);
-    const r = rateAnnual ? rateAnnual/1200 : 0;
-    let emi = 0;
-    if (r && term){
-      emi = principal * r * Math.pow(1+r, term) / (Math.pow(1+r, term)-1);
-    } else if (term){
-      emi = principal/term;
-    }
-    emi = Math.round(emi*100)/100;
-    let totalRepaid = 0;
-    records.forEach(rp => totalRepaid += Number(rp.repayment_amount||0));
-    const outstanding = Math.max(principal - totalRepaid, 0);
-    const scheduledTotal = Math.round(emi*term*100)/100;
-    const scheduledInterest = Math.round((scheduledTotal - principal)*100)/100;
-    return {principal, rateAnnual, term, emi, totalRepaid: Math.round(totalRepaid*100)/100, outstanding: Math.round(outstanding*100)/100, scheduledInterest, scheduledTotal};
-  }
-
-  function renderSelectedLoan(loan, customer, sureties, records){
-    records = records || [];
-    const metrics = computeMetrics(loan, records);
-
-    // Format loan tenure as "X months (Y years Z months)" if > 12 months
-    let tenureStr = '';
-    const months = Number(loan.loan_term_months || 0);
-    if (months >= 12) {
-      const years = Math.floor(months / 12);
-      const remMonths = months % 12;
-      tenureStr = `${months} months (${years} year${years > 1 ? 's' : ''}${remMonths ? ' ' + remMonths + ' month' + (remMonths > 1 ? 's' : '') : ''})`;
-    } else {
-      tenureStr = `${months} month${months === 1 ? '' : 's'}`;
-    }
-
-    // Calculate months left
-    let monthsLeft = '';
-    if (loan.loan_term_months && metrics) {
-      const elapsed = metrics.elapsed_months !== undefined ? metrics.elapsed_months : 0;
-      const left = Math.max(Number(loan.loan_term_months) - Number(elapsed), 0);
-      monthsLeft = `${left} month${left === 1 ? '' : 's'} left`;
-    }
-
-    const container = document.getElementById('selectedLoanContent');
-    container.innerHTML = `
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${metrics.principal.toLocaleString()}</p></div>
-        <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${metrics.totalRepaid.toLocaleString()}</p></div>
-        <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${metrics.outstanding.toLocaleString()}</p></div>
-        <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${metrics.rateAnnual}%</p></div>
-        <div class="p-3 bg-indigo-50 rounded"><p class="text-xs text-gray-500">EMI (Est.)</p><p class="font-semibold">₹${metrics.emi.toLocaleString()}</p></div>
-        <div class="p-3 bg-teal-50 rounded"><p class="text-xs text-gray-500">Scheduled Interest</p><p class="font-semibold text-teal-700">₹${metrics.scheduledInterest.toLocaleString()}</p></div>
-        <div class="p-3 bg-orange-50 rounded"><p class="text-xs text-gray-500">Loan Tenure</p><p class="font-semibold">${tenureStr}</p></div>
-        <div class="p-3 bg-lime-50 rounded"><p class="text-xs text-gray-500">Months Left</p><p class="font-semibold">${monthsLeft}</p></div>
-      </div>
-      <h4 class="font-semibold mb-2">Repayment History</h4>
-      ${records.length===0 ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>' :
-        `<div class="overflow-x-auto mb-4">
-          <table class="min-w-full text-xs">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="px-2 py-2 text-left">#</th>
-                <th class="px-2 py-2 text-left">Date</th>
-                <th class="px-2 py-2 text-left">Amount</th>
-                <th class="px-2 py-2 text-left">Outstanding After</th>
-                <th class="px-2 py-2 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${records.map((r,i)=>`
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="px-2 py-1">${i+1}</td>
-                  <td class="px-2 py-1">${r.repayment_date || '—'}</td>
-                  <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
-                  <td class="px-2 py-1">₹${Number(r.outstanding_balance!=null ? r.outstanding_balance : metrics.principal - metrics.totalRepaid).toLocaleString()}</td>
-                  <td class="px-2 py-1">
-                    <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">
-                      ${(r.status||'active').toUpperCase()}
-                    </span>
-                  </td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`}
-      <div class="text-xs text-gray-500">Computed values are indicative (EMI & interest schedule).</div>
-    `;
-    document.getElementById('selectedLoanDetails').classList.remove('hidden');
-  }
-
-  // Expenses fetcher (improved JSON handling and clearer errors)
-  // Keeps data in memory (window.expensesRaw) and renders via renderExpenses()
-  async function loadExpenses() {
-    const loading = document.getElementById('expensesLoading');
-    const err = document.getElementById('expensesError');
-    const container = document.getElementById('expensesContainer');
-    const tbody = document.getElementById('expensesTableBody');
-    if (!loading || !err || !container || !tbody) return;
-
-    err.classList.add('hidden');
-    container.classList.add('hidden');
-    tbody.innerHTML = '';
-    loading.classList.remove('hidden');
-
-    try {
-      const res = await fetch('/api/check-expenses', {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Accept': 'application/json,text/plain,*/*' }
-      });
-
-      const text = await res.text();
-      // keep full response in console for debugging
-      console.debug('[loadExpenses] raw response:', { status: res.status, text });
-
-      let parsed = null;
-      try {
-        parsed = JSON.parse(text);
-      } catch (parseErr) {
-        // Try to handle when backend returns a bare JSON array (no envelope)
-        const trimmed = (text || '').trim();
-        if (trimmed.startsWith('[')) {
-          try {
-            const arr = JSON.parse(trimmed);
-            parsed = { expenses: arr };
-            console.debug('[loadExpenses] interpreted raw array as expenses');
-          } catch (arrErr) {
-            parsed = null;
-          }
-        } else {
-          parsed = null;
-        }
-      }
-
-      // If HTTP not ok, prefer JSON message if present, else show snippet of raw text
-      if (!res.ok) {
-        const serverMsg = parsed && parsed.message ? parsed.message : (text ? text.substring(0, 500) : res.statusText);
-        throw new Error(`HTTP ${res.status}: ${serverMsg}`);
-      }
-
-      if (!parsed) {
-        // non-JSON or malformed JSON — surface a short snippet so backend can be diagnosed
-        const snippet = (text || '').substring(0, 800);
-        throw new Error('Invalid JSON response from server. Response snippet: ' + snippet);
-      }
-
-      // Accept both { expenses: [...] } and { data: [...] } shapes if you use PostgREST directly
-      let expenses = [];
-      if (Array.isArray(parsed.expenses)) {
-        expenses = parsed.expenses;
-      } else if (Array.isArray(parsed.data)) {
-        expenses = parsed.data;
-      } else if (Array.isArray(parsed)) {
-        expenses = parsed; // parsed was an array
-      } else {
-        throw new Error('Unexpected JSON structure. Expected array in "expenses" or "data" or top-level array.');
-      }
-
-  // store raw data for client-side filtering and rendering
-  window.expensesRaw = expenses;
-  // populate month select with unique months
-  try { populateMonthSelect(expenses); } catch(e){}
-  renderExpenses(expenses);
-  container.classList.remove('hidden');
-    } catch (e) {
-      console.error('[loadExpenses] error:', e);
-      // show friendly message + short detail for debugging
-      err.textContent = 'Failed to load expenses: ' + (e.message || 'Unknown error');
-      err.classList.remove('hidden');
-    } finally {
-      loading.classList.add('hidden');
-    }
-  }
-
-  // Also update the expenses table click handler to load immediately
-  const expensesNavBtn = document.querySelector('.admin-nav-btn[data-target="expenses"]');
-  if (expensesNavBtn) {
-    expensesNavBtn.addEventListener('click', () => {
-      loadExpenses().catch(console.error);
-    });
-  }
-
-  // Render a set of expenses into the table (build headers from keys)
-  function renderExpenses(expenses) {
-    const tbody = document.getElementById('expensesTableBody');
-    const thead = document.getElementById('expensesTableHead');
-    if (!tbody || !thead) return;
-
-    if (!expenses || expenses.length === 0) {
-      const cols = (thead && thead.querySelectorAll('th').length) || 5;
-      tbody.innerHTML = `<tr><td colspan="${cols}" class="px-4 py-6 text-center text-gray-500">No expenses found</td></tr>`;
-      document.getElementById('expensesCount').textContent = '0';
-      document.getElementById('expensesTotal').textContent = '0';
-      return;
-    }
-
-    const first = expenses[0];
-    const keys = Object.keys(first);
-    thead.innerHTML = '<tr>' + keys.map(k => `<th class="px-4 py-2 text-left">${k}</th>`).join('') + '</tr>';
-
-    tbody.innerHTML = expenses.map(exp => {
-      const cells = keys.map(k => {
-        const val = exp[k];
-        if (typeof val === 'number') return `<td class="px-4 py-2">${formatCurrency(val)}</td>`;
-        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return `<td class="px-4 py-2">${new Date(val).toLocaleDateString()}</td>`;
-        if (val === null || val === undefined) return `<td class="px-4 py-2"></td>`;
-        return `<td class="px-4 py-2">${String(val)}</td>`;
-      }).join('');
-      return `<tr class="border-t hover:bg-gray-50">${cells}</tr>`;
-    }).join('');
-
-    // update counters
-    document.getElementById('expensesCount').textContent = String(expenses.length);
-    const total = expenses.reduce((s, e) => {
-      const v = Number(e.amount || e.value || 0);
-      return s + (isNaN(v) ? 0 : v);
-    }, 0);
-    document.getElementById('expensesTotal').textContent = total.toLocaleString();
-  }
-
-  function formatCurrency(n){ return Number(n||0).toLocaleString(); }
-
-  // Apply filters from the UI to window.expensesRaw and re-render
-  function applyFilters() {
-    const raw = window.expensesRaw || [];
-    const q = (document.getElementById('expenseSearch')||{}).value.trim().toLowerCase();
-    const from = (document.getElementById('expenseDateFrom')||{}).value;
-    const to = (document.getElementById('expenseDateTo')||{}).value;
-    const month = (document.getElementById('expenseMonth')||{}).value;
-    const min = parseFloat((document.getElementById('amountMin')||{}).value || '');
-    const max = parseFloat((document.getElementById('amountMax')||{}).value || '');
-
-    const filtered = raw.filter(e => {
-      // search by id or name
-      if (q) {
-        const idstr = String(e.id||e.ID||'').toLowerCase();
-        const namestr = String(e.name||e.expense_name||'').toLowerCase();
-        if (!idstr.includes(q) && !namestr.includes(q) && !JSON.stringify(e).toLowerCase().includes(q)) return false;
-      }
-      // date range
-      const d = e.date || e.created_at || null;
-      if (from && d && new Date(d) < new Date(from)) return false;
-      if (to && d && new Date(d) > new Date(to)) return false;
-      // month filter in YYYY-MM format
-      if (month && d) {
-        const m = d.slice(0,7);
-        if (m !== month) return false;
-      }
-      // amount range
-      const amt = Number(e.amount || e.value || 0);
-      if (!isNaN(min) && min !== '' && amt < min) return false;
-      if (!isNaN(max) && max !== '' && amt > max) return false;
-      return true;
-    });
-
-    renderExpenses(filtered);
-  }
-
-  function populateMonthSelect(expenses){
-    const sel = document.getElementById('expenseMonth');
-    if (!sel) return;
-    const months = new Set();
-    expenses.forEach(e => {
-      const d = e.date || e.created_at || null;
-      if (d && typeof d === 'string' && d.length>=7) months.add(d.slice(0,7));
-    });
-    const arr = Array.from(months).sort((a,b)=>b.localeCompare(a));
-    sel.innerHTML = '<option value="">All months</option>' + arr.map(m=>`<option value="${m}">${m}</option>`).join('');
-  }
-
-  // Wire filter buttons
-  document.getElementById('applyFiltersBtn')?.addEventListener('click', applyFilters);
-  document.getElementById('clearFiltersBtn')?.addEventListener('click', ()=>{
-    ['expenseSearch','expenseDateFrom','expenseDateTo','amountMin','amountMax','expenseMonth'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    renderExpenses(window.expensesRaw || []);
-  });
-  document.getElementById('refreshExpensesBtn')?.addEventListener('click', ()=>{ loadExpenses().catch(console.error); });
-
-  // Admin Civil Score floating button wiring (keeps parity with staff dashboard)
-  try {
-    const adminCivilBtn = document.getElementById('adminCivilBtn');
-    const adminCivilBox = document.getElementById('adminCivilBox');
-    const closeAdminCivil = document.getElementById('closeAdminCivil');
-    const adminCheckCivil = document.getElementById('adminCheckCivil');
-    const adminCivilInput = document.getElementById('adminCivilInput');
-    const adminCivilResult = document.getElementById('adminCivilResult');
-
-    if (adminCivilBtn && adminCivilBox) {
-      if (!adminCivilBtn.dataset.wired) {
-        adminCivilBtn.addEventListener('click', () => {
-          adminCivilBox.classList.toggle('hidden');
-          adminCivilBox.classList.toggle('show');
-        });
-        adminCivilBtn.dataset.wired = '1';
-      }
-    }
-    if (closeAdminCivil && adminCivilBox && !closeAdminCivil.dataset.wired) {
-      closeAdminCivil.addEventListener('click', () => {
-        adminCivilBox.classList.add('hidden');
-        adminCivilBox.classList.remove('show');
-      });
-      closeAdminCivil.dataset.wired = '1';
-    }
-
-    if (adminCheckCivil && adminCivilInput && adminCivilResult) {
-      if (!adminCheckCivil.dataset.wired) {
-        adminCheckCivil.addEventListener('click', async () => {
-          const val = adminCivilInput.value.trim();
-          adminCivilResult.textContent = '';
-          if (!val) {
-            adminCivilResult.textContent = "Please enter Customer ID or KGID.";
-            adminCivilResult.className = "mt-3 text-center text-red-600";
-            return;
-          }
-          adminCivilResult.textContent = "Checking...";
-          adminCivilResult.className = "mt-3 text-center text-blue-700";
-          try {
-            const res = await fetch(`/api/check-civil-score?customer_id=${encodeURIComponent(val)}`);
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-              const overall = data.score || data.score === 0 ? data.score : 'Unknown';
-              adminCivilResult.textContent = `Civil Score for ${val}: ${overall}`;
-              adminCivilResult.className = "mt-3 text-center text-green-700 font-bold";
-              if (Array.isArray(data.details) && data.details.length > 0) {
-                const first = data.details[0];
-                const detailsText = `${first.loan_id || ''}: ${first.score || first.message || ''}`;
-                const detailsNode = document.createElement('div');
-                detailsNode.className = 'text-sm mt-2 text-gray-700 admin-civil-details';
-                detailsNode.textContent = detailsText;
-                const existing = adminCivilResult.nextElementSibling;
-                if (existing && existing.classList && existing.classList.contains('admin-civil-details')) existing.remove();
-                adminCivilResult.insertAdjacentElement('afterend', detailsNode);
-              }
-            } else {
-              adminCivilResult.textContent = data.message || 'Not found.';
-              adminCivilResult.className = "mt-3 text-center text-red-600";
-            }
-          } catch (e) {
-            adminCivilResult.textContent = "Network error.";
-            adminCivilResult.className = "mt-3 text-center text-red-600";
-          }
-        });
-        adminCheckCivil.dataset.wired = '1';
-      }
-    }
-  } catch (e) {
-    // ignore errors silently
-  }
-});
-// Admin Queries client logic
-document.addEventListener('DOMContentLoaded', () => {
-  const queriesNavBtn = document.createElement('button');
-  // attempt to wire if there is a nav area (non-destructive)
-  try {
-    const nav = document.querySelector('aside nav');
-    if (nav && !nav.querySelector('[data-target="adminQueries"]')) {
-      const btn = document.createElement('button');
-      btn.className = 'admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all';
-      btn.setAttribute('data-target','adminQueries');
-      btn.textContent = '📬 Queries';
-      nav.appendChild(btn);
-      btn.addEventListener('click', () => {
-        // reveal queries section and load
-        document.querySelectorAll('.admin-section').forEach(s=>s.classList.add('hidden'));
-        document.getElementById('adminQueries').classList.remove('hidden');
-        loadAdminQueries();
-      });
-    }
-  } catch(e){/* ignore */}
-
-  async function loadAdminQueries(){
-    const tbody = document.getElementById('adminQueriesTbody');
-    const msg = document.getElementById('adminQueriesMsg');
-    if (!tbody) return;
-    msg.textContent = '';
-    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center">Loading...</td></tr>';
-    try {
-      const res = await fetch('/api/queries');
-      const payload = await res.json().catch(()=>null);
-      if (!res.ok || !payload || payload.status !== 'success') {
-        const err = payload && payload.message ? payload.message : 'Failed to load queries';
-        msg.textContent = err;
-        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-red-600">'+err+'</td></tr>';
-        return;
-      }
-      renderAdminQueries(payload.data || []);
-    } catch (err) {
-      msg.textContent = 'Network error';
-      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-red-600">Network error</td></tr>';
-    }
-  }
-
-  function renderAdminQueries(list){
-    const tbody = document.getElementById('adminQueriesTbody');
-    if (!tbody) return;
-    if (!Array.isArray(list) || list.length === 0){
-      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">No queries found</td></tr>';
-      return;
-    }
-    tbody.innerHTML = list.map((q, idx) => {
-      return `
-        <tr class="border-t hover:bg-gray-50">
-          <td class="px-4 py-3">${idx+1}</td>
-          <td class="px-4 py-3">${escapeHtml(q.name||'')}</td>
-          <td class="px-4 py-3">${escapeHtml(q.email||'')}<br>${escapeHtml(q.phone||'')}</td>
-          <td class="px-4 py-3">${escapeHtml(q.customer_id || q.kgid || '')}</td>
-          <td class="px-4 py-3">${escapeHtml(q.description||'')}</td>
-          <td class="px-4 py-3">${escapeHtml(q.status||'new')}</td>
-          <td class="px-4 py-3">
-            ${q.status === 'solved' ? '<span class="text-sm text-green-700">Solved</span>' : `<button class="mark-solved-btn px-3 py-1 text-xs bg-green-600 text-white rounded" data-id="${q.id}">Mark Solved</button>`}
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // attach handlers
-    document.querySelectorAll('.mark-solved-btn').forEach(btn => {
-      if (btn.dataset.wired) return;
-      btn.dataset.wired = '1';
-      btn.addEventListener('click', async () => {
-        const qid = btn.dataset.id;
-        btn.disabled = true;
-        try {
-          const res = await fetch(`/api/queries/${qid}/mark-solved`, { method: 'POST' });
-          const data = await res.json().catch(()=>null);
-          if (res.ok && data && data.status === 'success') {
-            btn.parentElement.innerHTML = '<span class="text-sm text-green-700">Solved</span>';
-          } else {
-            btn.disabled = false;
-            alert((data && data.message) || 'Failed to mark solved');
-          }
-        } catch (e) {
-          btn.disabled = false;
-          alert('Network error');
-        }
-      });
-    });
-  }
-
-  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
-
-  // Auto-load Queries when nav clicked (if nav button exists)
-  const adminQueriesNav = document.querySelector('.admin-nav-btn[data-target="adminQueries"]');
-  if (adminQueriesNav) {
-    adminQueriesNav.addEventListener('click', () => loadAdminQueries());
-  }
+  // ...existing code...
 });
 </script>
 {% endblock %}

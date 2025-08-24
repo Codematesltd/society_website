@@ -551,6 +551,7 @@
     <aside class="w-64 bg-white shadow-lg p-6 space-y-4">
       <h2 class="font-bold text-xl text-blue-700 mb-6">Staff Dashboard</h2>
       <nav class="space-y-3">
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all" data-target="loanInfoSearch">🔍 Loan Info Search</button>
         <button type="button" id="homeBtn" class="w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">🏠 Home</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
@@ -559,9 +560,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
-  <!-- Queries Button -->
-  <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
-        <!-- New Buttons -->
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
         <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
         <button id="mailNotificationBtn" class="w-full text-left px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">📧 Mail Notification</button>
       </nav>
@@ -604,6 +603,60 @@
 
     <!-- Main content area - Updated style -->
     <main class="flex-1 p-8 space-y-6">
+      <!-- NEW: Loan Info Search Section -->
+      <section id="loanInfoSearch" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <h2 class="text-2xl font-bold text-purple-700 mb-4">Loan Info Search</h2>
+        <form id="loanInfoSearchForm" class="flex flex-col gap-4 mb-4">
+          <input type="text" id="loanInfoSearchInput" class="border px-4 py-2 rounded" placeholder="Enter Loan ID" />
+          <button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">Search</button>
+        </form>
+        <div id="loanInfoSearchResult" class="mt-4"></div>
+      </section>
+      <script>
+      // Loan Info Search wiring for Staff Dashboard
+      document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('loanInfoSearchForm');
+        const input = document.getElementById('loanInfoSearchInput');
+        const result = document.getElementById('loanInfoSearchResult');
+        if (!form || !input || !result) return;
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const val = (input.value || '').trim();
+          result.innerHTML = '';
+          if (!val) {
+            result.innerHTML = '<div class="text-red-600">Please enter a Loan ID.</div>';
+            return;
+          }
+          result.innerHTML = '<div class="text-blue-600">Searching...</div>';
+          const url = '/admin/api/loan-info?loan_id=' + encodeURIComponent(val);
+          try {
+            const res = await fetch(url);
+            let data = null;
+            try { data = await res.json(); } catch {}
+            if (res.ok && data && data.status === 'success' && data.loan_info) {
+              const info = data.loan_info;
+              result.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded shadow">
+                  <div><strong>Name:</strong> ${info.name ?? '-'} </div>
+                  <div><strong>Loan Amount:</strong> ₹${info.loan_amount ?? '-'} </div>
+                  <div><strong>Loan Term (months):</strong> ${info.loan_term_months ?? '-'} </div>
+                  <div><strong>Interest Rate:</strong> ${info.interest_rate ?? '-'}% </div>
+                  <div><strong>Next Installment Amount:</strong> ₹${info.next_installment_amount ?? '-'} </div>
+                  <div><strong>Outstanding Amount:</strong> ₹${info.outstanding_amount ?? '-'} </div>
+                </div>
+              `;
+            } else {
+              const msg = (data && data.message) ? data.message : 'No loan found.';
+              result.innerHTML = `<div class="text-red-600">${msg}</div>`;
+            }
+          } catch (err) {
+            result.innerHTML = '<div class="text-red-600">Network error.</div>';
+          }
+        });
+      });
+      </script>
+      
       <!-- DASHBOARD SUMMARY SECTION -->
       <section id="dashboardSummary" class="dynamic-section bg-white p-6 rounded shadow">
         <h2 class="text-xl font-bold text-blue-700 mb-6">Dashboard Overview</h2>
