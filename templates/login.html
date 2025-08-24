@@ -119,6 +119,10 @@
         });
         const data = await res.json();
         if (data.status === 'success') {
+            try {
+              // Save JWT in sessionStorage (per-tab). Clearing when tab closes is automatic.
+              if (data.token) sessionStorage.setItem('authToken', data.token);
+            } catch(e) {}
             // Redirect based on role
             if (data.role === 'staff') {
                 window.location.href = '/staff/dashboard';
@@ -131,6 +135,8 @@
             document.getElementById('loginMsg').textContent = data.message;
         }
     };
+    // Clear any stale per-tab token when hitting login page
+    try { sessionStorage.removeItem('authToken'); } catch(e) {}
     </script>
 </body>
 </html>

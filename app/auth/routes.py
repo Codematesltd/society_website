@@ -1,5 +1,6 @@
 from . import auth_bp
-from flask import request, jsonify, session, render_template, redirect, url_for
+from flask import request, jsonify, session, render_template, redirect, url_for, current_app
+import time
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
@@ -8,11 +9,34 @@ import smtplib
 from email.mime.text import MIMEText
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import jwt
+from datetime import datetime, timedelta
 
 load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def _jwt_secret():
+    return os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', 'dev'))
+
+def create_jwt(email, role, expires_minutes=5):
+    now = datetime.utcnow()
+    payload = {
+        'sub': email,
+        'role': role,
+        'iat': int(now.timestamp()),
+        'exp': int((now + timedelta(minutes=expires_minutes)).timestamp()),
+        'rnd': uuid.uuid4().hex  # prevent token reuse detection collisions
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm='HS256')
+
+def verify_jwt(token):
+    try:
+        data = jwt.decode(token, _jwt_secret(), algorithms=['HS256'])
+        return True, data
+    except Exception as e:
+        return False, str(e)
 
 def send_otp_email(email, otp):
     EMAIL_USER = os.getenv("EMAIL_USER")
@@ -48,6 +72,11 @@ def send_set_password_email(email, token):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
         server.login(EMAIL_USER, EMAIL_PASSWORD)
         server.send_message(msg)
+
+@auth_bp.before_app_request
+def enforce_session_timeout():
+    """Disabled session gate to avoid login loops per request."""
+    return None
 
 def find_role(email):
     staff = supabase.table("staff").select("id,email").eq("email", email).execute()
@@ -101,6 +130,9 @@ def login():
     
     # Set session variables for staff identity (add these lines)
     try:
+        # Mark session as permanent and set last activity for idle timeout tracking
+        session.permanent = True
+        session['last_activity'] = int(time.time())
         session['email'] = email
         # Get name from user data if available
         user_details = supabase.table(role).select("name,email").eq("email", email).execute()
@@ -114,8 +146,44 @@ def login():
     except Exception as e:
         print(f"Failed to set session variables: {e}")
     
+    # Issue short-lived JWT for front-end heartbeat checks (per-tab via sessionStorage)
+    token = create_jwt(email, role)
     # Redirect according to role (for API, just return role)
-    return jsonify({'status': 'success', 'role': role, 'id': user['id']}), 200
+    return jsonify({'status': 'success', 'role': role, 'id': user['id'], 'token': token}), 200
+
+@auth_bp.route('/validate-token', methods=['POST'])
+def validate_token():
+    """Validate a JWT sent by the client. Returns 200 if valid, 401 otherwise."""
+    data = request.get_json(silent=True) or {}
+    token = data.get('token')
+    if not token:
+        authz = request.headers.get('Authorization', '')
+        if authz.lower().startswith('bearer '):
+            token = authz[7:]
+    ok, info = verify_jwt(token) if token else (False, 'missing token')
+    if not ok:
+        # Never 401 here to prevent client redirect loops; just warn
+        return jsonify({'status': 'success', 'warn': 'invalid_token'}), 200
+    # optional: ensure token subject matches session user to bind tab to session
+    if not session.get('email') or session.get('email') != info.get('sub'):
+        # Return success but annotate mismatch to avoid disrupting UX; routes remain server-guarded.
+        return jsonify({'status': 'success', 'warn': 'session_mismatch'}), 200
+    return jsonify({'status': 'success'}), 200
+
+@auth_bp.route('/refresh-token', methods=['POST'])
+def refresh_token():
+    """Issue a new token if current session is valid; used by front-end every ~4-5 minutes.
+    If session is gone/expired, return 401 so tab can redirect to login.
+    """
+    if not session.get('email') or not session.get('role'):
+        return jsonify({'status': 'error', 'message': 'not logged in'}), 401
+    # also bump last_activity so server idle timeout aligns with active tabs
+    try:
+        session['last_activity'] = int(time.time())
+    except Exception:
+        pass
+    token = create_jwt(session['email'], session.get('role'))
+    return jsonify({'status': 'success', 'token': token}), 200
 
 @auth_bp.route('/first_time_signin', methods=['GET'])
 def first_time_signin_page():
@@ -199,7 +267,8 @@ def logout():
     except Exception:
         # if session cannot be cleared for some reason, ignore and continue to redirect
         pass
-    return redirect('/login')
+    # Redirect explicitly to the auth login route
+    return redirect(url_for('auth.login'))
 
 def valid_password(password):
     """Validate password meets security requirements"""

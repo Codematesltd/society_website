@@ -2,12 +2,15 @@ from flask import render_template, request, jsonify, session, send_file, make_re
 from werkzeug.security import check_password_hash
 from app.auth.routes import supabase
 from . import members_bp
+from app.auth.decorators import login_required, role_required
 from datetime import datetime, timedelta
 import io
 import pdfkit
 import shutil
 
 @members_bp.route("/dashboard")
+@login_required
+@role_required('members')
 def dashboard():
     return render_template('user_dashboard.html')
 

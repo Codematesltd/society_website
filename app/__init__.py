@@ -6,7 +6,11 @@ from flask import Flask
 from .config import Config
 
 def create_app():
-    app = Flask(__name__)
+    # Ensure static and templates resolve from project root (one level up from this package)
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    static_dir = os.path.join(root_dir, 'static')
+    templates_dir = os.path.join(root_dir, 'templates')
+    app = Flask(__name__, static_folder=static_dir, static_url_path='/static', template_folder=templates_dir)
     app.config.from_object(Config)
 
     # Register blueprints

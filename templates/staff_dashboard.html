@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loan Dashboard</title>
+  <title>Staff Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .floating-box {
@@ -63,17 +63,22 @@
       // Show dashboard summary by default on page load
       showSection('dashboardSummary');
 
-      // Fetch dashboard stats (replace with real API call)
-      function fetchDashboardStats() {
-        // Simulated data; replace with fetch('/api/dashboard-stats')...
-        const stats = {
-          totalCustomers: 1234,
-          activeLoans: 87,
-          totalAmount: 12500000
-        };
-        document.getElementById('totalCustomers').textContent = stats.totalCustomers;
-        document.getElementById('activeLoans').textContent = stats.activeLoans;
-        document.getElementById('totalAmount').textContent = '₹' + stats.totalAmount.toLocaleString();
+      // Fetch dashboard stats from backend
+      async function fetchDashboardStats() {
+        try {
+          const res = await fetch('/staff/api/dashboard-stats');
+          const data = await res.json();
+          if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed');
+          const totalCustomersEl = document.getElementById('totalCustomers');
+          const activeLoansEl = document.getElementById('activeLoans');
+          const totalAmountEl = document.getElementById('totalAmount');
+          if (totalCustomersEl) totalCustomersEl.textContent = data.total_customers ?? 0;
+          if (activeLoansEl) activeLoansEl.textContent = data.active_loans ?? 0;
+          if (totalAmountEl) totalAmountEl.textContent = '₹' + Number(data.total_balance || 0).toLocaleString();
+        } catch (e) {
+          // leave defaults on failure
+          console.warn('Dashboard stats load failed', e);
+        }
       }
       fetchDashboardStats();
 
@@ -529,19 +534,64 @@
 
   </script>
 </head>
+  <script>
+      // --- JWT heartbeat: validate every 10s and refresh token periodically ---
+      const LOGIN_URL = "{{ url_for('auth.login') }}";
+      function redirectToLogin() {
+        try { sessionStorage.removeItem('authToken'); } catch(e) {}
+        window.location.replace(LOGIN_URL);
+      }
+      async function validateToken() {
+        let token = null;
+        try { token = sessionStorage.getItem('authToken'); } catch(e) { token = null; }
+        if (!token) { redirectToLogin(); return; }
+        try {
+          const res = await fetch('/auth/validate-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include',
+            body: JSON.stringify({ token })
+          });
+          if (res.status === 401) { redirectToLogin(); return; }
+        } catch (e) { /* network blip: let next tick retry */ }
+      }
+      async function refreshToken() {
+        try {
+          const res = await fetch('/auth/refresh-token', { method: 'POST', credentials: 'include' });
+          if (res.status === 401) { redirectToLogin(); return; }
+          const data = await res.json().catch(()=>null);
+          if (data && data.status === 'success' && data.token) {
+            try { sessionStorage.setItem('authToken', data.token); } catch(e) {}
+          }
+        } catch (e) {}
+      }
+      // Validate every 10 seconds
+      validateToken();
+      const vInt = setInterval(validateToken, 10000);
+      // Refresh the token every 4 minutes to stay ahead of 5-min expiry
+      const rInt = setInterval(refreshToken, 4 * 60 * 1000);
+      // Clear token on logout click
+      document.addEventListener('DOMContentLoaded', () => {
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) logoutBtn.addEventListener('click', () => { try { sessionStorage.removeItem('authToken'); } catch(e) {} });
+      });
+  </script>
 <body class="bg-gray-50">
   <!-- Header - Updated to match landing page style -->
   <header class="w-full bg-white shadow-lg">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <!-- Logo -->
-        <img src="logo.png" alt="Logo" class="w-12 h-12 rounded-full border border-blue-200" />
+  <!-- Logo -->
+  <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Logo" class="w-12 h-12 rounded-full border border-blue-200" />
         <span class="text-2xl font-bold text-blue-700">KSTHST coof society </span>
       </div>
       <div class="flex items-center space-x-4">
         {%- set staff_display = session.get('staff_name') or session.get('name') or session.get('email') -%}
         <span class="text-gray-700">Welcome, {{ staff_display or 'Staff' }}</span>
-        <a href="{{ url_for('staff_api.staff_logout') }}" id="logoutBtn" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
+  <a href="{{ url_for('auth.logout') }}" id="logoutBtn" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">Logout</a>
       </div>
     </div>
   </header>
@@ -692,7 +742,7 @@
             </div>
             <div>
               <div class="text-2xl font-bold" id="totalAmount">₹0</div>
-              <div class="text-gray-700">Total Amount</div>
+              <div class="text-gray-700">Total Balance</div>
             </div>
           </div>
         </div>

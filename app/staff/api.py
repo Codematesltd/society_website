@@ -3,6 +3,7 @@ import uuid
 import re
 import random
 from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect
+from app.auth.decorators import login_required, role_required
 from werkzeug.utils import secure_filename
 from io import BytesIO
 from supabase import create_client, Client
@@ -485,6 +486,61 @@ def get_staff_by_email(email):
     resp = supabase.table("staff").select("email,name,photo_url,signature_url").eq("email", email).execute()
     return resp.data[0] if resp.data else None
 
+@staff_api_bp.route('/dashboard-stats', methods=['GET'])
+def staff_dashboard_stats():
+    """
+    Totals for staff dashboard cards:
+    - total_customers: count of approved members (fallback: all members)
+    - active_loans: count of loans with status in ['approved','disbursed','active'] (fallback: all loans)
+    - total_balance: sum of members.balance (missing/None => 0)
+    """
+    try:
+        # Total customers
+        try:
+            mresp = supabase.table('members').select('id', count='exact').eq('status', 'approved').execute()
+            total_customers = int(mresp.count) if hasattr(mresp, 'count') and mresp.count is not None else (len(mresp.data) if getattr(mresp, 'data', None) else 0)
+            # Fallback to all members if approved returns 0 but there are members
+            if total_customers == 0:
+                mall = supabase.table('members').select('id', count='exact').execute()
+                total_customers = int(mall.count) if hasattr(mall, 'count') and mall.count is not None else (len(mall.data) if getattr(mall, 'data', None) else 0)
+        except Exception:
+            # very defensive: try a basic select
+            mall = supabase.table('members').select('id').execute()
+            total_customers = len(mall.data) if getattr(mall, 'data', None) else 0
+
+        # Active loans
+        active_statuses = ['approved', 'disbursed', 'active']
+        try:
+            lresp = supabase.table('loans').select('id,status').execute()
+            rows = lresp.data if getattr(lresp, 'data', None) else []
+            active_loans = sum(1 for r in rows if str(r.get('status') or '').lower() in active_statuses)
+            # Fallback: if status column not present or all empty, count all loans
+            if active_loans == 0 and rows:
+                active_loans = len(rows)
+        except Exception:
+            active_loans = 0
+
+        # Total balance
+        try:
+            bresp = supabase.table('members').select('balance').execute()
+            total_balance = 0.0
+            for row in (bresp.data or []):
+                try:
+                    total_balance += float(row.get('balance') or 0)
+                except Exception:
+                    continue
+        except Exception:
+            total_balance = 0.0
+
+        return jsonify({
+            'status': 'success',
+            'total_customers': total_customers,
+            'active_loans': active_loans,
+            'total_balance': round(total_balance, 2)
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @staff_bp.route('/transaction/certificate/<stid>')
 def transaction_certificate(stid):
     """
@@ -544,11 +600,13 @@ def transaction_certificate(stid):
 
 @staff_api_bp.route('/logout', methods=['GET'])
 def staff_logout():
-    """Logout staff (clears session) and redirect to manager login."""
+    """Logout staff (clears session) and redirect to auth login."""
     session.clear()
-    return redirect(url_for('manager.manager_login'))
+    return redirect(url_for('auth.login'))
 
 @staff_bp.route('/dashboard')
+@login_required
+@role_required('staff')
 def staff_dashboard():
     return render_template('staff_dashboard.html')
 

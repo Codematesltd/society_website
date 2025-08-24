@@ -30,3 +30,4 @@ werkzeug  # For security
 pillow
 xhtml2pdf
 Flask-Session
+PyJWT
