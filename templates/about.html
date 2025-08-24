@@ -19,33 +19,90 @@
 </head>
 <body class="bg-gray-50">
 
-  <!-- Navbar (updated to match landing_page) -->
+  <!-- Navbar (responsive with hamburger) -->
   <nav class="bg-white shadow-lg">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
         <span class="text-2xl font-bold text-blue-700">ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಷ್ಟ</span>
       </div>
-      <div class="space-x-6">
+      <!-- Desktop Nav -->
+      <div class="space-x-6 hidden md:flex">
         <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
         <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
         <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
         <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
       </div>
+      <!-- Hamburger Button -->
+      <button id="hamburgerBtn" class="md:hidden flex items-center px-3 py-2 border rounded text-blue-700 border-blue-700 focus:outline-none" aria-label="Open menu">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+    <!-- Mobile Nav -->
+    <div id="mobileNav" class="md:hidden px-6 pb-4 space-y-2 hidden flex flex-col bg-white shadow-lg">
+      <a href="{{ url_for('core.home') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
+      <a href="{{ url_for('core.about') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
+      <a href="{{ url_for('core.services') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
+      <a href="{{ url_for('auth.login') }}" class="block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
     </div>
   </nav>
 
-  <!-- About Content -->
+  <!-- Carousel Section -->
+  <div class="relative w-full h-[350px] md:h-[450px] overflow-hidden">
+    <!-- Carousel Images -->
+    <div id="aboutCarousel" class="w-full h-full">
+      <img src="https://via.placeholder.com/1600x450/2563eb/ffffff?text=Slide+1" class="carousel-slide-about active w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+      <img src="https://via.placeholder.com/1600x450/f59e0b/ffffff?text=Slide+2" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+      <img src="https://via.placeholder.com/1600x450/10b981/ffffff?text=Slide+3" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+      <img src="https://via.placeholder.com/1600x450/ef4444/ffffff?text=Slide+4" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+      <img src="https://via.placeholder.com/1600x450/8b5cf6/ffffff?text=Slide+5" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+      <img src="https://via.placeholder.com/1600x450/f43f5e/ffffff?text=Slide+6" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
+    </div>
+    <!-- Overlay Project Description -->
+    <div class="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-40 text-white px-6">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">Welcome to FinanceApp</h1>
+      <p class="max-w-2xl text-lg md:text-xl font-medium mb-2 drop-shadow-lg text-center">Empowering employees with transparent, reliable, and digital-first financial services. Our platform offers easy loan access, instant civil score checks, and a secure admin dashboard for society management.</p>
+      <div class="flex flex-wrap gap-4 mt-2">
+        <span class="bg-blue-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Admin Dashboard</span>
+        <span class="bg-green-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Loan Services</span>
+        <span class="bg-yellow-500 px-4 py-2 rounded-full text-sm font-semibold shadow">Civil Score</span>
+        <span class="bg-purple-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Member Management</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Announcements & Services Section -->
   <div class="container mx-auto px-6 py-12">
-    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
-      <h1 class="text-3xl font-bold text-blue-700 mb-6">About Us</h1>
-      <div class="space-y-4 text-gray-600">
-        <p class="leading-relaxed">
-          FinanceApp is dedicated to providing reliable and transparent financial services
-          to employees. We focus on easy loan access, quick civil score checks, and
-          user-friendly digital platforms.
-        </p>
-        <!-- Add more content sections as needed -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Announcements Box -->
+      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-blue-600 flex flex-col justify-between">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+          <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20h.01"/></svg>
+          Latest Announcements
+        </h2>
+        <ul class="space-y-3 text-gray-700">
+          <li class="flex items-center"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded mr-2">New</span> New loan scheme available for employees</li>
+          <li class="flex items-center"><span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded mr-2">Update</span> Update your KGID details</li>
+          <li class="flex items-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Info</span> Interest rates revised from next month</li>
+          <li class="flex items-center"><span class="bg-pink-100 text-pink-700 px-2 py-1 rounded mr-2">Alert</span> Staff meeting scheduled for Friday</li>
+        </ul>
+      </div>
+      <!-- Services & Schemes Box -->
+      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-green-600 flex flex-col justify-between">
+        <h2 class="text-2xl font-bold text-green-700 mb-4 flex items-center">
+          <svg class="h-6 w-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6"/></svg>
+          Services & Schemes
+        </h2>
+        <ul class="space-y-3 text-gray-700">
+          <li class="flex items-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Loan</span> Loan Assistance & Management</li>
+          <li class="flex items-center"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded mr-2">Score</span> Civil Score Check</li>
+          <li class="flex items-center"><span class="bg-purple-100 text-purple-700 px-2 py-1 rounded mr-2">Plan</span> Financial Planning</li>
+          <li class="flex items-center"><span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded mr-2">Support</span> Member & Staff Support</li>
+          <li class="flex items-center"><span class="bg-red-100 text-red-700 px-2 py-1 rounded mr-2">Scheme</span> Special Savings Scheme</li>
+          <li class="flex items-center"><span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded mr-2">Scheme</span> Employee Welfare Scheme</li>
+        </ul>
       </div>
     </div>
   </div>
@@ -102,7 +159,32 @@
   
   <script src="shared.js"></script>
   <script>
-    // Define (or re-define) initializeFloatingBoxes once
+    // About page carousel auto-slide
+    let aboutCurrentSlide = 0;
+    const aboutSlides = document.querySelectorAll('.carousel-slide-about');
+    function showAboutSlide(index) {
+      aboutSlides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+        slide.style.opacity = i === index ? '1' : '0';
+      });
+    }
+    setInterval(() => {
+      aboutCurrentSlide = (aboutCurrentSlide + 1) % aboutSlides.length;
+      showAboutSlide(aboutCurrentSlide);
+    }, 3000);
+    showAboutSlide(aboutCurrentSlide);
+  </script>
+  <script>
+    // Hamburger menu toggle
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    if (hamburgerBtn && mobileNav) {
+      hamburgerBtn.addEventListener('click', () => {
+        mobileNav.classList.toggle('hidden');
+      });
+    }
+
+    // Floating boxes logic
     function initializeFloatingBoxes() {
       const queryBtn = document.getElementById('queryBtn');
       const queryBox = document.getElementById('queryBox');
