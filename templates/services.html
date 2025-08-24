@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .service-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-lg">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <img src="{{ url_for('static', filename='society_logo.png') }}" alt="KSTHST logo" class="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 rounded-full object-cover">
+        <span class="text-2xl font-bold text-blue-700">KSTHST</span>
+      </div>
+      <!-- Desktop Nav -->
+      <div class="space-x-6 hidden md:flex">
+        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
+      </div>
+      <!-- Hamburger Button -->
+      <button id="hamburgerBtn" class="md:hidden flex items-center px-3 py-2 border rounded text-blue-700 border-blue-700 focus:outline-none">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+    <!-- Mobile Nav -->
+    <div id="mobileNav" class="md:hidden px-6 pb-4 space-y-2 hidden">
+      <a href="{{ url_for('core.home') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
+      <a href="{{ url_for('core.about') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
+      <a href="{{ url_for('core.services') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
+      <a href="{{ url_for('auth.login') }}" class="block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+ <div class="bg-gradient-to-r from-amber-600 to-orange-600 py-16 mb-12">
+    <div class="container mx-auto px-6 text-center">
+      <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Our Services</h1>
+      <p class="text-blue-100 text-lg md:text-xl max-w-2xl mx-auto">
+        Empowering our members with comprehensive financial solutions and support services.
+      </p>
+    </div>
+  </div>
+
+  <!-- Main Services Section -->
+  <div class="container mx-auto px-6 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      
+      <!-- Loan Services -->
+      <div id="loan-services" class="service-card bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
+        <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Loan Services</h3>
+        <ul class="text-gray-600 space-y-2 mb-6">
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Personal Loans
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Emergency Loans
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Festival Advances
+          </li>
+        </ul>
+        <a href="{{ url_for('auth.login') }}" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">Apply Now</a>
+      </div>
+
+      <!-- Civil Score -->
+      <div id="civil-score" class="service-card bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
+        <div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Civil Score Service</h3>
+        <ul class="text-gray-600 space-y-2 mb-6">
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Instant Score Check
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Score History
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Improvement Tips
+          </li>
+        </ul>
+        <button id="checkCivilScoreBtn" class="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition">Check Score</button>
+      </div>
+
+      <!-- Member Services -->
+      <div id="member-services" class="service-card bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
+        <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Member Services</h3>
+        <ul class="text-gray-600 space-y-2 mb-6">
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Account Management
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Digital Statements
+          </li>
+          <li class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Support Services
+          </li>
+        </ul>
+        <a href="{{ url_for('auth.login') }}" class="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">Access Services</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Additional Features -->
+  <div id="support" class="bg-gray-100 py-16">
+    <div class="container mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Additional Features</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        
+        <!-- Feature 1 -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <div class="text-blue-600 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Secure Access</h3>
+          <p class="text-gray-600">Multi-factor authentication and secure login system for your account protection.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <div class="text-purple-600 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Digital Documentation</h3>
+          <p class="text-gray-600">Access and manage all your documents digitally through our secure platform.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <div class="text-green-600 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Instant Notifications</h3>
+          <p class="text-gray-600">Stay updated with real-time alerts about your account and transactions.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <div class="text-amber-600 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">24/7 Support</h3>
+          <p class="text-gray-600">Round-the-clock assistance for all your queries and concerns.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white mt-12">
+    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div>
+        <h3 class="text-lg font-bold mb-4">KSTHST CO-OF-SOCIETY </h3>
+        <p class="text-sm text-gray-400">
+          Your trusted partner for loans, credit scores, and financial services.
+        </p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Quick Links</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li><a href="{{ url_for('core.home') }}" class="hover:text-white">Home</a></li>
+          <li><a href="{{ url_for('core.about') }}" class="hover:text-white">About</a></li>
+          <li><a href="{{ url_for('core.services') }}" class="hover:text-white">Services</a></li>
+          <li><a href="{{ url_for('core.contact') }}" class="hover:text-white">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Services</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li><a href="{{ url_for('core.services') }}#loan-services" class="hover:text-white">Loan Assistance</a></li>
+          <li><a href="{{ url_for('core.services') }}#civil-score" class="hover:text-white">Credit Score Check</a></li>
+          <li><a href="{{ url_for('core.services') }}#member-services" class="hover:text-white">Financial Planning</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Contact Us</h4>
+        <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
+        <p class="text-sm text-gray-400">📞 +91 90001926375</p>
+        <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+      </div>
+    </div>
+    <div class="bg-gray-800 text-center py-3 text-sm text-gray-400">
+      &copy; 2025 KSTHST Co-of-society. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Floating Action Buttons -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+    📩 Query
+  </button>
+
+  <!-- Floating Query Box -->
+  <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl p-4 z-50">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">Send Us a Query</h3>
+      <button id="closeQuery" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    </div>
+    <input id="queryName" class="w-full mb-2 px-4 py-2 border rounded" placeholder="Name">
+    <input id="queryId" class="w-full mb-2 px-4 py-2 border rounded" placeholder="KGID Number">
+    <textarea id="queryDescription" class="w-full mb-3 px-4 py-2 border rounded" placeholder="Your query"></textarea>
+    <button id="sendQuery" class="bg-blue-600 text-white px-6 py-2 rounded w-full hover:bg-blue-700">Send Message</button>
+    <div id="queryMsg" class="mt-2 text-sm"></div>
+  </div>
+
+  <script>
+    // Hamburger menu toggle
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    
+    hamburgerBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('hidden');
+    });
+
+    // Query Box
+    const queryBtn = document.getElementById('queryBtn');
+    const queryBox = document.getElementById('queryBox');
+    const closeQuery = document.getElementById('closeQuery');
+    const sendQuery = document.getElementById('sendQuery');
+    const queryMsg = document.getElementById('queryMsg');
+
+    queryBtn.addEventListener('click', () => {
+      queryBox.classList.remove('hidden');
+      setTimeout(() => queryBox.classList.add('show'), 10);
+    });
+
+    closeQuery.addEventListener('click', () => {
+      queryBox.classList.remove('show');
+      setTimeout(() => queryBox.classList.add('hidden'), 400);
+    });
+
+    sendQuery.addEventListener('click', () => {
+      const msg = 'Thanks for your query. We\'ll get back to you soon!';
+      queryMsg.textContent = msg;
+      queryMsg.className = 'mt-2 text-sm text-green-600';
+      setTimeout(() => {
+        queryBox.classList.remove('show');
+        setTimeout(() => {
+          queryBox.classList.add('hidden');
+          queryMsg.textContent = '';
+        }, 400);
+      }, 1500);
+    });
+
+    // Civil Score Button Functionality
+    const checkCivilScoreBtn = document.getElementById('checkCivilScoreBtn');
+    checkCivilScoreBtn.addEventListener('click', () => {
+      window.location.href = "{{ url_for('core.check_civil') }}";
+    });
+  </script>
+
+</body>
+</html>

@@ -20,12 +20,13 @@
 </head>
 <body class="bg-gray-50">
 
-  <!-- Navbar (responsive with hamburger) -->
+  <!-- Navbar -->
   <nav class="bg-white shadow-lg">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xl">F</div>
-        <span class="text-2xl font-bold text-blue-700">ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಷ್ಟ</span>
+        <!-- replaced the text badge with a real logo + short label -->
+        <img src="{{ url_for('static', filename='society_logo.png') }}" alt="KSTHST logo" class="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 rounded-full object-cover">
+        <span class="text-2xl font-bold text-blue-700">KSTHST</span>
       </div>
       <!-- Desktop Nav -->
       <div class="space-x-6 hidden md:flex">
@@ -120,48 +121,197 @@
     <!-- Board of Directors -->
     <div class="mb-16">
       <h2 class="text-3xl font-bold text-center mb-12">Our Leadership Team</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Director 1 -->
-        <div class="group">
-          <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-transform group-hover:-translate-y-1">
-            <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-emerald-500 to-teal-600">
-              <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Suresh Kumar"
-                   class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+      <div class="relative overflow-hidden">
+        <!-- Navigation Buttons -->
+        <button id="prevBtn" class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg z-10">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <button id="nextBtn" class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg z-10">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+        
+        <!-- Directors Track -->
+        <div id="directorsTrack" class="flex transition-transform duration-500 ease-in-out">
+          <!-- Director 1 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-emerald-500 to-teal-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Suresh Kumar"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Suresh Kumar</h3>
+                <div class="text-emerald-600 font-medium mb-3">Chairman</div>
+                <p class="text-gray-600 text-sm">Strategic leadership and governance</p>
+              </div>
             </div>
-            <div class="p-6 text-center">
-              <h3 class="text-xl font-semibold">Suresh Kumar</h3>
-              <div class="text-emerald-600 font-medium mb-3">Chairman</div>
-              <p class="text-gray-600 text-sm">Strategic leadership and governance</p>
+          </div>
+          <!-- Director 2 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-purple-500 to-indigo-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Meena Rai"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Meena Rai</h3>
+                <div class="text-purple-600 font-medium mb-3">Secretary</div>
+                <p class="text-gray-600 text-sm">Operations and member services</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 3 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-rose-500 to-pink-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Ramesh Bhat"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Ramesh Bhat</h3>
+                <div class="text-rose-600 font-medium mb-3">Treasurer</div>
+                <p class="text-gray-600 text-sm">Financial planning and oversight</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 4 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-blue-500 to-cyan-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Priya Sharma"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Priya Sharma</h3>
+                <div class="text-blue-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Member relations and outreach</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 5 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-amber-500 to-orange-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Rajesh Kumar"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Rajesh Kumar</h3>
+                <div class="text-amber-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Technology and innovation</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 6 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-lime-500 to-green-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Anita Desai"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Anita Desai</h3>
+                <div class="text-lime-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Risk management</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 7 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-red-500 to-rose-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Vikram Singh"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Vikram Singh</h3>
+                <div class="text-red-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Legal compliance</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 8 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-violet-500 to-purple-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Suman Reddy"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Suman Reddy</h3>
+                <div class="text-violet-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Financial analysis</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 9 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-sky-500 to-blue-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Arjun Nair"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Arjun Nair</h3>
+                <div class="text-sky-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Strategic planning</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 10 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-fuchsia-500 to-pink-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Maya Patel"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Maya Patel</h3>
+                <div class="text-fuchsia-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Member education</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 11 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-emerald-500 to-green-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Kiran Kumar"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Kiran Kumar</h3>
+                <div class="text-emerald-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Community outreach</p>
+              </div>
+            </div>
+          </div>
+          <!-- Director 12 -->
+          <div class="flex-none w-full md:w-1/3 px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-amber-500 to-yellow-600">
+                <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Leela Menon"
+                     class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
+              </div>
+              <div class="p-6 text-center">
+                <h3 class="text-xl font-semibold">Leela Menon</h3>
+                <div class="text-amber-600 font-medium mb-3">Director</div>
+                <p class="text-gray-600 text-sm">Sustainability initiatives</p>
+              </div>
             </div>
           </div>
         </div>
-        <!-- Director 2 -->
-        <div class="group">
-          <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-transform group-hover:-translate-y-1">
-            <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-purple-500 to-indigo-600">
-              <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Meena Rai"
-                   class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
-            </div>
-            <div class="p-6 text-center">
-              <h3 class="text-xl font-semibold">Meena Rai</h3>
-              <div class="text-purple-600 font-medium mb-3">Secretary</div>
-              <p class="text-gray-600 text-sm">Operations and member services</p>
-            </div>
-          </div>
-        </div>
-        <!-- Director 3 -->
-        <div class="group">
-          <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-transform group-hover:-translate-y-1">
-            <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-rose-500 to-pink-600">
-              <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Ramesh Bhat"
-                   class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
-            </div>
-            <div class="p-6 text-center">
-              <h3 class="text-xl font-semibold">Ramesh Bhat</h3>
-              <div class="text-rose-600 font-medium mb-3">Treasurer</div>
-              <p class="text-gray-600 text-sm">Financial planning and oversight</p>
-            </div>
-          </div>
+
+        <!-- Pagination Dots -->
+        <div class="flex justify-center mt-6 space-x-2">
+          <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300" id="dot0"></div>
+          <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300" id="dot1"></div>
+          <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300" id="dot2"></div>
+          <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300" id="dot3"></div>
         </div>
       </div>
     </div>
@@ -251,45 +401,71 @@
   </div>
 
   <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
       const track = document.getElementById('directorsTrack');
-      if (!track) return;
-      const card = track.querySelector('.director-card');
-      let visible = window.innerWidth < 640 ? 1 : 3; // responsive: 1 on small screens, 3 on md+
-      let index = 0;
-      const cards = track.querySelectorAll('.director-card');
-      const total = cards.length;
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const dots = [
+        document.getElementById('dot0'),
+        document.getElementById('dot1'),
+        document.getElementById('dot2'),
+        document.getElementById('dot3')
+      ];
 
-      function cardWidth() {
-        // track's first child width (includes padding)
-        return card.getBoundingClientRect().width;
+      let currentIndex = 0;
+      const totalGroups = 4; // 12 directors / 3 per view = 4 groups
+      let autoScrollInterval;
+
+      function updateDots(index) {
+        dots.forEach((dot, i) => {
+          if (i === index) {
+            dot.classList.add('bg-blue-600', 'w-4');
+            dot.classList.remove('bg-gray-300', 'w-2');
+          } else {
+            dot.classList.add('bg-gray-300', 'w-2');
+            dot.classList.remove('bg-blue-600', 'w-4');
+          }
+        });
       }
 
-      function moveTo(i, animate = true) {
+      function moveToGroup(index, animate = true) {
+        if (index < 0) index = totalGroups - 1;
+        if (index >= totalGroups) index = 0;
+        
+        currentIndex = index;
+        const translateX = -(index * 100) + '%';
+        
         if (!animate) track.style.transition = 'none';
         else track.style.transition = 'transform 0.5s ease';
-        const w = cardWidth();
-        track.style.transform = `translateX(${-(i * w)}px)`;
+        
+        track.style.transform = `translateX(${translateX})`;
+        updateDots(currentIndex);
       }
 
-      // Auto-advance one card at a time
-      const interval = 3000;
-      let timer = setInterval(() => {
-        index += 1;
-        moveTo(index);
-        // when we've moved past the original set (index >= originalCount), reset after transition
-        if (index >= total / 2) {
-          // after transition ends, snap back to start
-          setTimeout(() => {
-            track.style.transition = 'none';
-            index = 0;
-            moveTo(index, false);
-            // force reflow then re-enable transition
-            void track.offsetWidth;
-            track.style.transition = 'transform 0.5s ease';
-          }, 520);
-        }
-      }, interval);
+      function startAutoScroll() {
+        return setInterval(() => {
+          moveToGroup(currentIndex + 1);
+        }, 5000); // Change slide every 5 seconds
+      }
+
+      // Initialize auto-scroll
+      autoScrollInterval = startAutoScroll();
+
+      // Event listeners for navigation buttons
+      prevBtn.addEventListener('click', () => {
+        clearInterval(autoScrollInterval);
+        moveToGroup(currentIndex - 1);
+        autoScrollInterval = startAutoScroll();
+      });
+
+      nextBtn.addEventListener('click', () => {
+        clearInterval(autoScrollInterval);
+        moveToGroup(currentIndex + 1);
+        autoScrollInterval = startAutoScroll();
+      });
+
+      // Initialize first dot as active
+      updateDots(0);
 
       // handle resize (recalculate widths and layout)
       let resizeTimer;
@@ -353,6 +529,44 @@
     <button id="checkCivil" class="bg-green-600 text-white px-6 py-2 rounded w-full hover:bg-green-700">Check Now</button>
   </div>
   
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white mt-12">
+    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div>
+        <h3 class="text-lg font-bold mb-4">KSTHST CO-OF-SOCIETY </h3>
+        <p class="text-sm text-gray-400">
+          Your trusted partner for loans, credit scores, and financial services.
+        </p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Quick Links</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li><a href="{{ url_for('core.home') }}" class="hover:text-white">Home</a></li>
+          <li><a href="{{ url_for('core.about') }}" class="hover:text-white">About</a></li>
+          <li><a href="{{ url_for('core.services') }}" class="hover:text-white">Services</a></li>
+          <li><a href="{{ url_for('core.contact') }}" class="hover:text-white">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Services</h4>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li><a href="{{ url_for('core.services') }}#loan-services" class="hover:text-white">Loan Assistance</a></li>
+          <li><a href="{{ url_for('core.services') }}#civil-score" class="hover:text-white">Credit Score Check</a></li>
+          <li><a href="{{ url_for('core.services') }}#member-services" class="hover:text-white">Financial Planning</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Contact Us</h4>
+        <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
+        <p class="text-sm text-gray-400">📞 +91 90001926375</p>
+        <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+      </div>
+    </div>
+    <div class="bg-gray-800 text-center py-3 text-sm text-gray-400">
+      &copy; 2025 KSTHST Co-of-society. All rights reserved.
+    </div>
+  </footer>
+
   <script src="shared.js"></script>
   <script>
     // About page carousel auto-slide

@@ -20,6 +20,10 @@ def services():
 def contact():
     return render_template("contact.html")
 
+@core_bp.route("/check-civil")
+def check_civil():
+    return render_template("check-civil.html")
+
 
 # Initialize Supabase client for core APIs
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
