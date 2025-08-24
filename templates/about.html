@@ -173,46 +173,6 @@
     </div>
   </div>
 
-  <!-- Announcements Section -->
-  <div class="container mx-auto px-6 py-12">
-    <div class="grid grid-cols-1 gap-8">
-      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-blue-600 shine-on-hover card-hover">
-        <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
-          <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20h.01"/>
-          </svg>
-          Latest Announcements
-        </h2>
-
-        <div class="vertical-scroll mt-2">
-          <div class="track">
-            <!-- first copy -->
-            <div class="space-y-3">
-              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available — 0.5% processing fee waiver first 3 months.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid delays.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check personalized rates.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled Friday at 10:00 AM in the society hall.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit educational assistance documents by the 10th of next month.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes updated — check your route schedule.</div></div>
-            </div>
-
-            <!-- duplicate copy for seamless loop -->
-            <div class="space-y-3" aria-hidden="true">
-              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available — 0.5% processing fee waiver first 3 months.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid delays.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check personalized rates.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled Friday at 10:00 AM in the society hall.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit educational assistance documents by the 10th of next month.</div></div>
-              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes updated — check your route schedule.</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Leadership Section -->
   <div class="container mx-auto px-6 py-16">
     <!-- Chairman Profile -->
@@ -760,6 +720,46 @@
     }
 
     // Floating boxes logic
+    function initializeFloatingBoxes() {
+      const queryBtn = document.getElementById('queryBtn');
+      const queryBox = document.getElementById('queryBox');
+      const closeQuery = document.getElementById('closeQuery');
+      const civilBtn = document.getElementById('civilBtn');
+      const civilBox = document.getElementById('civilBox');
+      const closeCivil = document.getElementById('closeCivil');
+
+      if (queryBtn && queryBox) {
+        queryBtn.onclick = () => {
+          queryBox.classList.remove('hidden');
+          setTimeout(()=>queryBox.classList.add('show'),10);
+        };
+      }
+      if (closeQuery && queryBox) {
+        closeQuery.onclick = () => {
+          queryBox.classList.remove('show');
+          setTimeout(()=>queryBox.classList.add('hidden'),400);
+        };
+      }
+      if (civilBtn && civilBox) {
+        civilBtn.onclick = () => {
+          civilBox.classList.remove('hidden');
+          setTimeout(()=>civilBox.classList.add('show'),10);
+        };
+      }
+      if (closeCivil && civilBox) {
+        closeCivil.onclick = () => {
+          civilBox.classList.remove('show');
+          setTimeout(()=>civilBox.classList.add('hidden'),400);
+        };
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeFloatingBoxes();
+    });
+  </script>
+</body>
+</html>
     function initializeFloatingBoxes() {
       const queryBtn = document.getElementById('queryBtn');
       const queryBox = document.getElementById('queryBox');
