@@ -94,3 +94,4 @@ def list_routes(app):
 # In your app.py, after creating the app:
 # from app import list_routes
 # list_routes(app)
+app = create_app()
