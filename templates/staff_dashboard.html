@@ -561,6 +561,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
+  <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactionsStaff">🕒 Recent Transactions</button>
         <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
         <button id="mailNotificationBtn" class="w-full text-left px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">📧 Mail Notification</button>
       </nav>
@@ -990,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addUserMsg.classList.remove('hidden');
     const formData = new FormData(addUserForm);
 
-    // Combine first/middle/last name into 'name'
+  // Combine first/middle/last name into 'name'
     const name = [
       formData.get('first_name') || '',
       formData.get('middle_name') || '',
@@ -1029,6 +1030,8 @@ document.addEventListener('DOMContentLoaded', () => {
       addUserMsg.classList.remove('hidden');
     }
   });
+  // Close outer DOMContentLoaded handler for Add User section
+});
 </script>
 
       <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
@@ -1372,6 +1375,106 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   </div>
 </section>
+      <!-- Recent Transactions (Staff) -->
+      <section id="recentTransactionsStaff" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <div class="loader hidden text-center text-blue-600">Loading...</div>
+        <div class="content space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold text-blue-700">Recent Transactions</h2>
+            <div class="flex items-center gap-2">
+              <label for="rtYearStaff" class="text-sm text-gray-600">Year</label>
+              <select id="rtYearStaff" class="px-3 py-1 border rounded-lg"></select>
+              <label for="rtMonthStaff" class="text-sm text-gray-600">Month</label>
+              <select id="rtMonthStaff" class="px-3 py-1 border rounded-lg"></select>
+              <label for="rtDayStaff" class="text-sm text-gray-600">Day</label>
+              <select id="rtDayStaff" class="px-3 py-1 border rounded-lg"></select>
+              <button id="rtFilterBtnStaff" class="px-3 py-1 rounded-lg bg-blue-600 text-white">Filter</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
+                </tr>
+              </thead>
+              <tbody id="rtTableBodyStaff" class="bg-white divide-y divide-gray-200">
+                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No data</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <script>
+      // Staff Recent Transactions wiring
+      document.addEventListener('DOMContentLoaded', () => {
+        const ySel = document.getElementById('rtYearStaff');
+        const mSel = document.getElementById('rtMonthStaff');
+        const dSel = document.getElementById('rtDayStaff');
+        const btn = document.getElementById('rtFilterBtnStaff');
+        const body = document.getElementById('rtTableBodyStaff');
+
+        function populateSelectors() {
+          if (!ySel || !mSel || !dSel) return;
+          const now = new Date();
+          const cy = now.getFullYear();
+          const cm = now.getMonth() + 1;
+          const cd = now.getDate();
+          const years = [];
+          for (let y = cy; y >= cy - 5; y--) years.push(y);
+          ySel.innerHTML = ['<option value="">All</option>'].concat(years.map(y => `<option value="${y}">${y}</option>`)).join('');
+          ySel.value = String(cy);
+          const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          mSel.innerHTML = ['<option value="">All</option>'].concat(monthNames.map((n,i) => `<option value="${i+1}">${n}</option>`)).join('');
+          mSel.value = String(cm);
+          const days = Array.from({length: 31}, (_,i) => i+1);
+          dSel.innerHTML = ['<option value="">All</option>'].concat(days.map(d => `<option value="${d}">${d}</option>`)).join('');
+          dSel.value = String(cd);
+        }
+
+        async function loadRecent() {
+          if (!body) return;
+          body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>';
+          try {
+            const qs = new URLSearchParams();
+            if (ySel && ySel.value) qs.set('year', ySel.value);
+            if (mSel && mSel.value) qs.set('month', mSel.value);
+            if (dSel && dSel.value) qs.set('day', dSel.value);
+            const res = await fetch(`/admin/api/recent-transactions${qs.toString() ? ('?' + qs.toString()) : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+            const events = data.events || [];
+            if (!events.length) {
+              body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No data</td></tr>';
+              return;
+            }
+            body.innerHTML = events.map(ev => `
+              <tr>
+                <td class="px-4 py-2">${ev.date ? new Date(ev.date).toLocaleString() : '-'}</td>
+                <td class="px-4 py-2">${ev.type || '-'}</td>
+                <td class="px-4 py-2">₹${Number(ev.amount || 0).toLocaleString()}</td>
+                <td class="px-4 py-2">${ev.details || '-'}</td>
+                <td class="px-4 py-2">${ev.ref_id || '-'}</td>
+              </tr>
+            `).join('');
+          } catch (e) {
+            console.error('Recent transactions (staff) load failed:', e);
+            body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-red-600">Failed to load</td></tr>';
+          }
+        }
+
+        populateSelectors();
+        if (btn) btn.addEventListener('click', loadRecent);
+        // Auto-load when navigating to section
+        const navBtn = document.querySelector('.nav-button[data-target="recentTransactionsStaff"]');
+        if (navBtn) navBtn.addEventListener('click', loadRecent);
+      });
+      </script>
       <section id="queriesSection" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <h2 class="text-xl font-bold text-blue-700 mb-4">Queries</h2>
         <div id="queriesMsg" class="mb-4"></div>

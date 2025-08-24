@@ -14,6 +14,8 @@
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountRequests">📝 Account Requests</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanApprovals">💰 Loan Approvals</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="customerDetails">👤 Customer Details</button>
+  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="audit">📊 Audit</button>
+  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactions">🕒 Recent Transactions</button>
       <!-- New: View Expenses -->
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="expenses">📋 View Expenses</button>
   <!-- NEW: Add Staff -->
@@ -58,6 +60,40 @@
             <p class="text-gray-600 mb-4">View overall society statistics and metrics</p>
             <button class="admin-nav-btn bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition" data-target="welcome">View Stats</button>
           </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Recent Transactions Section -->
+    <section id="recentTransactions" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-blue-700">Recent Transactions</h2>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600" for="rtYear">Year</label>
+            <select id="rtYear" class="px-3 py-1 border rounded-lg"></select>
+            <label class="text-sm text-gray-600" for="rtMonth">Month</label>
+            <select id="rtMonth" class="px-3 py-1 border rounded-lg"></select>
+            <label class="text-sm text-gray-600" for="rtDay">Day</label>
+            <select id="rtDay" class="px-3 py-1 border rounded-lg"></select>
+            <button id="rtFilterBtn" class="px-3 py-1 rounded-lg bg-blue-600 text-white">Filter</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
+              </tr>
+            </thead>
+            <tbody id="rtTableBody" class="bg-white divide-y divide-gray-200">
+              <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No data</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -189,6 +225,114 @@
                 <p class="text-red-800 font-medium" id="customerSearchErrorMessage">Customer not found</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Audit Section (Loans + Transactions) -->
+    <section id="audit" class="admin-section hidden">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-4">
+            <h2 class="text-2xl font-bold text-blue-700">Audit</h2>
+            <div class="hidden md:flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <div class="text-sm text-blue-700">Total (Balance + Interest)</div>
+              <div id="auditTotalAmount" class="text-xl font-bold text-blue-800">₹0</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="auditTabLoans" class="px-3 py-1 rounded-lg bg-blue-600 text-white">Loans</button>
+            <button id="auditTabTransactions" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Transactions</button>
+            <button id="auditTabSalaries" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Salaries</button>
+            <button id="auditTabExpenses" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Expenses</button>
+          </div>
+        </div>
+
+        <!-- Loans (Yearly) Panel -->
+        <div id="loanAuditPanel">
+          <div class="flex items-center gap-2 mb-4">
+            <label for="loanAuditYear" class="text-sm text-gray-600">Year</label>
+            <select id="loanAuditYear" class="px-3 py-1 border rounded-lg"></select>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="p-5 rounded-xl bg-indigo-50 border border-indigo-100 shadow">
+              <div class="text-sm text-indigo-700">Total Disbursed (Year)</div>
+              <div id="auditTotalDisbursed" class="text-3xl font-bold text-indigo-800 mt-1">₹0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-emerald-50 border border-emerald-100 shadow">
+              <div class="text-sm text-emerald-700">Total Recovered (Year)</div>
+              <div id="auditTotalRecovered" class="text-3xl font-bold text-emerald-800 mt-1">₹0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 h-[320px]">
+            <canvas id="loanAuditChart" height="280"></canvas>
+          </div>
+        </div>
+
+  <!-- Transactions (Monthly) Panel -->
+        <div id="txnAuditPanel" class="hidden">
+          <div class="flex items-center gap-3 mb-4">
+            <label for="txnAuditYear" class="text-sm text-gray-600">Year</label>
+            <select id="txnAuditYear" class="px-3 py-1 border rounded-lg"></select>
+            <label for="txnAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
+            <select id="txnAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="p-5 rounded-xl bg-green-50 border border-green-100 shadow">
+              <div class="text-sm text-green-700">Total Deposits (Month)</div>
+              <div id="auditTotalDeposit" class="text-3xl font-bold text-green-800 mt-1">₹0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-red-50 border border-red-100 shadow">
+              <div class="text-sm text-red-700">Total Withdrawals (Month)</div>
+              <div id="auditTotalWithdrawal" class="text-3xl font-bold text-red-800 mt-1">₹0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 h-[320px]">
+            <canvas id="txnAuditChart" height="280"></canvas>
+          </div>
+        </div>
+
+        <!-- Salaries (Yearly) Panel -->
+        <div id="salaryAuditPanel" class="hidden">
+          <div class="flex items-center gap-2 mb-4">
+            <label for="salaryAuditYear" class="text-sm text-gray-600">Year</label>
+            <select id="salaryAuditYear" class="px-3 py-1 border rounded-lg"></select>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="p-5 rounded-xl bg-amber-50 border border-amber-100 shadow">
+              <div class="text-sm text-amber-700">Total Salaries (Year)</div>
+              <div id="auditTotalSalariesYear" class="text-3xl font-bold text-amber-800 mt-1">₹0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-amber-50 border border-amber-100 shadow">
+              <div class="text-sm text-amber-700">Average Per Month</div>
+              <div id="auditAvgSalariesMonth" class="text-3xl font-bold text-amber-800 mt-1">₹0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 h-[320px]">
+            <canvas id="salaryAuditChart" height="280"></canvas>
+          </div>
+        </div>
+
+        <!-- Expenses (Monthly) Panel -->
+        <div id="expensesAuditPanel" class="hidden">
+          <div class="flex items-center gap-3 mb-4">
+            <label for="expensesAuditYear" class="text-sm text-gray-600">Year</label>
+            <select id="expensesAuditYear" class="px-3 py-1 border rounded-lg"></select>
+            <label for="expensesAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
+            <select id="expensesAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="p-5 rounded-xl bg-yellow-50 border border-yellow-100 shadow">
+              <div class="text-sm text-yellow-700">Total Expenses (Month)</div>
+              <div id="auditTotalExpensesMonth" class="text-3xl font-bold text-yellow-800 mt-1">₹0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-yellow-50 border border-yellow-100 shadow">
+              <div class="text-sm text-yellow-700">Daily Average</div>
+              <div id="auditAvgExpensesDay" class="text-3xl font-bold text-yellow-800 mt-1">₹0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 h-[320px]">
+            <canvas id="expensesAuditChart" height="280"></canvas>
           </div>
         </div>
       </div>
@@ -555,11 +699,75 @@ document.addEventListener('DOMContentLoaded', function() {
       // Defensive: only show if exists
       const tgt = document.getElementById(target);
       if (tgt) tgt.classList.remove('hidden');
+      if (target === 'audit') {
+        loadAudit();
+      }
+      if (target === 'recentTransactions') {
+        loadRecentTransactions();
+      }
     });
   });
   // Show welcome section by default
   sections.forEach(sec => sec.classList.add('hidden'));
   document.getElementById('welcome').classList.remove('hidden');
+
+  // Recent Transactions: selectors + loader
+  const rtYearSel = document.getElementById('rtYear');
+  const rtMonthSel = document.getElementById('rtMonth');
+  const rtDaySel = document.getElementById('rtDay');
+  const rtBtn = document.getElementById('rtFilterBtn');
+  const rtBody = document.getElementById('rtTableBody');
+
+  function populateRtSelectors() {
+    if (!rtYearSel || !rtMonthSel || !rtDaySel) return;
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
+    const cd = now.getDate();
+    const years = [];
+    for (let y = cy; y >= cy - 5; y--) years.push(y);
+    rtYearSel.innerHTML = ['<option value="">All</option>'].concat(years.map(y => `<option value="${y}">${y}</option>`)).join('');
+    rtYearSel.value = String(cy);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    rtMonthSel.innerHTML = ['<option value="">All</option>'].concat(monthNames.map((n,i) => `<option value="${i+1}">${n}</option>`)).join('');
+    rtMonthSel.value = String(cm);
+    const days = Array.from({length: 31}, (_,i) => i+1);
+    rtDaySel.innerHTML = ['<option value="">All</option>'].concat(days.map(d => `<option value="${d}">${d}</option>`)).join('');
+    rtDaySel.value = String(cd);
+  }
+
+  async function loadRecentTransactions() {
+    if (!rtBody) return;
+    rtBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>';
+    try {
+      const qs = new URLSearchParams();
+      if (rtYearSel && rtYearSel.value) qs.set('year', rtYearSel.value);
+      if (rtMonthSel && rtMonthSel.value) qs.set('month', rtMonthSel.value);
+      if (rtDaySel && rtDaySel.value) qs.set('day', rtDaySel.value);
+      const res = await fetch(`/admin/api/recent-transactions${qs.toString() ? ('?' + qs.toString()) : ''}`);
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      const events = data.events || [];
+      if (!events.length) {
+        rtBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No data</td></tr>';
+        return;
+      }
+      rtBody.innerHTML = events.map(ev => `
+        <tr>
+          <td class="px-4 py-2">${ev.date ? new Date(ev.date).toLocaleString() : '-'}</td>
+          <td class="px-4 py-2">${ev.type || '-'}</td>
+          <td class="px-4 py-2">₹${Number(ev.amount || 0).toLocaleString()}</td>
+          <td class="px-4 py-2">${ev.details || '-'}</td>
+          <td class="px-4 py-2">${ev.ref_id || '-'}</td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      console.error('Recent transactions load failed:', e);
+      rtBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-red-600">Failed to load</td></tr>';
+    }
+  }
+  populateRtSelectors();
+  if (rtBtn) rtBtn.addEventListener('click', loadRecentTransactions);
 
   // Loan tab navigation
   const loanTabBtns = document.querySelectorAll('.loan-tab-btn');
@@ -788,7 +996,284 @@ document.addEventListener('DOMContentLoaded', function() {
     customerSearchResults.classList.remove('hidden');
   }
 
-  // ...existing code...
+  // ===== Audit: Loans (yearly) + Transactions (monthly) =====
+  let loanAuditChartInstance = null;
+  let txnAuditChartInstance = null;
+  let salaryAuditChartInstance = null;
+  let expensesAuditChartInstance = null;
+  async function loadTotalAmount() {
+    const el = document.getElementById('auditTotalAmount');
+    if (!el) return;
+    el.textContent = 'Loading...';
+    try {
+      const res = await fetch('/admin/api/total-amount-summary');
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      el.textContent = `₹${Number(data.total_amount || 0).toLocaleString()}`;
+      el.title = `Balance: ₹${Number(data.total_balance||0).toLocaleString()} + Interest: ₹${Number(data.total_interest_earned||0).toLocaleString()}`;
+    } catch (e) {
+      el.textContent = '—';
+      console.error('Total amount load failed:', e);
+    }
+  }
+  async function ensureChartJs() {
+    if (window.Chart) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+    });
+  }
+  function populateLoanAuditYears() {
+    const sel = document.getElementById('loanAuditYear');
+    if (!sel) return;
+    const current = new Date().getFullYear();
+    const years = [];
+    for (let y = current; y >= current - 5; y--) years.push(y);
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    sel.value = String(current);
+  }
+  function populateTxnAuditSelectors() {
+    const ySel = document.getElementById('txnAuditYear');
+    const mSel = document.getElementById('txnAuditMonth');
+    if (!ySel || !mSel) return;
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
+    const years = [];
+    for (let y = cy; y >= cy - 5; y--) years.push(y);
+    ySel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    ySel.value = String(cy);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    mSel.innerHTML = monthNames.map((n,i) => `<option value="${i+1}">${n}</option>`).join('');
+    mSel.value = String(cm);
+  }
+  function populateSalaryAuditYears() {
+    const sel = document.getElementById('salaryAuditYear');
+    if (!sel) return;
+    const current = new Date().getFullYear();
+    const years = [];
+    for (let y = current; y >= current - 5; y--) years.push(y);
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    sel.value = String(current);
+  }
+  function populateExpensesAuditSelectors() {
+    const ySel = document.getElementById('expensesAuditYear');
+    const mSel = document.getElementById('expensesAuditMonth');
+    if (!ySel || !mSel) return;
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
+    const years = [];
+    for (let y = cy; y >= cy - 5; y--) years.push(y);
+    ySel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    ySel.value = String(cy);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    mSel.innerHTML = monthNames.map((n,i) => `<option value="${i+1}">${n}</option>`).join('');
+    mSel.value = String(cm);
+  }
+  async function loadLoanAudit(year) {
+    const disEl = document.getElementById('auditTotalDisbursed');
+    const recEl = document.getElementById('auditTotalRecovered');
+    const canvas = document.getElementById('loanAuditChart');
+    if (!disEl || !recEl || !canvas) return;
+    disEl.textContent = 'Loading...';
+    recEl.textContent = 'Loading...';
+    try {
+      const qs = new URLSearchParams();
+      if (year) qs.set('year', String(year));
+      const res = await fetch(`/admin/api/loan-yearly-summary${qs.toString() ? ('?' + qs.toString()) : ''}`);
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      disEl.textContent = `₹${Number(data.total_disbursed || 0).toLocaleString()}`;
+      recEl.textContent = `₹${Number(data.total_recovered || 0).toLocaleString()}`;
+
+      const labels = (data.labels || []);
+      const disbursed = data.disbursed || [];
+      const recovered = data.recovered || [];
+      await ensureChartJs();
+      const ctx = canvas.getContext('2d');
+      if (loanAuditChartInstance) loanAuditChartInstance.destroy();
+      loanAuditChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [
+          { label: 'Disbursed', data: disbursed, backgroundColor: 'rgba(79,70,229,0.5)', borderColor: '#4f46e5', borderWidth: 1 },
+          { label: 'Recovered', data: recovered, backgroundColor: 'rgba(16,185,129,0.5)', borderColor: '#10b981', borderWidth: 1 }
+        ] },
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } },
+          scales: { y: { beginAtZero: true, ticks: { callback: (v) => `₹${Number(v).toLocaleString()}` } }, x: { title: { display: true, text: 'Month' } } }
+        }
+      });
+    } catch (e) {
+      disEl.textContent = '—';
+      recEl.textContent = '—';
+      console.error('Loan audit load failed:', e);
+    }
+  }
+  async function loadTxnAudit(year, month) {
+    const depEl = document.getElementById('auditTotalDeposit');
+    const wdwEl = document.getElementById('auditTotalWithdrawal');
+    const canvas = document.getElementById('txnAuditChart');
+    if (!depEl || !wdwEl || !canvas) return;
+    depEl.textContent = 'Loading...';
+    wdwEl.textContent = 'Loading...';
+    try {
+      const qs = new URLSearchParams();
+      if (year) qs.set('year', String(year));
+      if (month) qs.set('month', String(month));
+      const res = await fetch(`/admin/api/monthly-summary${qs.toString() ? ('?' + qs.toString()) : ''}`);
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      depEl.textContent = `₹${Number(data.total_deposit || 0).toLocaleString()}`;
+      wdwEl.textContent = `₹${Number(data.total_withdrawal || 0).toLocaleString()}`;
+
+      const labels = (data.labels || []).map(String);
+      const deposits = data.deposits || [];
+      const withdrawals = data.withdrawals || [];
+      await ensureChartJs();
+      const ctx = canvas.getContext('2d');
+      if (txnAuditChartInstance) txnAuditChartInstance.destroy();
+      txnAuditChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [
+          { label: 'Deposits', data: deposits, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.15)', tension: 0.25, fill: true },
+          { label: 'Withdrawals', data: withdrawals, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.15)', tension: 0.25, fill: true }
+        ] },
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } },
+          scales: { y: { ticks: { callback: (v) => `₹${Number(v).toLocaleString()}` } }, x: { title: { display: true, text: 'Day of Month' } } }
+        }
+      });
+    } catch (e) {
+      depEl.textContent = '—';
+      wdwEl.textContent = '—';
+      console.error('Transactions audit load failed:', e);
+    }
+  }
+  async function loadSalaryAudit(year) {
+    const totalEl = document.getElementById('auditTotalSalariesYear');
+    const avgEl = document.getElementById('auditAvgSalariesMonth');
+    const canvas = document.getElementById('salaryAuditChart');
+    if (!totalEl || !avgEl || !canvas) return;
+    totalEl.textContent = 'Loading...';
+    avgEl.textContent = 'Loading...';
+    try {
+      const qs = new URLSearchParams(); if (year) qs.set('year', String(year));
+      const res = await fetch(`/admin/api/staff-salary-yearly-summary${qs.toString() ? ('?' + qs.toString()) : ''}`);
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      totalEl.textContent = `₹${Number(data.total_year || 0).toLocaleString()}`;
+      const months = 12; const avg = (Number(data.total_year || 0) / months) || 0;
+      avgEl.textContent = `₹${avg.toFixed(2).toLocaleString()}`;
+      const labels = data.labels || []; const totals = data.totals || [];
+      await ensureChartJs();
+      const ctx = canvas.getContext('2d');
+      if (salaryAuditChartInstance) salaryAuditChartInstance.destroy();
+      salaryAuditChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Salaries', data: totals, backgroundColor: 'rgba(245,158,11,0.5)', borderColor: '#f59e0b', borderWidth: 1 }]},
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => `₹${Number(v).toLocaleString()}` } } }, plugins: { legend: { display: false } } }
+      });
+    } catch (e) {
+      totalEl.textContent = '—';
+      avgEl.textContent = '—';
+      console.error('Salary audit load failed:', e);
+    }
+  }
+  async function loadExpensesAudit(year, month) {
+    const totalEl = document.getElementById('auditTotalExpensesMonth');
+    const avgEl = document.getElementById('auditAvgExpensesDay');
+    const canvas = document.getElementById('expensesAuditChart');
+    if (!totalEl || !avgEl || !canvas) return;
+    totalEl.textContent = 'Loading...';
+    avgEl.textContent = 'Loading...';
+    try {
+      const qs = new URLSearchParams(); if (year) qs.set('year', String(year)); if (month) qs.set('month', String(month));
+      const res = await fetch(`/admin/api/expenses-monthly-summary${qs.toString() ? ('?' + qs.toString()) : ''}`);
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      totalEl.textContent = `₹${Number(data.total_month || 0).toLocaleString()}`;
+      const days = (data.labels || []).length || 1; const avg = (Number(data.total_month || 0) / days) || 0;
+      avgEl.textContent = `₹${avg.toFixed(2).toLocaleString()}`;
+      const labels = (data.labels || []).map(String); const totals = data.totals || [];
+      await ensureChartJs();
+      const ctx = canvas.getContext('2d');
+      if (expensesAuditChartInstance) expensesAuditChartInstance.destroy();
+      expensesAuditChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Expenses', data: totals, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.15)', tension: 0.25, fill: true }]},
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } }, scales: { y: { ticks: { callback: v => `₹${Number(v).toLocaleString()}` } }, x: { title: { display: true, text: 'Day of Month' } } } }
+      });
+    } catch (e) {
+      totalEl.textContent = '—'; avgEl.textContent = '—'; console.error('Expenses audit load failed:', e);
+    }
+  }
+  // Initialize Audit controls and handlers
+  populateLoanAuditYears();
+  populateTxnAuditSelectors();
+  populateSalaryAuditYears();
+  populateExpensesAuditSelectors();
+  loadTotalAmount();
+  const loanYearSel = document.getElementById('loanAuditYear');
+  const txnYearSel = document.getElementById('txnAuditYear');
+  const txnMonthSel = document.getElementById('txnAuditMonth');
+  if (loanYearSel) loanYearSel.addEventListener('change', () => loadLoanAudit(loanYearSel.value));
+  if (txnYearSel && txnMonthSel) {
+    const refreshTxn = () => loadTxnAudit(txnYearSel.value, txnMonthSel.value);
+    txnYearSel.addEventListener('change', refreshTxn);
+    txnMonthSel.addEventListener('change', refreshTxn);
+  }
+  // Tabs toggle
+  const tabLoans = document.getElementById('auditTabLoans');
+  const tabTxns = document.getElementById('auditTabTransactions');
+  const tabSalaries = document.getElementById('auditTabSalaries');
+  const tabExpenses = document.getElementById('auditTabExpenses');
+  const loanPanel = document.getElementById('loanAuditPanel');
+  const txnPanel = document.getElementById('txnAuditPanel');
+  const salaryPanel = document.getElementById('salaryAuditPanel');
+  const expensesPanel = document.getElementById('expensesAuditPanel');
+  function showLoanTab() {
+    loanPanel.classList.remove('hidden');
+    txnPanel.classList.add('hidden');
+    salaryPanel.classList.add('hidden');
+    expensesPanel.classList.add('hidden');
+    tabLoans.classList.remove('bg-gray-100','text-gray-700');
+    tabLoans.classList.add('bg-blue-600','text-white');
+    [tabTxns, tabSalaries, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
+    loadLoanAudit(loanYearSel ? loanYearSel.value : undefined);
+  }
+  function showTxnTab() {
+    txnPanel.classList.remove('hidden');
+    loanPanel.classList.add('hidden');
+    salaryPanel.classList.add('hidden');
+    expensesPanel.classList.add('hidden');
+    tabTxns.classList.remove('bg-gray-100','text-gray-700'); tabTxns.classList.add('bg-blue-600','text-white');
+    [tabLoans, tabSalaries, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
+    loadTxnAudit(txnYearSel ? txnYearSel.value : undefined, txnMonthSel ? txnMonthSel.value : undefined);
+  }
+  function showSalaryTab() {
+    salaryPanel.classList.remove('hidden');
+    loanPanel.classList.add('hidden');
+    txnPanel.classList.add('hidden');
+    expensesPanel.classList.add('hidden');
+    tabSalaries.classList.remove('bg-gray-100','text-gray-700'); tabSalaries.classList.add('bg-blue-600','text-white');
+    [tabLoans, tabTxns, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
+    loadSalaryAudit(loanYearSel ? loanYearSel.value : undefined);
+  }
+  function showExpensesTab() {
+    expensesPanel.classList.remove('hidden');
+    loanPanel.classList.add('hidden');
+    txnPanel.classList.add('hidden');
+    salaryPanel.classList.add('hidden');
+    tabExpenses.classList.remove('bg-gray-100','text-gray-700'); tabExpenses.classList.add('bg-blue-600','text-white');
+    [tabLoans, tabTxns, tabSalaries].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
+    loadExpensesAudit(document.getElementById('expensesAuditYear')?.value, document.getElementById('expensesAuditMonth')?.value);
+  }
+  if (tabLoans) tabLoans.addEventListener('click', showLoanTab);
+  if (tabTxns) tabTxns.addEventListener('click', showTxnTab);
+  if (tabSalaries) tabSalaries.addEventListener('click', showSalaryTab);
+  if (tabExpenses) tabExpenses.addEventListener('click', showExpensesTab);
 });
 </script>
 {% endblock %}
