@@ -18,10 +18,10 @@
     }
   </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 pt-20">
 
   <!-- Navbar -->
-  <nav class="bg-white shadow-lg">
+  <nav class="bg-white shadow-lg fixed top-0 left-0 right-0 z-50">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
         <!-- replaced the text badge with a real logo + short label -->
@@ -29,11 +29,11 @@
         <span class="text-2xl font-bold text-blue-700">KSTHST</span>
       </div>
       <!-- Desktop Nav -->
-      <div class="space-x-6 hidden md:flex">
-        <a href="{{ url_for('core.home') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
-        <a href="{{ url_for('core.about') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
-        <a href="{{ url_for('core.services') }}" class="text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
-        <a href="{{ url_for('auth.login') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
+      <div class="space-x-8 hidden md:flex items-center">
+        <a href="{{ url_for('core.home') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg">Login</a>
       </div>
       <!-- Hamburger Button -->
       <button id="hamburgerBtn" class="md:hidden flex items-center px-3 py-2 border rounded text-blue-700 border-blue-700 focus:outline-none" aria-label="Open menu">
@@ -43,11 +43,11 @@
       </button>
     </div>
     <!-- Mobile Nav -->
-    <div id="mobileNav" class="md:hidden px-6 pb-4 space-y-2 hidden flex flex-col bg-white shadow-lg">
-      <a href="{{ url_for('core.home') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.home') %}font-semibold text-blue-700{% endif %}">Home</a>
-      <a href="{{ url_for('core.about') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.about') %}font-semibold text-blue-700{% endif %}">About</a>
-      <a href="{{ url_for('core.services') }}" class="block text-gray-700 hover:text-blue-600 transition {% if request.path == url_for('core.services') %}font-semibold text-blue-700{% endif %}">Services</a>
-      <a href="{{ url_for('auth.login') }}" class="block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Login</a>
+    <div id="mobileNav" class="md:hidden px-6 pb-4 space-y-3 hidden flex flex-col bg-white shadow-lg">
+      <a href="{{ url_for('core.home') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
+      <a href="{{ url_for('core.about') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
+      <a href="{{ url_for('core.services') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
+      <a href="{{ url_for('auth.login') }}" class="block bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg text-center">Login</a>
     </div>
   </nav>
 
