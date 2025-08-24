@@ -1,5 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from . import admin_bp
+from app.auth.decorators import login_required, role_required
 from app.auth.routes import supabase
 from app.manager.api import send_status_email  # added import
 
@@ -8,6 +9,8 @@ def index():
     return redirect(url_for('admin.dashboard'))
 
 @admin_bp.route('/dashboard')
+@login_required
+@role_required('staff','manager','admin')
 def dashboard():
     return render_template('admin/dashboard.html')
 

@@ -22,7 +22,7 @@
           {% endif %}
         {% endwith %}
 
-        <form id="loginForm" method="POST" action="{{ url_for('manager.manager_login') }}" class="space-y-6" autocomplete="off" novalidate>
+  <form id="loginForm" method="POST" action="{{ url_for('manager.manager_login') }}" class="space-y-6" autocomplete="off" novalidate>
             {# Only include this if using Flask-WTF. Otherwise, remove or comment out the next line. #}
             {# {{ form.hidden_tag() }} #}
             <div>
@@ -90,7 +90,7 @@
       }
 
       // Front-end Validation & Submission Handling
-      document.getElementById('loginForm').addEventListener('submit', function (e) {
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
         let valid = true;
         const email = document.getElementById('email');
         const password = document.getElementById('password');
@@ -147,6 +147,24 @@
         document.getElementById('submitBtn').disabled = true;
         document.getElementById('btnText').textContent = "Logging in...";
         document.getElementById('spinner').classList.remove('hidden');
+
+        // Progressive enhancement: try AJAX to capture token; fallback to normal POST
+        try {
+          e.preventDefault();
+          const form = e.target;
+          const formData = new FormData(form);
+          const res = await fetch(form.action, { method:'POST', headers:{'Accept':'application/json'}, body: formData });
+          if (res.headers.get('content-type') && res.headers.get('content-type').includes('application/json')) {
+            const data = await res.json();
+            if (data && data.status === 'success') {
+              try { if (data.token) sessionStorage.setItem('authToken', data.token); } catch(e) {}
+              window.location.replace(data.redirect || "{{ url_for('admin.dashboard') }}");
+              return;
+            }
+          }
+        } catch (err) {
+          // ignore and let default submit proceed
+        }
       });
     </script>
 </body>

@@ -1,8 +1,11 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from flask_login import login_user
 from werkzeug.security import check_password_hash
 import os
 import httpx
+import time
+from datetime import timedelta
+from app.auth.routes import create_jwt
 
 from . import manager_bp
 from .user import AdminUser  # Reuse AdminUser for manager session
@@ -30,10 +33,26 @@ def manager_login():
         if response.status_code == 200 and response.json():
             manager = response.json()[0]
             if check_password_hash(manager["password_hash"], password):
-                user = AdminUser(manager["id"], manager["email"])
-                login_user(user)
+                # Set Flask session for manager/admin use
+                try:
+                    session.permanent = True
+                    # Set 20 minutes session lifetime
+                    current_app.permanent_session_lifetime = timedelta(minutes=20)
+                    session['last_activity'] = int(time.time())
+                    session['email'] = manager["email"]
+                    session['role'] = manager.get('role', 'manager')
+                    session['user_id'] = manager["id"]
+                    session['name'] = manager.get('username', manager["email"])            
+                except Exception as _e:
+                    pass
+                # Issue short-lived JWT (5 min default)
+                token = create_jwt(manager["email"], session.get('role','manager'))
                 flash("Login successful!", "success")
-                return redirect(url_for("manager.dashboard"))
+                # If request expects JSON (AJAX), return token & redirect hint
+                if request.headers.get('Accept','').find('application/json') >= 0:
+                    return jsonify({'status':'success','role':'manager','token':token,'redirect': url_for('admin.dashboard')}), 200
+                # Otherwise standard redirect to Admin dashboard
+                return redirect(url_for("admin.dashboard"))
             else:
                 flash("Invalid password.", "danger")
         else:

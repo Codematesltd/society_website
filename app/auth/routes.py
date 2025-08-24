@@ -79,6 +79,13 @@ def enforce_session_timeout():
     return None
 
 def find_role(email):
+    # Check manager first so managers aren't mistaken for staff
+    try:
+        mgr = supabase.table("manager").select("id,email").eq("email", email).execute()
+        if mgr.data and len(mgr.data) > 0:
+            return "manager"
+    except Exception:
+        pass
     staff = supabase.table("staff").select("id,email").eq("email", email).execute()
     if staff.data and len(staff.data) > 0:
         return "staff"
@@ -100,12 +107,22 @@ def login():
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
 
     # Check if blocked
-    user_row = supabase.table(role).select("id,email,password,login_attempts,blocked").eq("email", email).execute()
-    if not user_row.data or not user_row.data[0]:
-        return jsonify({'status': 'error', 'message': 'User not found'}), 404
-    user = user_row.data[0]
-    if user.get("blocked"):
-        return jsonify({'status': 'error', 'message': 'Account is blocked'}), 403
+    if role == 'manager':
+        # Managers stored in 'manager' table with 'password_hash' and 'username' (no 'name' column)
+        user_row = supabase.table('manager').select('id,email,password_hash,username').eq('email', email).execute()
+        if not user_row.data or not user_row.data[0]:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        user = user_row.data[0]
+        # Verify password against password_hash
+        if not check_password_hash(user.get('password_hash') or '', password):
+            return jsonify({'status': 'error', 'message': 'Invalid password'}), 401
+    else:
+        user_row = supabase.table(role).select("id,email,password,login_attempts,blocked").eq("email", email).execute()
+        if not user_row.data or not user_row.data[0]:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+        user = user_row.data[0]
+        if user.get("blocked"):
+            return jsonify({'status': 'error', 'message': 'Account is blocked'}), 403
 
     # Check member status if role is members
     if role == "members":
@@ -113,20 +130,21 @@ def login():
         if not user_status.data or user_status.data[0].get("status") != "approved":
             return jsonify({'status': 'error', 'message': 'Account not approved by manager'}), 403
 
-    if not user.get("password"):
-        return jsonify({'status': 'error', 'message': 'Password not set. Use first-time sign-in.'}), 403
-
-    if not check_password_hash(user['password'], password):
-        # Increment login_attempts
-        attempts = user.get("login_attempts", 0) + 1
-        blocked = attempts >= 3
-        supabase.table(role).update({"login_attempts": attempts, "blocked": blocked}).eq("email", email).execute()
-        if blocked:
-            return jsonify({'status': 'error', 'message': 'Account blocked due to 3 failed attempts'}), 403
-        return jsonify({'status': 'error', 'message': f'Invalid password. {3 - attempts} attempts left'}), 401
+    if role != 'manager':
+        if not user.get("password"):
+            return jsonify({'status': 'error', 'message': 'Password not set. Use first-time sign-in.'}), 403
+        if not check_password_hash(user['password'], password):
+            # Increment login_attempts
+            attempts = user.get("login_attempts", 0) + 1
+            blocked = attempts >= 3
+            supabase.table(role).update({"login_attempts": attempts, "blocked": blocked}).eq("email", email).execute()
+            if blocked:
+                return jsonify({'status': 'error', 'message': 'Account blocked due to 3 failed attempts'}), 403
+            return jsonify({'status': 'error', 'message': f'Invalid password. {3 - attempts} attempts left'}), 401
 
     # On successful login, always reset login_attempts to zero
-    supabase.table(role).update({"login_attempts": 0}).eq("email", email).execute()
+    if role != 'manager':
+        supabase.table(role).update({"login_attempts": 0}).eq("email", email).execute()
     
     # Set session variables for staff identity (add these lines)
     try:
@@ -134,15 +152,26 @@ def login():
         session.permanent = True
         session['last_activity'] = int(time.time())
         session['email'] = email
-        # Get name from user data if available
-        user_details = supabase.table(role).select("name,email").eq("email", email).execute()
-        if user_details.data and len(user_details.data) > 0:
-            session['name'] = user_details.data[0].get('name', email)
-            if role == 'staff':
-                session['staff_name'] = user_details.data[0].get('name', email)
+        # Get display name from user data if available
+        if role == 'manager':
+            # Manager table uses 'username'
+            session['name'] = user.get('username', email)
+        else:
+            user_details = supabase.table(role).select("name,email").eq("email", email).execute()
+            if user_details.data and len(user_details.data) > 0:
+                session['name'] = user_details.data[0].get('name', email)
+                if role == 'staff':
+                    session['staff_name'] = user_details.data[0].get('name', email)
         # Save the role in session
         session['role'] = role
         session['user_id'] = user['id']
+        # For manager, shorten session lifetime to 20 minutes
+        if role == 'manager':
+            try:
+                from datetime import timedelta as _td
+                current_app.permanent_session_lifetime = _td(minutes=20)
+            except Exception:
+                pass
     except Exception as e:
         print(f"Failed to set session variables: {e}")
     

@@ -17,7 +17,7 @@ def create_app():
     from .auth import auth_bp
     from .members import members_bp
     from .staff import staff_bp
-    from .manager.api import manager_bp
+    from .manager import manager_bp, register_cli, init_login
     from .finance import finance_bp
     from .notification import notification_bp
     from .core import core_bp
@@ -45,6 +45,13 @@ def create_app():
     app.register_blueprint(staff_api_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_api_bp)
+
+    # Register CLI commands and init login manager for manager blueprint
+    try:
+        register_cli(app)
+        init_login(app)
+    except Exception as _e:
+        print(f"Manager CLI/login init skipped: {_e}")
 
     return app
 

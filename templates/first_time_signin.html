@@ -6,15 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h2 class="text-2xl font-bold mb-6 text-center">First Time Sign-In</h2>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-2xl p-8 border border-white/50">
+        <div class="flex items-center justify-center mb-4">
+            <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Society Logo" class="w-14 h-14 rounded-full shadow border border-gray-200">
+        </div>
+        <h2 class="text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">First time sign-in</h2>
+        <p class="text-center text-gray-500 mb-6">We’ll email you a secure link to set your password</p>
         <form id="firstTimeForm" class="space-y-6">
             <div>
-                <label for="email" class="block text-gray-700">Email</label>
-                <input id="email" name="email" type="email" class="mt-1 block w-full rounded border-gray-300 shadow-sm" required>
+                <label for="email" class="block text-gray-700 font-medium">Email</label>
+                <input id="email" name="email" type="email" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
             </div>
-            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Send Link</button>
+            <button type="submit" class="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow hover:from-blue-700 hover:to-indigo-700 transition">Send Link</button>
         </form>
         <div id="firstTimeMsg" class="mt-4 text-center text-red-600"></div>
     </div>
