@@ -24,6 +24,72 @@
       transform: translateY(0);
       opacity: 1;
     }
+
+    /* --- ADDED: Shine effect --- */
+    .shine-on-hover { position: relative; overflow: hidden; }
+    .shine-on-hover::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-20deg);
+      pointer-events: none;
+    }
+    .shine-on-hover:hover::after { animation: shine-sweep 0.9s ease forwards; }
+    .shine-animate { position: relative; overflow: hidden; }
+    .shine-animate::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -200%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-15deg);
+      animation: shine-loop 3s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes shine-sweep { 0%{left:-150%}100%{left:150%} }
+    @keyframes shine-loop { 0%{left:-200%}50%{left:100%}100%{left:-200%} }
+
+    /* orange hover glow ~0.5cm (≈19px) for cards and buttons */
+    .card-hover:hover,
+    .hover-orange:hover,
+    .shine-on-hover:hover,
+    .service-card:hover,
+    button:hover[class*="bg-"],
+    a:hover[class*="bg-"],
+    button:hover.rounded-full {
+      transform: translateY(-3px);
+      box-shadow:
+        0 12px 40px rgba(15,23,42,0.12),
+        0 0 0 19px rgba(249,115,22,0.12);
+      outline: none;
+    }
+
+    /* Vertical looping scroller for Announcements card */
+    .vertical-scroll { position: relative; height: 220px; overflow: hidden; }
+    .vertical-scroll .track {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      /* animation duration controls speed; increase for slower scroll */
+      animation: scroll-up 16s linear infinite;
+    }
+    .vertical-scroll:hover .track { animation-play-state: paused; } /* pause on hover */
+
+    /* Duplicate content method: when track moves -50% it repeats seamlessly */
+    @keyframes scroll-up {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+
+    /* small helper to ensure list items have consistent spacing */
+    .announcement-item { display: flex; gap: 10px; align-items: flex-start; padding-right: 1rem; }
+    .announcement-badge { flex: 0 0 auto; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-weight: 600; font-size: 0.875rem; }
   </style>
 </head>
 <body class="bg-gray-50 pt-20">
@@ -38,10 +104,10 @@
       </div>
       <!-- Desktop Nav -->
       <div class="space-x-8 hidden md:flex items-center">
-        <a href="{{ url_for('core.home') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
-        <a href="{{ url_for('core.about') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
-        <a href="{{ url_for('core.services') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
-        <a href="{{ url_for('auth.login') }}" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg">Login</a>
+        <a href="{{ url_for('core.home') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 shine-on-hover {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 shine-on-hover {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 shine-on-hover {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg shine-on-hover">Login</a>
       </div>
       <!-- Hamburger Button -->
       <button id="hamburgerBtn" class="md:hidden flex items-center px-3 py-2 border rounded text-blue-700 border-blue-700 focus:outline-none">
@@ -89,32 +155,46 @@
       <h1 class="text-4xl md:text-5xl text-center font-bold mb-4 drop-shadow-lg">Welcome to <br>
          ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</h1>
       <p class="max-w-2xl text-lg md:text-xl font-medium mb-2 drop-shadow-lg text-center">Empowering employees with transparent, reliable, and digital-first financial services. Our platform offers easy loan access, instant civil score checks, and a secure admin dashboard for society management.</p>
-      
-      <div class="flex flex-wrap gap-4 mt-2">
-        <span class="bg-blue-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Admin Dashboard</span>
-        <span class="bg-green-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Loan Services</span>
-        <span class="bg-yellow-500 px-4 py-2 rounded-full text-sm font-semibold shadow">Civil Score</span>
-        <span class="bg-purple-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Member Management</span>
-      </div>
     </div>
   </div>
   <div class="container mx-auto px-6 py-12">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <!-- Announcements Box -->
-      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-blue-600 flex flex-col justify-between">
+      <!-- Announcements Box (REPLACED: vertical loop inside card) -->
+      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-blue-600 flex flex-col justify-between shine-on-hover card-hover">
         <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
           <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20h.01"/></svg>
           Latest Announcements
         </h2>
-        <ul class="space-y-3 text-gray-700">
-          <li class="flex items-center"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded mr-2">New</span> New loan scheme available for employees</li>
-          <li class="flex items-center"><span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded mr-2">Update</span> Update your KGID details</li>
-          <li class="flex items-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Info</span> Interest rates revised from next month</li>
-          <li class="flex items-center"><span class="bg-pink-100 text-pink-700 px-2 py-1 rounded mr-2">Alert</span> Staff meeting scheduled for Friday</li>
-        </ul>
+
+        <!-- vertical scroller -->
+        <div class="vertical-scroll mt-2">
+          <div class="track">
+            <!-- Block of announcements (first copy) -->
+            <div class="space-y-3">
+              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available for employees — special 0.5% processing fee waiver for first 3 months.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid service delays.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check your account for personalized rates.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled for Friday at 10:00 AM in the society hall.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit documents for educational assistance by 10th of next month.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes have slight timing changes; check your route schedule.</div></div>
+            </div>
+
+            <!-- Duplicate block (second copy) for seamless looping -->
+            <div class="space-y-3" aria-hidden="true">
+              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available for employees — special 0.5% processing fee waiver for first 3 months.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid service delays.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check your account for personalized rates.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled for Friday at 10:00 AM in the society hall.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit documents for educational assistance by 10th of next month.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes have slight timing changes; check your route schedule.</div></div>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- Services & Schemes Box -->
-      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-green-600 flex flex-col justify-between">
+      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-green-600 flex flex-col justify-between shine-on-hover card-hover">
         <h2 class="text-2xl font-bold text-green-700 mb-4 flex items-center">
           <svg class="h-6 w-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6"/></svg>
           Services & Schemes
@@ -134,7 +214,7 @@
 
   <!-- ADDED: Organization Savings Rules (centered below Services & Schemes) -->
   <div class="container mx-auto px-6 py-8">
-    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 border-t-4 border-indigo-600">
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 border-t-4 border-indigo-600 shine-on-hover card-hover">
       <h3 class="text-xl font-bold text-indigo-700 mb-3">Organization Savings Rules</h3>
       <ul class="list-disc list-inside text-gray-700 space-y-2">
         <li><strong>Loan for members:</strong> Loans will be given to members at an interest rate of 10% (simple interest).</li>
@@ -147,46 +227,69 @@
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="bg-gray-900 text-white mt-12">
-    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
-      <div>
-        <h3 class="text-lg font-bold mb-4">KSTHST CO-Of-SOCIETY </h3>
-        <p class="text-sm text-gray-400">
-          Your trusted partner for loans, credit scores, and financial services.
-        </p>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Quick Links</h4>
-        <ul class="space-y-2 text-sm text-gray-400">
-          <li><a href="{{ url_for('core.home') }}" class="hover:text-white">Home</a></li>
-          <li><a href="{{ url_for('core.about') }}" class="hover:text-white">About</a></li>
-          <li><a href="{{ url_for('core.services') }}" class="hover:text-white">Services</a></li>
-          <li><a href="{{ url_for('core.contact') }}" class="hover:text-white">Contact</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Services</h4>
-        <ul class="space-y-2 text-sm text-gray-400">
-          <li>Loan Assistance</li>
-          <li>Credit Score Check</li>
-          <li>Financial Planning</li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Contact Us</h4>
-        <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
-        <p class="text-sm text-gray-400">📞 +91 90001926375</p>
-        <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+  <footer class="bg-gray-900 text-white mt-16">
+  <div class="max-w-7xl mx-auto px-8 py-14 grid grid-cols-1 md:grid-cols-4 gap-12">
+    <!-- About Section -->
+    <div>
+      <h3 class="text-xl font-bold mb-5">KSTHST CO-Of-SOCIETY</h3>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        Your trusted partner for loans, credit scores, and financial services.
+      </p>
+    </div>
+
+    <!-- Quick Links -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Quick Links</h4>
+      <ul class="space-y-3 text-sm text-gray-400">
+        <li><a href="{{ url_for('core.home') }}" class="hover:text-white transition">Home</a></li>
+        <li><a href="{{ url_for('core.about') }}" class="hover:text-white transition">About</a></li>
+        <li><a href="{{ url_for('core.services') }}" class="hover:text-white transition">Services</a></li>
+        <li><a href="{{ url_for('core.contact') }}" class="hover:text-white transition">Contact</a></li>
+      </ul>
+    </div>
+
+    <!-- Services -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Services</h4>
+      <ul class="space-y-3 text-sm text-gray-400">
+        <li>Loan Assistance</li>
+        <li>Credit Score Check</li>
+        <li>Financial Planning</li>
+      </ul>
+    </div>
+
+    <!-- Contact -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Contact Us</h4>
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 space-y-3">
+          <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
+          <p class="text-sm text-gray-400">📞 +91 90001926375</p>
+          <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+        </div>
+        <div class="flex flex-col items-center">
+          <p class="text-sm text-gray-400 mb-2">Scan for Location:</p>
+          <a href="https://maps.app.goo.gl/qT2TUTHdn2S4Vxhp7" 
+             target="_blank" 
+             class="inline-block bg-white p-1 rounded-xl shadow-lg hover:shadow-xl transition-shadow" 
+             title="Click to view location on Google Maps">
+            <img 
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://maps.app.goo.gl/qT2TUTHdn2S4Vxhp7&bgcolor=FFFFFF&margin=0" 
+              alt="Office Location QR Code" 
+              class="w-24 h-24 rounded-lg object-contain border border-white">
+          </a>
+        </div>
       </div>
     </div>
-    <div class="bg-gray-800 text-center py-3 text-sm text-gray-400">
-      &copy; 2025 KSTHST Co-of-society. All rights reserved.
-    </div>
-  </footer>
+  </div>
+
+  <div class="bg-gray-800 text-center py-4 text-sm text-gray-400">
+    &copy; 2025 KSTHST Co-of-society. All rights reserved.
+  </div>
+</footer>
 
   <!-- Floating Query Button -->
-  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700 shine-on-hover transition-colors">
     📩 Query
   </button>
 
@@ -206,7 +309,7 @@
   </div>
 
   <!-- Floating Civil Score Button -->
-  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700">
+  <button id="civilBtn" class="fixed bottom-20 right-6 bg-green-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-green-700 shine-on-hover">
     📊 Civil Score
   </button>
 

@@ -16,6 +16,108 @@
       transform: translateY(0);
       opacity: 1;
     }
+
+    /* orange hover (around-border) glow ~0.5cm (≈19px) + subtle lift */
+    .orange-glow-hover {
+      transition: box-shadow .22s ease, transform .22s ease;
+    }
+    /* applied to existing hover classes and some button/link selectors */
+    .card-hover:hover,
+    .hover-orange:hover,
+    .shine-on-hover:hover,
+    
+    .service-card:hover,
+    button:hover[class*="bg-"],
+    a:hover[class*="bg-"],
+    button:hover.rounded-full,
+    .fixed a:hover,
+    .fixed button:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        0 12px 40px rgba(15,23,42,0.12),        /* lift shadow */
+        0 0 0 19px rgba(249,115,22,0.12);        /* orange border/glow ~0.5cm */
+      outline: none;
+    }
+
+    /* --- ADDED: Orange hover for navbar buttons/links --- */
+    .hover-orange { transition: all .22s ease; }
+    .hover-orange:hover {
+      background: linear-gradient(90deg,#fb923c,#f97316) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 20px rgba(249,115,22,0.16);
+    }
+    /* small text links that otherwise don't have padding: ensure a rounded background on hover */
+    .hover-orange.text-link:hover {
+      padding: .25rem .5rem;
+      border-radius: .5rem;
+    }
+
+    /* --- ADDED/UPDATED: Card/container hover effect (border + lift + orange outer glow) --- */
+    .card-hover {
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+      border: 1px solid transparent;
+    }
+    .card-hover:hover {
+      transform: translateY(-6px);
+      /* keep the inner lift shadow + add the orange outer halo (~19px spread) */
+      box-shadow:
+        0 12px 40px rgba(15,23,42,0.12),      /* lift shadow */
+        0 0 0 19px rgba(249,115,22,0.12);     /* orange halo ≈0.5cm */
+      border-color: #fb923c; /* orange border on hover */
+    }
+
+    /* --- ADDED: Shine effect --- */
+    .shine-on-hover { position: relative; overflow: hidden; }
+    .shine-on-hover::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-20deg);
+      pointer-events: none;
+    }
+    .shine-on-hover:hover::after {
+      animation: shine-sweep 0.9s ease forwards;
+    }
+    .shine-animate { position: relative; overflow: hidden; }
+    .shine-animate::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -200%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-15deg);
+      animation: shine-loop 3s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes shine-sweep {
+      0% { left: -150%; }
+      100% { left: 150%; }
+    }
+    @keyframes shine-loop {
+      0% { left: -200%; }
+      50% { left: 100%; }
+      100% { left: -200%; }
+    }
+
+    /* --- ADDED: Vertical looping scroller for Announcements (same as landing page) --- */
+    .vertical-scroll { position: relative; height: 220px; overflow: hidden; }
+    .vertical-scroll .track {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: scroll-up 16s linear infinite;
+    }
+    .vertical-scroll:hover .track { animation-play-state: paused; }
+    @keyframes scroll-up { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+
+    .announcement-item { display: flex; gap: 10px; align-items: flex-start; padding-right: 1rem; }
+    .announcement-badge { flex: 0 0 auto; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-weight: 600; font-size: 0.875rem; }
   </style>
 </head>
 <body class="bg-gray-50 pt-20">
@@ -30,10 +132,11 @@
       </div>
       <!-- Desktop Nav -->
       <div class="space-x-8 hidden md:flex items-center">
-        <a href="{{ url_for('core.home') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
-        <a href="{{ url_for('core.about') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
-        <a href="{{ url_for('core.services') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
-        <a href="{{ url_for('auth.login') }}" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg">Login</a>
+        <!-- add shine-on-hover to links -->
+        <a href="{{ url_for('core.home') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 hover-orange shine-on-hover {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
+        <a href="{{ url_for('core.about') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 hover-orange shine-on-hover {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
+        <a href="{{ url_for('core.services') }}" class="text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 hover-orange shine-on-hover {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
+        <a href="{{ url_for('auth.login') }}" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg hover-orange shine-on-hover">Login</a>
       </div>
       <!-- Hamburger Button -->
       <button id="hamburgerBtn" class="md:hidden flex items-center px-3 py-2 border rounded text-blue-700 border-blue-700 focus:outline-none" aria-label="Open menu">
@@ -44,10 +147,10 @@
     </div>
     <!-- Mobile Nav -->
     <div id="mobileNav" class="md:hidden px-6 pb-4 space-y-3 hidden flex flex-col bg-white shadow-lg">
-      <a href="{{ url_for('core.home') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
-      <a href="{{ url_for('core.about') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
-      <a href="{{ url_for('core.services') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
-      <a href="{{ url_for('auth.login') }}" class="block bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg text-center">Login</a>
+      <a href="{{ url_for('core.home') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 hover-orange shine-on-hover {% if request.path == url_for('core.home') %}text-indigo-600 font-semibold{% endif %}">Home</a>
+      <a href="{{ url_for('core.about') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 hover-orange shine-on-hover {% if request.path == url_for('core.about') %}text-indigo-600 font-semibold{% endif %}">About</a>
+      <a href="{{ url_for('core.services') }}" class="block text-gray-800 hover:text-indigo-600 font-medium tracking-wide transition-colors duration-200 py-2 hover-orange shine-on-hover {% if request.path == url_for('core.services') %}text-indigo-600 font-semibold{% endif %}">Services</a>
+      <a href="{{ url_for('auth.login') }}" class="block bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg text-center hover-orange shine-on-hover">Login</a>
     </div>
   </nav>
 
@@ -63,22 +166,59 @@
       <img src="https://via.placeholder.com/1600x450/f43f5e/ffffff?text=Slide+6" class="carousel-slide-about w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-700">
     </div>
     <!-- Overlay Project Description -->
-    <div class="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-40 text-white px-6">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">Welcome to FinanceApp</h1>
+   <div class="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-40 text-white px-6">
+      <h1 class="text-4xl md:text-5xl text-center font-bold mb-4 drop-shadow-lg">Welcome to <br>
+         ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</h1>
       <p class="max-w-2xl text-lg md:text-xl font-medium mb-2 drop-shadow-lg text-center">Empowering employees with transparent, reliable, and digital-first financial services. Our platform offers easy loan access, instant civil score checks, and a secure admin dashboard for society management.</p>
-      <div class="flex flex-wrap gap-4 mt-2">
-        <span class="bg-blue-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Admin Dashboard</span>
-        <span class="bg-green-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Loan Services</span>
-        <span class="bg-yellow-500 px-4 py-2 rounded-full text-sm font-semibold shadow">Civil Score</span>
-        <span class="bg-purple-600 px-4 py-2 rounded-full text-sm font-semibold shadow">Member Management</span>
+    </div>
+  </div>
+
+  <!-- Announcements Section -->
+  <div class="container mx-auto px-6 py-12">
+    <div class="grid grid-cols-1 gap-8">
+      <div class="bg-white rounded-xl shadow-lg p-8 border-t-4 border-blue-600 shine-on-hover card-hover">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+          <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20h.01"/>
+          </svg>
+          Latest Announcements
+        </h2>
+
+        <div class="vertical-scroll mt-2">
+          <div class="track">
+            <!-- first copy -->
+            <div class="space-y-3">
+              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available — 0.5% processing fee waiver first 3 months.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid delays.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check personalized rates.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled Friday at 10:00 AM in the society hall.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit educational assistance documents by the 10th of next month.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes updated — check your route schedule.</div></div>
+            </div>
+
+            <!-- duplicate copy for seamless loop -->
+            <div class="space-y-3" aria-hidden="true">
+              <div class="announcement-item"><span class="announcement-badge bg-blue-100 text-blue-700">New</span><div>New loan scheme available — 0.5% processing fee waiver first 3 months.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-yellow-100 text-yellow-700">Update</span><div>Update your KGID details before the 25th to avoid delays.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-green-100 text-green-700">Info</span><div>Interest rates revised from next month — check personalized rates.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-pink-100 text-pink-700">Alert</span><div>Staff meeting scheduled Friday at 10:00 AM in the society hall.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-indigo-100 text-indigo-700">Offer</span><div>Refer a member and both receive ₹50 credit on successful loan disbursal.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-red-100 text-red-700">Deadline</span><div>Submit educational assistance documents by the 10th of next month.</div></div>
+              <div class="announcement-item"><span class="announcement-badge bg-emerald-100 text-emerald-700">Notice</span><div>Pigmy deposit routes updated — check your route schedule.</div></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
   <!-- Leadership Section -->
   <div class="container mx-auto px-6 py-16">
     <!-- Chairman Profile -->
     <div class="mb-16">
-      <div class="max-w-4xl mx-auto bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg overflow-hidden">
+      <!-- add shine-on-hover to main box -->
+      <div class="max-w-4xl mx-auto bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg overflow-hidden card-hover shine-on-hover">
         <div class="md:flex items-stretch">
           <div class="md:w-1/3 bg-gradient-to-br from-amber-600 to-orange-600 p-8 text-white flex flex-col items-center justify-center">
             <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Chairman Suresh Kumar" 
@@ -138,7 +278,7 @@
         <div id="directorsTrack" class="flex transition-transform duration-500 ease-in-out">
           <!-- Director 1 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-emerald-500 to-teal-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Suresh Kumar"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -152,7 +292,7 @@
           </div>
           <!-- Director 2 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-purple-500 to-indigo-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Meena Rai"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -166,7 +306,7 @@
           </div>
           <!-- Director 3 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-rose-500 to-pink-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Ramesh Bhat"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -180,7 +320,7 @@
           </div>
           <!-- Director 4 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-blue-500 to-cyan-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Priya Sharma"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -194,7 +334,7 @@
           </div>
           <!-- Director 5 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-amber-500 to-orange-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Rajesh Kumar"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -208,7 +348,7 @@
           </div>
           <!-- Director 6 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-lime-500 to-green-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Anita Desai"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -222,7 +362,7 @@
           </div>
           <!-- Director 7 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-red-500 to-rose-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Vikram Singh"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -236,7 +376,7 @@
           </div>
           <!-- Director 8 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-violet-500 to-purple-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Suman Reddy"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -250,7 +390,7 @@
           </div>
           <!-- Director 9 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-sky-500 to-blue-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Arjun Nair"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -264,7 +404,7 @@
           </div>
           <!-- Director 10 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-fuchsia-500 to-pink-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Maya Patel"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -278,7 +418,7 @@
           </div>
           <!-- Director 11 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-emerald-500 to-green-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Kiran Kumar"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -292,7 +432,7 @@
           </div>
           <!-- Director 12 -->
           <div class="flex-none w-full md:w-1/3 px-4">
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:-translate-y-1 card-hover shine-on-hover">
               <div class="aspect-w-4 aspect-h-3 bg-gradient-to-br from-amber-500 to-yellow-600">
                 <img src="{{ url_for('static', filename='society_logo.png') }}" alt="Leela Menon"
                      class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto mt-8">
@@ -321,7 +461,7 @@
       <h2 class="text-3xl font-bold text-center mb-12">Our Core Values</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Value 1 -->
-        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 text-center">
+        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 text-center card-hover shine-on-hover">
           <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -332,7 +472,7 @@
           <p class="text-gray-600">Building lasting relationships through honest communication and clear policies.</p>
         </div>
         <!-- Value 2 -->
-        <div class="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-6 text-center">
+        <div class="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-6 text-center card-hover shine-on-hover">
           <div class="w-16 h-16 bg-violet-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -343,7 +483,7 @@
           <p class="text-gray-600">Prioritizing member needs and delivering exceptional service experiences.</p>
         </div>
         <!-- Value 3 -->
-        <div class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-6 text-center">
+        <div class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-6 text-center card-hover shine-on-hover">
           <div class="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -379,7 +519,7 @@
 
   <!-- About the Board (added content below profiles) -->
   <div class="container mx-auto px-6 pb-12">
-    <div class="bg-white rounded-xl shadow-lg p-8">
+    <div class="bg-white rounded-xl shadow-lg p-8 card-hover shine-on-hover">
       <h3 class="text-xl font-bold text-gray-800 mb-3">About the Board</h3>
       <p class="text-gray-700 mb-6">The Board of Directors oversees the society's strategic direction and ensures transparent, member-first governance. Our board meets monthly to review policies, approve major initiatives, and support the welfare of all members.</p>
 
@@ -530,42 +670,67 @@
   </div>
   
   <!-- Footer -->
-  <footer class="bg-gray-900 text-white mt-12">
-    <div class="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
-      <div>
-        <h3 class="text-lg font-bold mb-4">KSTHST CO-OF-SOCIETY </h3>
-        <p class="text-sm text-gray-400">
-          Your trusted partner for loans, credit scores, and financial services.
-        </p>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Quick Links</h4>
-        <ul class="space-y-2 text-sm text-gray-400">
-          <li><a href="{{ url_for('core.home') }}" class="hover:text-white">Home</a></li>
-          <li><a href="{{ url_for('core.about') }}" class="hover:text-white">About</a></li>
-          <li><a href="{{ url_for('core.services') }}" class="hover:text-white">Services</a></li>
-          <li><a href="{{ url_for('core.contact') }}" class="hover:text-white">Contact</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Services</h4>
-        <ul class="space-y-2 text-sm text-gray-400">
-          <li><a href="{{ url_for('core.services') }}#loan-services" class="hover:text-white">Loan Assistance</a></li>
-          <li><a href="{{ url_for('core.services') }}#civil-score" class="hover:text-white">Credit Score Check</a></li>
-          <li><a href="{{ url_for('core.services') }}#member-services" class="hover:text-white">Financial Planning</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="font-semibold mb-4">Contact Us</h4>
-        <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
-        <p class="text-sm text-gray-400">📞 +91 90001926375</p>
-        <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+  <footer class="bg-gray-900 text-white mt-16">
+  <div class="max-w-7xl mx-auto px-8 py-14 grid grid-cols-1 md:grid-cols-4 gap-12">
+    <!-- About Section -->
+    <div>
+      <h3 class="text-xl font-bold mb-5">KSTHST CO-Of-SOCIETY</h3>
+      <p class="text-sm text-gray-400 leading-relaxed">
+        Your trusted partner for loans, credit scores, and financial services.
+      </p>
+    </div>
+
+    <!-- Quick Links -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Quick Links</h4>
+      <ul class="space-y-3 text-sm text-gray-400">
+        <li><a href="{{ url_for('core.home') }}" class="hover:text-white transition">Home</a></li>
+        <li><a href="{{ url_for('core.about') }}" class="hover:text-white transition">About</a></li>
+        <li><a href="{{ url_for('core.services') }}" class="hover:text-white transition">Services</a></li>
+        <li><a href="{{ url_for('core.contact') }}" class="hover:text-white transition">Contact</a></li>
+      </ul>
+    </div>
+
+    <!-- Services -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Services</h4>
+      <ul class="space-y-3 text-sm text-gray-400">
+        <li>Loan Assistance</li>
+        <li>Credit Score Check</li>
+        <li>Financial Planning</li>
+      </ul>
+    </div>
+
+    <!-- Contact -->
+    <div>
+      <h4 class="text-lg font-semibold mb-5">Contact Us</h4>
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 space-y-3">
+          <p class="text-sm text-gray-400">📍 ಕುಷ್ಟಗಿ ತಾಲೂಕ ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ(ರಿ)ಕುಸ್ತ</p>
+          <p class="text-sm text-gray-400">📞 +91 90001926375</p>
+          <p class="text-sm text-gray-400">📧 ksthst.cosociety@gmail.com</p>
+        </div>
+        <div class="flex flex-col items-center">
+          <p class="text-sm text-gray-400 mb-2">Scan for Location:</p>
+          <a href="https://maps.app.goo.gl/qT2TUTHdn2S4Vxhp7" 
+             target="_blank" 
+             class="inline-block bg-white p-1 rounded-xl shadow-lg hover:shadow-xl transition-shadow" 
+             title="Click to view location on Google Maps">
+            <img 
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://maps.app.goo.gl/qT2TUTHdn2S4Vxhp7&bgcolor=FFFFFF&margin=0" 
+              alt="Office Location QR Code" 
+              class="w-24 h-24 rounded-lg object-contain border border-white">
+          </a>
+        </div>
       </div>
     </div>
-    <div class="bg-gray-800 text-center py-3 text-sm text-gray-400">
-      &copy; 2025 KSTHST Co-of-society. All rights reserved.
-    </div>
-  </footer>
+  </div>
+
+  <div class="bg-gray-800 text-center py-4 text-sm text-gray-400">
+    &copy; 2025 KSTHST Co-of-society. All rights reserved.
+  </div>
+</footer>
+
 
   <script src="shared.js"></script>
   <script>
