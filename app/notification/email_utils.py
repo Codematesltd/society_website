@@ -30,8 +30,25 @@ def send_email(to_email, subject, html_body, attachments=None):
         # Log error (print for now)
         print(f"Email send error: {e}")
 
+def _build_certificate_url(loan_data):
+    """Return an absolute URL to view the loan certificate for this loan.
+    Falls back to UUID if textual loan_id isn't available.
+    """
+    base = os.getenv("BASE_URL", "http://127.0.0.1:5000")
+    # prefer textual loan_id like LN0001, else use id (UUID)
+    loan_id = None
+    if isinstance(loan_data, dict):
+        loan_id = loan_data.get("loan_id") or loan_data.get("id")
+    if not loan_id:
+        return None
+    return f"{base}/loan/certificate/{loan_id}?action=view"
+
 def send_application_email(customer_email, loan_data):
+    # Render template and append certificate link for convenience
     html_body = render_template("application_email.html", loan=loan_data)
+    cert_url = _build_certificate_url(loan_data)
+    if cert_url:
+        html_body += f"<hr><p>You can view your application details and certificate here: <a href=\"{cert_url}\">{cert_url}</a></p>"
     send_email(customer_email, "Loan Application Submitted", html_body)
 
 def send_rejection_email(customer_email, loan_data, rejection_reason):
@@ -40,4 +57,14 @@ def send_rejection_email(customer_email, loan_data, rejection_reason):
 
 def send_approval_email_with_certificate(customer_email, loan_data, pdf_bytes):
     html_body = render_template("approval_email.html", loan=loan_data)
-    send_email(customer_email, "Loan Approved - Certificate Attached", html_body, attachments=[(f"{loan_data['loan_id']}.pdf", pdf_bytes)])
+    cert_url = _build_certificate_url(loan_data)
+    if cert_url:
+        html_body += f"<hr><p>View your loan certificate online: <a href=\"{cert_url}\">{cert_url}</a></p>"
+    # Keep attaching the PDF as before, but also provide a web link
+    loan_id_display = (loan_data or {}).get('loan_id') or (loan_data or {}).get('id') or 'loan'
+    send_email(
+        customer_email,
+        "Loan Approved - Certificate Attached",
+        html_body,
+        attachments=[(f"{loan_id_display}.pdf", pdf_bytes)] if pdf_bytes else None
+    )

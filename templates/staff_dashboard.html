@@ -246,29 +246,50 @@
         });
       }
 
-      // Fetch customer data for loan application (dummy implementation)
+  // Fetch customer data for loan application
       const loanAccountNumberInput = document.getElementById('loanAccountNumber');
       const fetchAccountBtn = document.getElementById('fetchAccountBtn');
       const accountFetchMsg = document.getElementById('accountFetchMsg');
 
       if (fetchAccountBtn) {
         fetchAccountBtn.addEventListener('click', async () => {
-          const customerId = loanAccountNumberInput.value.trim();
-          if (!customerId) {
-            accountFetchMsg.textContent = "Please enter a customer ID.";
+          const raw = loanAccountNumberInput.value.trim();
+          if (!raw) {
+            accountFetchMsg.textContent = "Please enter a Customer ID or KGID.";
             return;
           }
           accountFetchMsg.textContent = "Fetching details...";
           try {
-            // changed to staff API
-            const res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(customerId)}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.status === "success" && data.name) {
+            // Try by customer_id (members.customer_id) first, then try finance API helper, then try by KGID
+            let data = null;
+            let res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(raw)}`);
+            try {
+              data = await res.json();
+            } catch (e) { data = null; }
+            if (!res.ok || !data || data.status !== 'success' || !data.name) {
+              // fallback 1: finance API by customer_id
+              res = await fetch(`/loan/fetch-account?customer_id=${encodeURIComponent(raw)}`);
+              try { data = await res.json(); } catch (e) { data = null; }
+            }
+            if ((!res.ok || !data || data.status !== 'success' || !data.name) && /^[A-Za-z]{3,}\d{3,}$/.test(raw) === false) {
+              // if the identifier looks like a KGID (non-empty and not matching typical customer id pattern), try members by kgid
+              const kgRes = await fetch(`/staff/api/customer?kgid=${encodeURIComponent(raw)}`);
+              let kgData = null; try { kgData = await kgRes.json(); } catch (e) {}
+              if (kgRes.ok && kgData && kgData.name) {
+                data = {
+                  status: 'success',
+                  name: kgData.name,
+                  kgid: kgData.kgid,
+                  customer_id: kgData.customer_id
+                };
+                res = { ok: true };
+              }
+            }
+            if (res.ok && data && data.status === "success" && data.name) {
                 document.getElementById('loanName').value = data.name;
                 document.getElementById('loanKGID').value = data.kgid || '';
-                document.getElementById('loanAccount').value = data.customer_id || customerId;
-                loanAccountNumberInput.value = data.customer_id || customerId;
+                document.getElementById('loanAccount').value = data.customer_id || raw;
+                loanAccountNumberInput.value = data.customer_id || raw;
                 accountFetchMsg.textContent = "";
                 // Hide Next button after fetching account details
                 const nextBtn = document.getElementById('toStep2Btn');
@@ -279,13 +300,10 @@
                   step2.classList.add('hidden');
                   document.getElementById('step1').classList.remove('hidden');
                 }
-              } else {
-                accountFetchMsg.textContent = "Account not found.";
-              }
             } else {
-              accountFetchMsg.textContent = "Error fetching account details.";
+              accountFetchMsg.textContent = "Account not found.";
             }
-          } catch {
+          } catch (e) {
             accountFetchMsg.textContent = "Network error.";
           }
         });
@@ -328,7 +346,7 @@
             msgDiv.textContent = "Checking surety...";
             try {
               // UPDATED: use customer_id query param and return object that matches preloadSurety
-              const res = await fetch(`/finance/api/check-surety?customer_id=${encodeURIComponent(kgid)}`);
+              const res = await fetch(`/loan/check-surety?customer_id=${encodeURIComponent(kgid)}`);
               if (res.ok) {
                 const data = await res.json();
                 // Build object with properties preloadSurety expects
@@ -450,7 +468,7 @@
           try {
             const headers = { 'Content-Type': 'application/json' };
             if (window.STAFF_EMAIL) headers['X-Staff-Email'] = window.STAFF_EMAIL;
-            const res = await fetch('/finance/api/apply', {
+            const res = await fetch('/loan/apply', {
               method: 'POST',
               headers,
               credentials: 'include', // send session cookie so backend can read session['staff_email']
@@ -462,7 +480,7 @@
               // Try to fetch loan details to display staff info
               let loanDetails = null;
               try {
-                const loanRes = await fetch(`/finance/api/${encodeURIComponent(loanId)}`, { credentials: 'include' });
+                const loanRes = await fetch(`/loan/${encodeURIComponent(loanId)}`, { credentials: 'include' });
                 if (loanRes.ok) loanDetails = await loanRes.json().catch(()=>null);
               } catch {}
 
@@ -627,14 +645,14 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfo">👤 Customer Info</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addUser">➕ Add User</button>
-        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Check Expense</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="checkExpense">💸 Add Expense</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
-        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="nextInstallment">📆 Next Installment</button>
+        
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
   <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactionsStaff">🕒 Recent Transactions</button>
         <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
-        <button id="mailNotificationBtn" class="w-full text-left px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition">📧 Mail Notification</button>
+        
       </nav>
       <!-- Transaction Modal -->
       <div id="transactionModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
