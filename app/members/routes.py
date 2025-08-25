@@ -77,52 +77,133 @@ def api_statements():
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
     # Get customer_id for the logged-in user
-    member_resp = supabase.table("members").select("customer_id").eq("email", user_email).execute()
+    member_resp = supabase.table("members").select("customer_id,balance").eq("email", user_email).execute()
     if not member_resp.data:
         return jsonify({"status": "error", "message": "Member not found"}), 404
     customer_id = member_resp.data[0]["customer_id"]
+    current_balance = float(member_resp.data[0].get("balance") or 0)
 
     # Parse query params
     range_type = request.args.get("range", "last10")
     from_date = request.args.get("from_date")
     to_date = request.args.get("to_date")
 
-    # Use the correct column name for date (likely 'date' instead of 'transaction_date')
-    query = supabase.table("transactions").select("*").eq("customer_id", customer_id)
-
     now = datetime.now()
-    date_col = "date"  # Change this to your actual date column name in the transactions table
+    date_col = "date"  # transactions use 'date' column
 
-    if range_type == "last10":
-        query = query.order(date_col, desc=True).limit(10)
-    elif range_type == "1m":
-        since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-    elif range_type == "3m":
-        since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-    elif range_type == "6m":
-        since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-    elif range_type == "1y":
-        since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
-        query = query.gte(date_col, since).order(date_col, desc=True)
-    elif range_type == "custom":
-        if not from_date or not to_date:
-            return jsonify({"status": "error", "message": "from_date and to_date required for custom range"}), 400
+    # Helper to fetch transactions according to range
+    txs = []
+    try:
+        if range_type == "last10":
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).order(date_col, desc=True).limit(20).execute()
+        elif range_type == "1m":
+            since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).gte(date_col, since).order(date_col, desc=True).execute()
+        elif range_type == "3m":
+            since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).gte(date_col, since).order(date_col, desc=True).execute()
+        elif range_type == "6m":
+            since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).gte(date_col, since).order(date_col, desc=True).execute()
+        elif range_type == "1y":
+            since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).gte(date_col, since).order(date_col, desc=True).execute()
+        elif range_type == "custom":
+            if not from_date or not to_date:
+                return jsonify({"status": "error", "message": "from_date and to_date required for custom range"}), 400
+            try:
+                datetime.strptime(from_date, "%Y-%m-%d")
+                datetime.strptime(to_date, "%Y-%m-%d")
+            except Exception:
+                return jsonify({"status": "error", "message": "Invalid date format"}), 400
+            tx_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).gte(date_col, from_date).lte(date_col, to_date).order(date_col, desc=True).execute()
+        else:
+            return jsonify({"status": "error", "message": "Invalid range type"}), 400
+
+        txs = tx_resp.data if tx_resp.data else []
+    except Exception:
+        txs = []
+
+    # Helper to fetch approved loans (treated as deposit events) in same range
+    loans = []
+    try:
+        created_col = "created_at"
+        if range_type == "last10":
+            loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).eq("status", "approved").order(created_col, desc=True).limit(20).execute()
+        elif range_type in ("1m", "3m", "6m", "1y"):
+            # derive since from range_type above
+            if range_type == "1m":
+                since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+            elif range_type == "3m":
+                since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+            elif range_type == "6m":
+                since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+            else:
+                since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+            loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).eq("status", "approved").gte(created_col, since).order(created_col, desc=True).execute()
+        else:  # custom
+            loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).eq("status", "approved").gte(created_col, from_date).lte(created_col, to_date).order(created_col, desc=True).execute()
+        loans = loans_resp.data if loans_resp.data else []
+    except Exception:
+        loans = []
+
+    # Normalize both lists into unified event objects
+    events = []
+    for t in txs:
+        # tolerate different field names
+        d = t.get(date_col) or t.get("transaction_date") or t.get("created_at") or ""
+        amount = 0.0
         try:
-            from_dt = datetime.strptime(from_date, "%Y-%m-%d")
-            to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+            amount = float(t.get("amount") or 0)
         except Exception:
-            return jsonify({"status": "error", "message": "Invalid date format"}), 400
-        query = query.gte(date_col, from_date).lte(date_col, to_date).order(date_col, desc=True)
-    else:
-        return jsonify({"status": "error", "message": "Invalid range type"}), 400
+            amount = 0.0
+        ev_type = str(t.get("type") or "").lower()
+        events.append({
+            "source": "transaction",
+            "date": str(d),
+            "type": ev_type,
+            "amount": amount,
+            "remarks": t.get("remarks") or t.get("description") or "",
+            "stid": t.get("stid") or t.get("transaction_id") or t.get("id"),
+        })
 
-    result = query.execute()
-    transactions = result.data if result.data else []
+    for ln in loans:
+        d = ln.get("created_at") or ""
+        amt = 0.0
+        try:
+            amt = float(ln.get("loan_amount") or 0)
+        except Exception:
+            amt = 0.0
+        events.append({
+            "source": "loan",
+            "date": str(d),
+            "type": "deposit",
+            "amount": amt,
+            "remarks": f"Loan disbursement (Loan ID: {ln.get('loan_id') or ln.get('id')})",
+            "stid": ln.get("loan_id") or ln.get("id")
+        })
 
-    return jsonify({"status": "success", "transactions": transactions}), 200
+    # Sort by date desc (newest first). Use ISO string ordering; fallback to empty strings.
+    events.sort(key=lambda e: str(e.get("date") or ""), reverse=True)
+
+    # If last10 requested, slice top 10 events
+    if range_type == "last10":
+        events = events[:10]
+
+    # Compute running balance_after for each event using current_balance (walk from newest -> oldest)
+    running = float(current_balance or 0)
+    for ev in events:
+        # set balance as snapshot after this event (newest first)
+        ev["balance_after"] = round(running, 2)
+        amt = float(ev.get("amount") or 0)
+        # when moving backwards: deposits increase balance going forward, so subtract deposit to step back
+        if ev.get("type") == "deposit":
+            running = round(running - amt, 2)
+        else:
+            # withdraw/withdrawal types assumed to reduce balance going forward, so add back when stepping back
+            running = round(running + amt, 2)
+
+    return jsonify({"status": "success", "transactions": events}), 200
 
 @members_bp.route("/api/download-statement", methods=["GET"])
 def download_statement():

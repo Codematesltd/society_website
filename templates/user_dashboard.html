@@ -347,14 +347,14 @@
                   <div class="bg-white rounded-xl shadow p-6 mb-6">
                     <h3 class="text-xl font-bold text-blue-700 mb-2">Loan Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700 mb-4">
-                      <div><span class="font-semibold">Loan ID:</span> ${loan.loan_id || "-"}</div>
-                      <div><span class="font-semibold">Customer ID:</span> ${loan.customer_id || "-"}</div>
-                      <div><span class="font-semibold">Loan Type:</span> ${loan.loan_type || "-"}</div>
-                      <div><span class="font-semibold">Loan Amount:</span> ₹${loan.loan_amount ? Number(loan.loan_amount).toLocaleString() : "-"}</div>
-                      <div><span class="font-semibold">Interest Rate:</span> ${loan.interest_rate || "-"}%</div>
-                      <div><span class="font-semibold">Loan Term:</span> ${loan.loan_term_months || "-"} months</div>
-                      <div><span class="font-semibold">Purpose:</span> ${loan.purpose || "-"}</div>
-                      <div><span class="font-semibold">Status:</span> ${loan.status || "-"}</div>
+                      <div><span class="font-semibold">Loan ID:</span> ${loan.loan_id || '-'}</div>
+                      <div><span class="font-semibold">Customer ID:</span> ${loan.customer_id || '-'}</div>
+                      <div><span class="font-semibold">Loan Type:</span> ${loan.loan_type || '-'}</div>
+                      <div><span class="font-semibold">Loan Amount:</span> ₹${loan.loan_amount ? Number(loan.loan_amount).toLocaleString() : '-'}</div>
+                      <div><span class="font-semibold">Interest Rate:</span> ${loan.interest_rate || '-'}%</div>
+                      <div><span class="font-semibold">Loan Term:</span> ${loan.loan_term_months || '-'} months</div>
+                      <div><span class="font-semibold">Purpose:</span> ${loan.purpose || '-'}</div>
+                      <div><span class="font-semibold">Status:</span> ${loan.status || '-'}</div>
                       ${
                         loan.status === "rejected" && loan.rejection_reason
                           ? `<div class="md:col-span-2 text-red-600 font-semibold"><span class="font-semibold">Rejection Reason:</span> ${loan.rejection_reason}</div>`
@@ -363,8 +363,16 @@
                     </div>
                     ${
                       loan.status !== "rejected"
-                        ? `<button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="fetchLoanRecords('${loan.loan_id}', this)">Show Repayment Records</button>
-                           <div class="repayment-records mt-4"></div>`
+                        ? `<div class="flex flex-wrap items-center gap-3">
+                             <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="fetchLoanRecords('${loan.loan_id}', this)">Show Repayment Records</button>
+                             <a href="/loan/certificate/${loan.loan_id}?action=view" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition">
+                               View Certificate
+                             </a>
+                             <a href="/loan/certificate/${loan.loan_id}?action=download" class="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">
+                               Download Certificate
+                             </a>
+                             <div class="w-full mt-4 repayment-records"></div>
+                           </div>`
                         : ""
                     }
                   </div>
