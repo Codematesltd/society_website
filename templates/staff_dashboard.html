@@ -92,27 +92,47 @@
           const resultDiv = document.getElementById('customerInfoResult');
           resultDiv.innerHTML = '<div class="text-blue-600">Loading...</div>';
           try {
-            // fetch by customer_id
-            const res = await fetch(`/finance/api/fetch-account?customer_id=${encodeURIComponent(customerId)}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.status === "success") {
-                // map API response into renderCustomerInfo format
-                const member = {
-                  name: data.name,
-                  kgid: data.kgid,
-                  phone: data.phone,
-                  email: "",     // not returned by this API
-                  address: ""    // not returned by this API
-                };
-                resultDiv.innerHTML = renderCustomerInfo(member, false);
-                attachEditHandler(member);
-              } else {
-                resultDiv.innerHTML = `<div class="text-red-600 font-semibold mb-4">${data.message}</div>`;
-              }
-            } else {
-              resultDiv.innerHTML = `<div class="text-red-600">Error fetching data.</div>`;
+            // fetch by customer_id via staff API (members table)
+            const res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(customerId)}`);
+            const data = await res.json().catch(()=>null);
+            if (!res.ok || !data || data.status !== 'success') {
+              const msg = (data && data.message) || 'Error fetching data.';
+              resultDiv.innerHTML = `<div class="text-red-600">${msg}</div>`;
+              return;
             }
+            const m = data;
+            // Render all requested fields including photo/signature
+            const salaryText = (m.salary !== null && m.salary !== undefined && m.salary !== '') ? '₹' + Number(m.salary).toLocaleString() : '-';
+            const balanceText = (m.balance !== null && m.balance !== undefined && m.balance !== '') ? '₹' + Number(m.balance).toLocaleString() : '-';
+            resultDiv.innerHTML = `
+              <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow border">
+                <div class="flex flex-col md:flex-row gap-6 items-start">
+                  <div class="flex-1 space-y-2 text-sm">
+                    <div><strong>Name:</strong> ${m.name ?? '-'}</div>
+                    <div><strong>KGID:</strong> ${m.kgid ?? '-'}</div>
+                    <div><strong>Phone:</strong> ${m.phone ?? '-'}</div>
+                    <div><strong>Email:</strong> ${m.email ?? '-'}</div>
+                    <div><strong>Salary:</strong> ${salaryText}</div>
+                    <div><strong>Organization:</strong> ${m.organization_name ?? '-'}</div>
+                    <div><strong>Address:</strong> ${m.address ?? '-'}</div>
+                    <div><strong>Balance:</strong> ${balanceText}</div>
+                    <div><strong>Customer ID:</strong> ${m.customer_id ?? '-'}</div>
+                    <div><strong>Status:</strong> ${m.status ?? '-'}</div>
+                  </div>
+                  <div class="w-full md:w-64 flex flex-col items-center gap-4">
+                    <div class="w-28 h-28 rounded-full overflow-hidden ring-2 ring-blue-200 bg-gray-50 flex items-center justify-center">
+                      ${m.photo_url ? `<img src="${m.photo_url}" alt="Photo" class="w-full h-full object-cover"/>` : '<span class="text-gray-400 text-xs">No Photo</span>'}
+                    </div>
+                    <div class="w-full">
+                      <div class="text-xs text-gray-500 mb-1">Signature</div>
+                      <div class="border rounded p-2 bg-gray-50 flex items-center justify-center min-h-[80px]">
+                        ${m.signature_url ? `<img src="${m.signature_url}" alt="Signature" class="max-h-24 object-contain"/>` : '<span class="text-gray-400 text-xs">No Signature</span>'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
           } catch {
             resultDiv.innerHTML = `<div class="text-red-600">Network error.</div>`;
           }

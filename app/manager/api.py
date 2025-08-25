@@ -10,7 +10,8 @@ import smtplib
 from email.mime.text import MIMEText
 from PIL import Image  # add back PIL import
 
-manager_bp = Blueprint('manager', __name__, url_prefix='/manager')
+# Reuse the manager blueprint defined in app.manager.__init__
+from . import manager_bp
 
 # load .env into os.environ as early as possible
 load_dotenv()

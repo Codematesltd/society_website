@@ -649,25 +649,39 @@ def check_transaction(stid):
 
 @staff_api_bp.route('/fetch-account', methods=['GET'])
 def fetch_account_member():
-    # Fetch member details by customer_id
+    """
+    Fetch full member details by customer_id from members table.
+    Returns all fields needed by staff dashboard customer info section.
+    """
     customer_id = request.args.get('customer_id')
     if not customer_id:
-        return jsonify({'status':'error','message':'Missing customer_id'}), 400
-    resp = supabase.table("members") \
-        .select("name,phone,customer_id,photo_url,signature_url,kgid") \
-        .eq("customer_id", customer_id) \
+        return jsonify({'status': 'error', 'message': 'Missing customer_id'}), 400
+    resp = (
+        supabase.table("members")
+        .select(
+            "name,kgid,phone,email,salary,organization_name,address,photo_url,signature_url,balance,customer_id,status"
+        )
+        .eq("customer_id", customer_id)
+        .limit(1)
         .execute()
+    )
     if not resp.data:
-        return jsonify({'status':'error','message':'Account not found'}), 404
+        return jsonify({'status': 'error', 'message': 'Account not found'}), 404
     m = resp.data[0]
     return jsonify({
         'status': 'success',
         'name': m.get('name'),
+        'kgid': m.get('kgid'),
         'phone': m.get('phone'),
-        'customer_id': m.get('customer_id'),
+        'email': m.get('email'),
+        'salary': m.get('salary'),
+        'organization_name': m.get('organization_name'),
+        'address': m.get('address'),
         'photo_url': m.get('photo_url'),
         'signature_url': m.get('signature_url'),
-        'kgid': m.get('kgid')
+        'balance': m.get('balance'),
+        'customer_id': m.get('customer_id'),
+        'status': m.get('status')
     }), 200
 
 
