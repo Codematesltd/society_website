@@ -1410,22 +1410,74 @@ document.addEventListener("DOMContentLoaded", function () {
           <div id="autoTransactionFormContainer" class="mt-6"></div>
         </div>
       </section>
-      <section id="nextInstallment" class="dynamic-section hidden bg-white p-6 rounded shadow">
-  <div class="loader hidden text-center text-blue-600">Loading...</div>
-  <div class="content space-y-6">
-    <h2 class="text-xl font-bold text-blue-700 mb-4">Next Installment Details</h2>
-    <div class="flex gap-2 mb-4">
-      <input type="text" id="nextInstallmentAccount" placeholder="Enter LOAN ID" class="border p-2 w-full rounded" />
-      <button id="nextInstallmentSearchBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
-    </div>
-    <div id="nextInstallmentResult" class="space-y-4">
-  <div><strong>Loan / Customer:</strong> <span id="loanIdentifier">-</span></div>
-      <div><strong>Paid Amount:</strong> <span id="paidAmount">-</span></div>
-      <div><strong>Remaining Amount:</strong> <span id="remainingAmount">-</span></div>
-      <div><strong>Next Month Installment:</strong> <span id="nextMonthAmount">-</span></div>
-    </div>
-  </div>
-</section>
+      <script>
+      // Loan Repayment section search logic
+      document.addEventListener('DOMContentLoaded', () => {
+        const loanSearchForm = document.getElementById('loanSearchForm');
+        const loanSearchInput = document.getElementById('loanSearchInput');
+        const loanSearchType = document.getElementById('loanSearchType');
+        const loanInfoResult = document.getElementById('loanInfoResult');
+        const autoTransactionFormContainer = document.getElementById('autoTransactionFormContainer');
+        const loanRepaymentSection = document.getElementById('loanRepayment');
+
+        if (loanSearchForm && loanSearchInput && loanSearchType && loanInfoResult) {
+          loanSearchForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            // Ensure Loan Repayment section stays visible
+            document.querySelectorAll('.dynamic-section').forEach(sec => sec.classList.add('hidden'));
+            loanRepaymentSection.classList.remove('hidden');
+            // Loader
+            loanInfoResult.innerHTML = '<div class="text-blue-600">Loading...</div>';
+            autoTransactionFormContainer.innerHTML = '';
+            const searchVal = loanSearchInput.value.trim();
+            const searchBy = loanSearchType.value;
+            if (!searchVal) {
+              loanInfoResult.innerHTML = '<div class="text-red-600">Please enter a value.</div>';
+              return;
+            }
+            try {
+              let loanData = null;
+              if (searchBy === 'loanId') {
+                const res = await fetch(`/finance/${encodeURIComponent(searchVal)}`);
+                if (!res.ok) throw new Error('Loan not found');
+                const data = await res.json();
+                if (data && data.status === 'success' && data.loan) {
+                  loanData = data.loan;
+                } else {
+                  throw new Error(data.message || 'Loan not found');
+                }
+              } else {
+                // accountNumber
+                const res = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchVal)}`);
+                if (!res.ok) throw new Error('Customer not found');
+                const data = await res.json();
+                if (data && data.status === 'success' && data.loans && data.loans.length > 0) {
+                  loanData = data.loans[0];
+                } else {
+                  throw new Error(data.message || 'No loans found');
+                }
+              }
+              // Render loan info
+              loanInfoResult.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded shadow mb-4">
+                  <div><strong>Loan ID:</strong> ${loanData.loan_id || '-'}</div>
+                  <div><strong>Customer ID:</strong> ${loanData.customer_id || '-'}</div>
+                  <div><strong>Loan Type:</strong> ${loanData.loan_type || '-'}</div>
+                  <div><strong>Amount:</strong> ₹${Number(loanData.loan_amount || 0).toLocaleString()}</div>
+                  <div><strong>Interest Rate:</strong> ${loanData.interest_rate || '-'}%</div>
+                  <div><strong>Term:</strong> ${loanData.loan_term_months || '-'} months</div>
+                  <div><strong>Status:</strong> ${loanData.status || '-'}</div>
+                </div>
+              `;
+              // Optionally, render auto transaction form here if needed
+              autoTransactionFormContainer.innerHTML = '';
+            } catch (err) {
+              loanInfoResult.innerHTML = `<div class="text-red-600">${err.message}</div>`;
+            }
+          });
+        }
+      });
+      </script>
       <!-- Recent Transactions (Staff) -->
       <section id="recentTransactionsStaff" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
