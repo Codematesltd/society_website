@@ -52,7 +52,7 @@ def send_otp_email(email, otp):
 def send_reset_email(email, token):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-    reset_link = f"http://127.0.0.1:5000/auth/reset_password?token={token}"
+    reset_link = f"https://ksthstsociety.com/auth/reset_password?token={token}"
     msg = MIMEText(f"Click the following link to reset your password:\n{reset_link}")
     msg['Subject'] = "Password Reset Link"
     msg['From'] = EMAIL_USER
@@ -64,7 +64,7 @@ def send_reset_email(email, token):
 def send_set_password_email(email, token):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-    set_link = f"http://127.0.0.1:5000/auth/set_password?token={token}"
+    set_link = f"https://ksthstsociety.com/auth/set_password?token={token}"
     msg = MIMEText(f"Click the following link to set your password:\n{set_link}")
     msg['Subject'] = "Set Your Password"
     msg['From'] = EMAIL_USER

@@ -390,7 +390,7 @@ def add_transaction():
         supabase.table("members").update({"balance": new_balance}).eq("customer_id", customer_id).execute()
         # Generate receipt URL
         stid = data["stid"]
-        receipt_url = f"{os.environ.get('BASE_URL', 'http://127.0.0.1:5000')}/staff/transaction/certificate/{stid}?action=view"
+        receipt_url = f"{os.environ.get('BASE_URL', 'https://ksthstsociety.com')}/staff/transaction/certificate/{stid}?action=view"
         # Get member info for email
         member_row = supabase.table("members").select("email,name").eq("customer_id", customer_id).execute()
         if member_row.data and member_row.data[0].get("email"):
