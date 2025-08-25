@@ -20,9 +20,21 @@ app.jinja_loader = ChoiceLoader([
     app.jinja_loader
 ])
 
+
 # Register certificate blueprint only if not already added
 if 'certificate' not in app.blueprints:
     app.register_blueprint(certificate_bp)
+
+# Register loan certificate blueprint (loan_cert_bp)
+try:
+    from app.finance.loan_certificate import loan_cert_bp
+    if 'loan_cert' not in app.blueprints:
+        app.register_blueprint(loan_cert_bp)
+        print("Loan certificate blueprint registered successfully")
+    else:
+        print("Loan certificate blueprint already registered (skipped)")
+except ImportError as e:
+    print(f"Failed to import loan_cert_bp: {e}")
 
 # Register main routes blueprint (not registered in create_app)
 try:
