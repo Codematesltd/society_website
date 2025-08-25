@@ -28,11 +28,77 @@ def next_installment():
     loan_id = request.args.get('loan_id')
     if not loan_id:
         return jsonify({'message': 'Missing loan_id'}), 400
-    # TODO: Implement actual next installment logic
+    # Compute EMI-based next installment from original terms, capped by remaining
+    def safe_float(v):
+        try:
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
+
+    # Fetch loan row by textual id or UUID without unsafe OR on non-UUIDs
+    loan_row = None
+    import re
+    uuid_like = re.compile(r"^[0-9a-fA-F-]{32,36}$")
+    try:
+        if uuid_like.match(str(loan_id)):
+            resp = supabase.table('loans').select('*').or_(f"id.eq.{loan_id},loan_id.eq.{loan_id}").limit(1).execute()
+        else:
+            resp = supabase.table('loans').select('*').eq('loan_id', loan_id).limit(1).execute()
+        if resp.data:
+            loan_row = resp.data[0]
+    except Exception as e:
+        return jsonify({'message': 'DB error', 'error': str(e)}), 500
+
+    if not loan_row:
+        return jsonify({'message': 'Loan not found'}), 404
+
+    principal = safe_float(loan_row.get('loan_amount'))
+    months = int(loan_row.get('loan_term_months') or 0)
+    annual_rate = safe_float(loan_row.get('interest_rate'))
+    # Sum repayments
+    paid = 0.0
+    try:
+        recs = []
+        lid_text = loan_row.get('loan_id')
+        lid_uuid = loan_row.get('id')
+        if lid_text:
+            r1 = supabase.table('loan_records').select('repayment_amount,id').eq('loan_id', lid_text).execute()
+            if r1.data: recs.extend(r1.data)
+        if lid_uuid and lid_uuid != lid_text:
+            r2 = supabase.table('loan_records').select('repayment_amount,id').eq('loan_id', lid_uuid).execute()
+            if r2.data: recs.extend(r2.data)
+        seen = set()
+        for r in recs:
+            rid = r.get('id')
+            if rid and rid in seen: continue
+            if rid: seen.add(rid)
+            paid += safe_float(r.get('repayment_amount'))
+    except Exception:
+        paid = paid
+
+    remaining = max(principal - paid, 0.0)
+    # EMI using original principal and full term
+    r = (annual_rate / 100.0) / 12.0 if annual_rate and months else 0.0
+    if principal > 0 and months > 0:
+        if r > 0:
+            try:
+                pow_term = (1 + r) ** months
+                emi = principal * r * pow_term / (pow_term - 1)
+            except Exception:
+                emi = principal / months
+        else:
+            emi = principal / months
+    else:
+        emi = 0.0
+
+    next_amt = min(emi, remaining) if remaining > 0 and emi > 0 else (0.0 if remaining <= 0 else remaining)
     return jsonify({
-        'next_installment': 5000,
-        'due_date': '2025-09-10',
-        'status': 'Pending'
+        'status': loan_row.get('status') or 'unknown',
+        'loan_id': loan_row.get('loan_id'),
+        'principal': round(principal, 2),
+        'paid': round(paid, 2),
+        'remaining': round(remaining, 2),
+        'next_installment': round(next_amt, 2)
     }), 200
 
 
@@ -147,24 +213,20 @@ def next_installment_compat():
 
     remaining = max(principal - paid, 0.0)
 
-    # Estimate next month installment (EMI-like) using remaining and remaining months if available
+    # Compute EMI using original principal and full term, then cap by remaining
     months = int(loan_row.get('loan_term_months') or 0)
     interest_rate = safe_float(loan_row.get('interest_rate') or 0.0)
-    next_month_amount = 0.0
     try:
-        if remaining <= 0:
-            next_month_amount = 0.0
-        else:
-            remaining_months = months if months > 0 else 1
-            monthly_rate = interest_rate / (12 * 100)
-            if monthly_rate > 0 and remaining_months > 0:
-                r = monthly_rate
-                n = remaining_months
-                # standard EMI formula applied to remaining principal
-                emi = remaining * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
-                next_month_amount = round(emi, 2)
+        r = (interest_rate / 100.0) / 12.0 if interest_rate and months else 0.0
+        if principal > 0 and months > 0:
+            if r > 0:
+                pow_term = (1 + r) ** months
+                emi = principal * r * pow_term / (pow_term - 1)
             else:
-                next_month_amount = round(remaining / remaining_months, 2)
+                emi = principal / months
+        else:
+            emi = 0.0
+        next_month_amount = round(min(emi, remaining) if remaining > 0 and emi > 0 else (0.0 if remaining <= 0 else remaining), 2)
     except Exception:
         next_month_amount = round(remaining if remaining > 0 else 0.0, 2)
 
