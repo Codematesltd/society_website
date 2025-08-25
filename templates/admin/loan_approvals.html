@@ -153,7 +153,8 @@
 
     <script>
     // Only attach JS for pending layout
-    {% if status == 'pending' %}
+    var isPending = "{{ status }}" === "pending";
+    if (isPending) {
     document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('loanModal');
         const modalContent = document.getElementById('loanModalContent');
@@ -254,6 +255,14 @@
             records.forEach(r=> totalRepaid += Number(r.repayment_amount||0));
             const outstanding = Math.max(Number(loan.loan_amount||0) - totalRepaid,0);
 
+            // Customer photo logic
+            let customerPhotoHtml = '';
+            if (customer.photo_url) {
+              customerPhotoHtml = `<img src="${customer.photo_url}" alt="Customer Photo" class="w-40 h-40 rounded-full object-cover border shadow" onerror="this.style.display='none'">`;
+            } else {
+              customerPhotoHtml = `<div class="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">No Photo</div>`;
+            }
+
             modalContent.innerHTML = `
               <h2 class="text-2xl font-bold text-green-700 mb-4">Loan Details - ${loan.loan_id || 'Pending'}</h2>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -313,8 +322,7 @@
                 <div class="flex flex-col items-center gap-6">
                   <div class="text-center">
                     <h4 class="font-medium mb-2">Customer</h4>
-                    ${customer.photo_url ? `<img src="${customer.photo_url}" class="w-40 h-40 rounded-full object-cover border shadow" alt="Customer Photo" />` :
-                      `<div class="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">No Photo</div>`}
+                    ${customerPhotoHtml}
                     <p class="mt-3 font-semibold">${customer.name || '—'}</p>
                     <p class="text-xs text-gray-500">${customer.customer_id || ''}</p>
                   </div>
@@ -356,7 +364,7 @@
 
         document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
     });
-    {% endif %}
+    }
     </script>
 </body>
 </html>

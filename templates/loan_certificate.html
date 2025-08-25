@@ -105,9 +105,22 @@
             }
             body {
                 padding: 0;
+                margin: 0;
+                width: 210mm;
+                height: 297mm;
+                zoom: 0.75;
+                /* For browsers that support zoom */
             }
             .certificate {
                 border: none;
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                page-break-inside: avoid;
+            }
+            @page {
+                size: A4;
+                margin: 10mm;
             }
         }
     </style>
@@ -116,7 +129,7 @@
     <button class="print-button" onclick="window.print()">Print Certificate</button>
     
     <div class="certificate">
-        <div class="certificate-status status-{{ loan.status }}">{{ loan.status|upper }}</div>
+        <div class="certificate-status status-{{ loan.status }}" style="color: red;">{{ loan.status|upper }}</div>
         
         <div class="certificate-header">
             <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" 
@@ -125,9 +138,21 @@
                 <div class="certificate-title">KSTHST Coof Society</div>
                 <div class="certificate-subtitle">Loan Certificate</div>
             </div>
+           
         </div>
         
         <div class="certificate-body">
+            <div class="certificate-section">
+                <h3>Borrower Information</h3>
+                <p><span class="certificate-label">Name:</span> {{ member.name or member_name }}</p>
+                <p><span class="certificate-label">Customer ID:</span> {{ loan.customer_id }}</p>
+                {% if member.photo_url %}
+                    <img src="{{ member.photo_url }}" alt="Member Photo" style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:1px solid #aaa;float:right;margin-left:15px;margin-top:-75px;position:relative;">
+                {% endif %}
+            </div>
+
+           
+
             <div class="certificate-section">
                 <h3>Loan Details</h3>
                 <p><span class="certificate-label">Loan ID:</span> {{ loan.loan_id }}</p>
@@ -135,32 +160,95 @@
                 <p><span class="certificate-label">Loan Amount:</span> ₹{{ loan.loan_amount|float|round(2) }}</p>
                 <p><span class="certificate-label">Interest Rate:</span> {{ loan.interest_rate }}%</p>
                 <p><span class="certificate-label">Term:</span> {{ loan.loan_term_months }} months</p>
-                <p><span class="certificate-label">Issue Date:</span> {{ loan.issue_date }}</p>
+                <p><span class="certificate-label">Issue Date:</span> 
+                    {% if loan.issue_date %}
+                        {{ loan.issue_date }}
+                    {% elif loan.created_at %}
+                        {{ loan.created_at[:10] }}
+                    {% else %}
+                        —
+                    {% endif %}
+                      <div class="certificate-section" style="margin-top:30px; display:flex; gap:40px;">
+                <div style="flex:1; text-align:right;">
+                    <p style="margin-bottom:2px;">_________________________</p>
+                    <p style="margin-top:0; font-size: 13px;">Borrower Signature</p>
+                </div>
+                </p>
             </div>
-            
+
             <div class="certificate-section">
-                <h3>Borrower Information</h3>
-                <p><span class="certificate-label">Name:</span> {{ member.name or member_name }}</p>
-                <p><span class="certificate-label">Customer ID:</span> {{ loan.customer_id }}</p>
+                
+                <h3>Surety Details</h3>
+                 <div class="certificate-section" style="margin-bottom:20px;">
+                <strong>Terms and Conditions:</strong>
+                <p style="margin-top:8px;">
+                    We have agreed to be surety for the loan taken by the said person. We are members of the association, and if he defaults, we have given our consent to the wage payment officers to deduct 50% of our salary or share money to repay the loan.
+                </p>
             </div>
-            
+                {% if loan.sureties %}
+                    <div style="display:flex; gap:40px;">
+                        {% for surety in loan.sureties %}
+                            <div style="flex:1; border:1px solid #ccc; border-radius:8px; padding:12px; margin-bottom:0; min-width:220px;">
+                                <span class="certificate-label">Name:</span> {{ surety.surety_name }}<br>
+                                <span class="certificate-label">Customer ID:</span> {{ surety.surety_customer_id }}<br>
+                                {% if surety.surety_mobile %}
+                                    <span class="certificate-label">Mobile:</span> {{ surety.surety_mobile }}<br>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>No surety details available.</p>
+                {% endif %}
+            </div>
+
+          
+                {% if loan.sureties %}
+                    <div style="display: flex; gap: 40px;">
+                        {% for surety in loan.sureties %}
+                            {% set align = 'left' if loop.index0 == 0 else 'right' %}
+                            <div style="flex:1; text-align:{{ align }};">
+                                <p style="margin-bottom:2px;">_________________________</p>
+                                <p style="margin-top:0; font-size: 13px;">Surety Signature</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
             {% if loan.staff_name %}
             <div class="certificate-section">
                 <h3>Issued By</h3>
                 <p><span class="certificate-label">Staff Name:</span> {{ loan.staff_name }}</p>
             </div>
             {% endif %}
+
+            <div class="certificate-section" style="margin-top:30px;">
+                <h3>Office Use Only</h3>
+                <p>
+                    Society customer ID <strong>{{ loan.customer_id }}</strong> on date <strong>
+                    {% if loan.issue_date %}
+                        {{ loan.issue_date }}
+                    {% elif loan.created_at %}
+                        {{ loan.created_at[:10] }}
+                    {% else %}
+                        —
+                    {% endif %}
+                    </strong> has been sanctioned a loan amount of <strong>₹{{ loan.loan_amount|float|round(2) }}</strong> with interest rate of <strong>{{ loan.interest_rate }}%</strong> by the KSTHST society.
+                </p>
+            </div>
         </div>
         
         <div class="certificate-footer">
-            <div class="signature">
+            <div class="signature" style="text-align:center; float:left; width:40%;">
                 <p>_________________________</p>
-                <p>Authorized Signature</p>
+                <p>Secretary Signature</p>
             </div>
-            <div class="signature">
+            <div class="signature" style="text-align:center; float:right; width:40%;">
                 <p>_________________________</p>
-                <p>Borrower Signature</p>
+                <p>President Signature</p>
             </div>
+            <div style="clear:both;"></div>
         </div>
     </div>
     

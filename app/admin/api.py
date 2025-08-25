@@ -33,9 +33,10 @@ def loan_info():
         if not loan_resp.data or len(loan_resp.data) == 0:
             return jsonify({'status': 'error', 'message': 'Loan not found'}), 404
         loan = loan_resp.data[0]
-        # Fetch member name
-        member_resp = supabase.table("members").select("name").filter("customer_id", "eq", loan["customer_id"]).limit(1).execute()
+        # Fetch member name and photo_url
+        member_resp = supabase.table("members").select("name,photo_url").filter("customer_id", "eq", loan["customer_id"]).limit(1).execute()
         name = member_resp.data[0]["name"] if member_resp.data and len(member_resp.data) > 0 else None
+        photo_url = member_resp.data[0]["photo_url"] if member_resp.data and len(member_resp.data) > 0 else None
         # Fetch loan records for next installment and outstanding
         records_resp = supabase.table("loan_records").select("repayment_date,repayment_amount,outstanding_balance").filter("loan_id", "eq", loan["loan_id"]).order("repayment_date").execute()
         records = records_resp.data if hasattr(records_resp, 'data') else []
@@ -63,7 +64,8 @@ def loan_info():
             'loan_term_months': loan.get('loan_term_months'),
             'interest_rate': loan.get('interest_rate'),
             'next_installment_amount': float(next_installment),
-            'outstanding_amount': float(outstanding_amount)
+            'outstanding_amount': float(outstanding_amount),
+            'photo_url': photo_url
         }
         return jsonify({'status': 'success', 'loan_info': result}), 200
     except Exception as e:

@@ -10,6 +10,9 @@ import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
 
+# Import notify_admin_loan_application to fix NameError
+from app.auth.routes import notify_admin_loan_application
+
 finance_bp = Blueprint('finance', __name__)
 
 load_dotenv()
@@ -200,11 +203,10 @@ def apply_loan():
         )
         
         # Build certificate URL
-        certificate_url = url_for('finance.loan_certificate', 
-                                  loan_id=loan_id,
-                                  action='view', 
-                                  _external=True)
-        
+        certificate_url = url_for('loan_cert.loan_certificate', 
+                  loan_id=loan_id,
+                  action='view')
+
         # Return success with loan_id and certificate URL
         return jsonify({
             "status": "success", 
@@ -212,10 +214,13 @@ def apply_loan():
             "loan_id": loan_id,
             "certificate_url": certificate_url
         }), 200
-    
     except Exception as e:
-        print(f"Error in apply_loan: {e}")
+        import traceback
+        print("Error in apply_loan:", e)
+        print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+
 
 @finance_bp.route('/<loan_id>', methods=['GET'])
 def get_loan(loan_id):
