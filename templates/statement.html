@@ -3,29 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <title>KSTHST Account Statement</title>
-    <link rel="icon" href="{{ url_for('static', filename='society_logo.png') }}" type="image/png">
+  <!-- Use direct external URL for favicon, do NOT use url_for for external URLs -->
+  <link rel="icon" href="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: Arial, sans-serif; color: #222; background: #fff; }
     .statement-container { max-width: 1200px; margin: 0 auto; background: #fff; }
     .header-bar {
-      background: #e3f0ff;
-      border-bottom: 2px solid #b6d4fe;
-      padding: 24px 32px 12px 32px;
+      background: #fff;               /* white */
+      border-bottom: 1px solid #ddd; /* light divider */
+      padding: 16px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: relative;
     }
-    .header-bar img { width: 60px; height: 60px; object-fit: contain; margin-right: 18px; }
-    .header-title { font-size: 2rem; font-weight: bold; color: #2563eb; }
-    .header-meta { font-size: 1rem; color: #444; }
+    .header-bar .branding {
+      display: flex;
+      align-items: center;
+    }
+    .branding .title {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #2563eb;
+      margin-right: 12px;
+    }
+    .branding img {
+      width: 60px; height: 60px;
+      object-fit: contain;
+      margin-right: 12px;
+    }
+    .branding .subtitle {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #444;
+    }
+    /* center and enlarge Account Statement */
+    .statement-label {
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2rem;
+      font-weight: bold;
+      color: #222;
+    }
+    /* Bordered details section under heading */
+    .details-card {
+      margin: 12px 32px 16px 32px;
+      border: 1px solid #e5e7eb; /* light gray */
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #fff;
+    }
+    .details-card .info { flex: 1; font-size: 0.95rem; line-height: 1.5; }
+    .details-card .info .name { color: #2563eb; font-weight: 700; font-size: 1.05rem; }
+    .details-card .info .muted { color: #555; }
+    .details-card .info .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 20px;
+      margin-top: 6px;
+    }
+    .details-card .info .label { color: #6b7280; }
+    .details-card .info .value { color: #111827; font-weight: 600; }
+    .details-card .photo { display: flex; justify-content: flex-end; min-width: 80px; }
+    .details-card .photo img {
+      width: 72px; height: 72px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 2px solid #2563eb;
+    }
+    @media (max-width: 640px) {
+      .details-card { flex-direction: column-reverse; align-items: stretch; padding: 12px; margin: 12px 16px; }
+      .details-card .info .row { grid-template-columns: 1fr; }
+      .details-card .photo { justify-content: flex-start; margin-bottom: 8px; }
+    }
     .details-row {
+      background: none;
+      border-bottom: 1px solid #eee;
+      padding: 8px 32px;  /* reduce top/bottom padding */
+      margin-top: -8px;   /* lift upward */
       display: flex;
       justify-content: space-between;
-      padding: 16px 32px 8px 32px;
       font-size: 1rem;
-      background: #f6faff;
-      border-bottom: 1px solid #e5e7eb;
     }
     .details-col { min-width: 220px; }
     .details-label { color: #2563eb; font-weight: 600; }
@@ -72,44 +135,46 @@
       .statement-container { box-shadow: none !important; }
       .header-bar, .details-row, .footer-bar { padding-left: 0; padding-right: 0; }
     }
+    .header-bar { position: relative; } /* ensure absolute children anchor correctly */
+    /* details-card is the new responsive section; header-right no longer used */
   </style>
 </head>
 <body>
   <div class="statement-container">
-    <!-- Header -->
-    <div class="header-bar" style="position: relative;">
-      <div style="display: flex; align-items: center;">
-        <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="KSTHST Logo">
-        <div style="margin-left: 18px;">
-          <div class="header-title">KSTHST</div>
-          <div class="header-meta">Account Statement</div>
+    <div class="header-bar">
+      <div class="branding">
+        <div class="title">KSTHST</div>
+        <!-- Use direct external URL for logo image -->
+        <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Logo">
+        <div class="subtitle">Co-operative Society</div>
+      </div>
+      <div class="statement-label" style="left:50%;top:50%;transform:translate(-50%,-50%);position:absolute;text-align:center;width:max-content;">
+        Account Statement
+      </div>
+    </div>
+
+    <!-- Details + Photo bordered section under heading -->
+    <div class="details-card">
+      <div class="info">
+        <div class="name">{{ name or '-' }}</div>
+        <div class="muted">{{ address or '-' }}</div>
+        <div class="muted">{{ org_name or '-' }}</div>
+        <div class="row">
+          <div><span class="label">KGID:</span> <span class="value">{{ kgid or '-' }}</span></div>
+          <div><span class="label">Customer ID:</span> <span class="value">{{ customer_id or '-' }}</span></div>
+          <div><span class="label">Email:</span> <span class="value">{{ email or '-' }}</span></div>
+          <div><span class="label">Phone:</span> <span class="value">{{ phone or '-' }}</span></div>
+          <div style="grid-column: 1 / -1;"><strong>Period:</strong> {{ period_text or '-' }}</div>
         </div>
       </div>
-      <div style="position: absolute; top: 24px; right: 32px; display: flex; flex-direction: column; align-items: flex-end;">
+      <div class="photo">
         {% if photo_url %}
-          <img src="{{ photo_url }}" alt="User Photo" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #2563eb;margin-bottom:8px;">
+        <img src="{{ photo_url }}" alt="User Photo">
         {% endif %}
-        <div class="header-meta" style="text-align:right;">
-          Generated on: {{ generated_on or '' }}
-        </div>
       </div>
     </div>
-    <!-- Details -->
-    <div class="details-row">
-      <div class="details-col">
-        <div class="details-label">{{ name or '-' }}</div>
-        <div>{{ address or '-' }}</div>
-        <div>{{ org_name or '-' }}</div>
-        <div>KGID: <span class="details-label">{{ kgid or '-' }}</span></div>
-        <div>Email: <span class="details-label">{{ email or '-' }}</span></div>
-        <div>Phone: <span class="details-label">{{ phone or '-' }}</span></div>
-      </div>
-      <div class="details-col" style="text-align:right;">
-        <div><span class="details-label">Period:</span> {{ period_text or '-' }}</div>
-        <div><span class="details-label">Customer ID:</span> {{ customer_id or '-' }}</div>
-      </div>
-    </div>
-    <!-- Statement Table -->
+
+    <!-- statement table -->
     <table class="statement-table">
       <thead>
         <tr>
@@ -145,8 +210,8 @@
             {% endif %}
           </td>
           <td class="balance-cell">
-            {% if tr.balance_after is not none %}
-              ₹{{ '{:,.0f}'.format(tr.balance_after|float) }}
+            {% if tr.get('balance_after') is not none %}
+              ₹{{ '{:,.0f}'.format(tr.get('balance_after')|float) }}
             {% else %}
               -
             {% endif %}

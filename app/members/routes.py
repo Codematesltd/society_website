@@ -265,7 +265,41 @@ def download_statement():
             return "Invalid range type", 400
 
         result = query.execute()
-        transactions = result.data if result.data else []
+        transactions = result.data or []
+
+        # --- NEW: fetch approved loans in same range and merge as deposit events ---
+        try:
+            # reuse same period logic above: range_type, from_date, to_date, now, customer_id, etc.
+            loan_query = supabase.table("loans").select("*").eq("customer_id", customer_id).eq("status","approved")
+            if range_type == "last10":
+                loan_query = loan_query.order("created_at", desc=True).limit(10)
+            elif range_type in ("1m","3m","6m","1y"):
+                # derive since as before...
+                if range_type == "1m":
+                    since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+                elif range_type == "3m":
+                    since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+                elif range_type == "6m":
+                    since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+                else:
+                    since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+                loan_query = loan_query.gte("created_at", since).order("created_at", desc=True)
+            else:  # custom
+                loan_query = loan_query.gte("created_at", from_date).lte("created_at", to_date).order("created_at", desc=True)
+            loan_res = loan_query.execute()
+            for ln in loan_res.data or []:
+                transactions.append({
+                    "date": ln.get("created_at") or "",
+                    "stid": ln.get("loan_id"),
+                    "type": "deposit",
+                    "amount": float(ln.get("loan_amount") or 0),
+                    "remarks": f"Loan disbursement (Loan ID: {ln.get('loan_id')})",
+                })
+        except Exception:
+            pass
+
+        # resort combined list by date desc
+        transactions.sort(key=lambda t: t.get("date",""), reverse=True)
 
         html_content = render_template(
             "statement.html",
