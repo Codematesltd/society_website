@@ -1,8 +1,10 @@
+
 from . import admin_bp
 from flask import render_template, request, redirect, url_for, flash
 import os
 from supabase import create_client
 from dotenv import load_dotenv
+from app.auth.decorators import login_required, role_required
 
 load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -10,6 +12,8 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @admin_bp.route("/dashboard")
+@login_required
+@role_required('admin')
 def dashboard():
     # Provide all variables used in the template with default values
     return render_template(

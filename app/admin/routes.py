@@ -10,7 +10,7 @@ def index():
 
 @admin_bp.route('/dashboard')
 @login_required
-@role_required('staff','manager','admin')
+@role_required('admin')
 def dashboard():
     return render_template('admin/dashboard.html')
 
