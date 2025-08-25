@@ -37,34 +37,59 @@ def loan_info():
         member_resp = supabase.table("members").select("name,photo_url").filter("customer_id", "eq", loan["customer_id"]).limit(1).execute()
         name = member_resp.data[0]["name"] if member_resp.data and len(member_resp.data) > 0 else None
         photo_url = member_resp.data[0]["photo_url"] if member_resp.data and len(member_resp.data) > 0 else None
-        # Fetch loan records for next installment and outstanding
-        records_resp = supabase.table("loan_records").select("repayment_date,repayment_amount,outstanding_balance").filter("loan_id", "eq", loan["loan_id"]).order("repayment_date").execute()
-        records = records_resp.data if hasattr(records_resp, 'data') else []
-        # Find next installment (first record with outstanding_balance > 0 and repayment_amount is null or 0)
-        next_installment = None
+        # Fetch loan records and compute outstanding + EMI-based next installment
+        records_resp = supabase.table("loan_records") \
+            .select("repayment_date,repayment_amount,outstanding_balance") \
+            .filter("loan_id", "eq", loan["loan_id"]) \
+            .order("repayment_date") \
+            .execute()
+        records = records_resp.data if hasattr(records_resp, 'data') and records_resp.data else []
+
+        # Determine latest known outstanding balance
         outstanding_amount = None
-        for rec in records:
-            if (rec.get('repayment_amount') is None or float(rec.get('repayment_amount') or 0) == 0) and float(rec.get('outstanding_balance') or 0) > 0:
-                next_installment = rec.get('outstanding_balance')
-                break
-        # Outstanding = last non-null outstanding_balance
         for rec in reversed(records):
             if rec.get('outstanding_balance') is not None:
-                outstanding_amount = rec.get('outstanding_balance')
+                try:
+                    outstanding_amount = float(rec.get('outstanding_balance') or 0)
+                except Exception:
+                    outstanding_amount = None
                 break
-        # If no loan_records, outstanding = loan_amount
         if outstanding_amount is None:
-            outstanding_amount = loan.get('loan_amount')
-        # If no next_installment, set to 0
-        if next_installment is None:
-            next_installment = 0
+            # Fallback: if no records, assume full principal still outstanding
+            try:
+                outstanding_amount = float(loan.get('loan_amount') or 0)
+            except Exception:
+                outstanding_amount = 0.0
+
+        # Compute EMI from loan terms (monthly reducing balance)
+        try:
+            P = float(loan.get('loan_amount') or 0)
+            n = int(loan.get('loan_term_months') or 0)
+            annual_rate = float(loan.get('interest_rate') or 0)
+        except Exception:
+            P, n, annual_rate = 0.0, 0, 0.0
+        r = (annual_rate / 100.0) / 12.0 if annual_rate and n else 0.0
+        if P > 0 and n > 0:
+            if r > 0:
+                try:
+                    pow_term = (1 + r) ** n
+                    emi = P * r * pow_term / (pow_term - 1)
+                except Exception:
+                    emi = P / n
+            else:
+                emi = P / n
+        else:
+            emi = 0.0
+
+        # Next installment should be the EMI, capped by remaining outstanding (last installment may be smaller)
+        next_installment = min(emi, outstanding_amount) if outstanding_amount > 0 and emi > 0 else (0.0 if outstanding_amount <= 0 else outstanding_amount)
         result = {
             'name': name,
             'loan_amount': loan.get('loan_amount'),
             'loan_term_months': loan.get('loan_term_months'),
             'interest_rate': loan.get('interest_rate'),
-            'next_installment_amount': float(next_installment),
-            'outstanding_amount': float(outstanding_amount),
+            'next_installment_amount': round(float(next_installment or 0), 2),
+            'outstanding_amount': round(float(outstanding_amount or 0), 2),
             'photo_url': photo_url
         }
         return jsonify({'status': 'success', 'loan_info': result}), 200

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for
+from flask import request, jsonify, render_template, make_response, abort, session, url_for
 import os
 import uuid
 import re
@@ -13,7 +13,8 @@ from datetime import datetime
 # Import notify_admin_loan_application to fix NameError
 from app.auth.routes import notify_admin_loan_application
 
-finance_bp = Blueprint('finance', __name__)
+# Use the shared finance blueprint defined in app.finance.__init__
+from . import finance_bp
 
 load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -69,12 +70,24 @@ def send_loan_status_email(email, name, loan_id, status):
     EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         return
+    base_url = os.environ.get('BASE_URL', 'https://ksthstsociety.com')
+    cert_url = f"{base_url}/loan/certificate/{loan_id}?action=view"
     if status == "pending":
         subject = "Loan Application Submitted"
-        body = f"Dear {name},\n\nYour loan application (ID: {loan_id}) has been submitted and is pending manager approval.\n\nYou can download your loan certificate here:\n{os.environ.get('BASE_URL', 'http://127.0.0.1:5000')}/finance/certificate/{loan_id}?action=view\n\nThank you."
+        body = (
+            f"Dear {name},\n\n"
+            f"Your loan application (ID: {loan_id}) has been submitted and is pending manager approval.\n\n"
+            f"You can view your loan certificate here:\n{cert_url}\n\n"
+            f"Thank you."
+        )
     elif status == "approved":
         subject = "Loan Application Approved"
-        body = f"Dear {name},\n\nYour loan application (ID: {loan_id}) has been approved.\n\nThank you."
+        body = (
+            f"Dear {name},\n\n"
+            f"Your loan application (ID: {loan_id}) has been approved.\n\n"
+            f"View your loan certificate online:\n{cert_url}\n\n"
+            f"Thank you."
+        )
     elif status == "rejected":
         subject = "Loan Application Rejected"
         body = f"Dear {name},\n\nYour loan application (ID: {loan_id}) has been rejected.\n\nThank you."
@@ -201,15 +214,26 @@ def apply_loan():
             loan_type=data["loan_type"],
             amount=data["loan_amount"]
         )
+        # Send application confirmation email to the member with certificate URL
+        try:
+            member_email_resp = supabase.table("members").select("email,name").eq("customer_id", data["customer_id"]).execute()
+            if member_email_resp.data and member_email_resp.data[0].get("email"):
+                member_email = member_email_resp.data[0]["email"]
+                member_name = member_email_resp.data[0].get("name") or "Member"
+                send_loan_status_email(member_email, member_name, loan_id, "pending")
+        except Exception as _e:
+            print(f"[WARN] Failed to send application email: {_e}")
         
         # Build certificate URL
-        certificate_url = url_for('loan_cert.loan_certificate', 
-                  loan_id=loan_id,
-                  action='view')
+        certificate_url = url_for(
+            'finance.loan_certificate',
+            loan_id=loan_id,
+            action='view'
+        )
 
         # Return success with loan_id and certificate URL
         return jsonify({
-            "status": "success", 
+            "status": "success",
             "message": "Loan application submitted successfully and is pending approval",
             "loan_id": loan_id,
             "certificate_url": certificate_url
@@ -407,11 +431,15 @@ def loan_certificate(loan_id):
     Query param: action=view|download|print|json (default: view)
     """
     action = request.args.get('action', 'view')
-    # Fetch loan
+    # Fetch loan by textual loan_id (LNxxxx) or UUID fallback
     loan_resp = supabase.table("loans").select("*").eq("loan_id", loan_id).execute()
-    if not loan_resp.data:
+    loan = loan_resp.data[0] if loan_resp.data else None
+    if not loan:
+        uuid_try = supabase.table("loans").select("*").eq("id", loan_id).execute()
+        if uuid_try.data:
+            loan = uuid_try.data[0]
+    if not loan:
         return jsonify({"status": "error", "message": "Loan not found"}), 404
-    loan = loan_resp.data[0]
 
     # Fetch member with more detail (ensuring name is included)
     member_resp = supabase.table("members").select("*").eq("customer_id", loan["customer_id"]).execute()

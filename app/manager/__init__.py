@@ -5,6 +5,8 @@ manager_bp = Blueprint("manager", __name__, url_prefix="/manager")
 login_manager = LoginManager()
 
 from . import routes
+# Ensure API routes are registered on the same blueprint
+from . import api  # noqa: F401
 
 def register_cli(app):
     from .cli import create_manager

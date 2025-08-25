@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const debugBox = document.getElementById('addStaffDebug');
   const toggleWrapper = document.getElementById('debugToggleWrapper');
   const toggleBtn = document.getElementById('toggleDebugBtn');
+  // Fix: define file input elements for validators and submission
+  const photoInput = document.getElementById('staffPhoto') || form?.querySelector('input[name="photo"]');
+  const signatureInput = document.getElementById('staffSignature') || form?.querySelector('input[name="signature"]');
   let submitting = false;
   let debugVisible = false;
 
@@ -120,8 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function validateFiles(){
     const maxBytes = 2*1024*1024;
     const allowed = ['image/jpeg','image/png','image/jpg'];
+    // Require both files since inputs are marked required in HTML
+    if(!(photoInput && photoInput.files && photoInput.files[0]) || !(signatureInput && signatureInput.files && signatureInput.files[0])){
+      showMsg('Please upload both photo and signature.', 'error');
+      return false;
+    }
     for(const input of [photoInput, signatureInput]){
-      if(!input || !input.files || !input.files[0]) return true;
       const f = input.files[0];
       if(f.size > maxBytes){
         showMsg(`${input.name === 'photo' ? 'Photo' : 'Signature'} exceeds 2MB.`, 'error');
@@ -213,8 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       fd.append('otp', otpInput.value.trim());
       payloadSnapshot.otp = '***';
-      fd.append('photo', photoInput.files[0]);
-      fd.append('signature', signatureInput.files[0]);
+      if (photoInput && photoInput.files && photoInput.files[0]) {
+        fd.append('photo', photoInput.files[0]);
+      }
+      if (signatureInput && signatureInput.files && signatureInput.files[0]) {
+        fd.append('signature', signatureInput.files[0]);
+      }
 
       try{
         const res = await fetch('/manager/add-staff', { method: 'POST', body: fd });
