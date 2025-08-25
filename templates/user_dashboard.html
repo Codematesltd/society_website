@@ -262,16 +262,16 @@
             if (data.status === "success" && data.data) {
               const d = data.data;
               contentDiv.innerHTML = `
-                <div class="w-full flex flex-col items-center">
-                  <div class="mb-4">
+                <div id="accountCard" class="w-full flex flex-col items-center bg-white" style="background: #f0f6ff;">
+                  <div class="mb-4 flex items-center justify-center" style="width:120px;height:120px;">
                     ${
                       d.photo_url
-                        ? `<img src="${d.photo_url}" alt="User Photo" class="w-20 h-20 rounded-full object-cover shadow border-2 border-blue-200">`
-                        : `<div class="w-20 h-20 rounded-full bg-blue-200 flex items-center justify-center text-3xl font-bold text-blue-700 shadow">?</div>`
+                        ? `<img src="${d.photo_url}" crossOrigin="anonymous" alt="User Photo" style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:2px solid #3b82f6;background:#fff;" />`
+                        : `<div style="width:100px;height:100px;border-radius:50%;background:#e0e7ef;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#2563eb;border:2px solid #3b82f6;">?</div>`
                     }
                   </div>
-                  <div class="mb-2 text-xl font-semibold text-blue-800">${d.name || "-"}</div>
-                  <div class="grid grid-cols-1 gap-3 text-gray-700 w-full max-w-xs mt-4">
+                  <div class="mb-2 text-xl font-semibold text-blue-800" style="font-size:1.4rem;font-weight:700;color:#2563eb;">${d.name || "-"}</div>
+                  <div class="grid grid-cols-1 gap-3 text-gray-700 w-full max-w-xs mt-4" style="width:100%;max-width:340px;">
                     <div class="flex justify-between"><span class="font-semibold">KGID:</span> <span>${d.kgid || "-"}</span></div>
                     <div class="flex justify-between"><span class="font-semibold">Customer ID:</span> <span>${d.customer_id || "-"}</span></div>
                     <div class="flex justify-between"><span class="font-semibold">Organization:</span> <span>${d.organization_name || "-"}</span></div>
@@ -279,8 +279,44 @@
                     <div class="flex justify-between"><span class="font-semibold">Email:</span> <span>${d.email || "-"}</span></div>
                     <div class="flex justify-between"><span class="font-semibold">Address:</span> <span class="text-right">${d.address || "-"}</span></div>
                   </div>
+                  <button id="downloadAccountCardBtn" class="mt-6 px-5 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 transition">⬇ Download Card</button>
                 </div>
               `;
+              // Download logic
+              setTimeout(() => {
+                const btn = document.getElementById("downloadAccountCardBtn");
+                if (btn) {
+                  btn.onclick = async function() {
+                    const card = document.getElementById("accountCard");
+                    // load html2canvas if missing
+                    if (typeof html2canvas !== 'function') {
+                      btn.textContent = "Loading...";
+                      const s = document.createElement("script");
+                      s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+                      s.onload = () => btn.onclick();
+                      document.head.appendChild(s);
+                      return;
+                    }
+                    btn.textContent = "Preparing...";
+                    btn.disabled = true;
+                    try {
+                      const canvas = await html2canvas(card, {
+                        useCORS: true,
+                        backgroundColor: "#f0f6ff",
+                        scale: 2
+                      });
+                      const link = document.createElement("a");
+                      link.download = "account_card.png";
+                      link.href = canvas.toDataURL("image/png");
+                      link.click();
+                    } catch (e) {
+                      alert("Failed to generate image.");
+                    }
+                    btn.textContent = "⬇ Download Card";
+                    btn.disabled = false;
+                  };
+                }
+              }, 100);
             } else {
               contentDiv.innerHTML = `<div class="text-red-600 font-medium">${data.message || "Unable to fetch account details."}</div>`;
             }
