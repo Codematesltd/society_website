@@ -330,6 +330,26 @@
           errorDiv.textContent = "Please fill all required fields and add at least one surety.";
           return;
         }
+
+        // --- Spinner UI start ---
+        const applyBtn = document.getElementById('applyLoanBtn');
+        let originalBtnHTML = null;
+        if (applyBtn){
+          originalBtnHTML = applyBtn.innerHTML;
+          applyBtn.disabled = true;
+          applyBtn.setAttribute('aria-busy','true');
+          applyBtn.innerHTML = `
+            <span class="flex items-center justify-center gap-2">
+              <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              Submitting...
+            </span>`;
+        }
+        // --- Spinner UI end ---
+
         const payload = {
           loan_type,
           customer_id: customerId,
@@ -383,6 +403,12 @@
           }
         }catch{
           errorDiv.textContent = 'Network error.';
+        }finally{
+          if (applyBtn){
+            applyBtn.disabled = false;
+            applyBtn.removeAttribute('aria-busy');
+            if (originalBtnHTML) applyBtn.innerHTML = originalBtnHTML;
+          }
         }
       });
     }
