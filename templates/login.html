@@ -26,7 +26,16 @@
                   class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   required>
             </div>
-            <button type="submit" class="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow hover:from-blue-700 hover:to-indigo-700 transition">Login</button>
+                <!-- Only keep the animated login button -->
+                <button id="loginBtn" type="submit" class="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow hover:from-blue-700 hover:to-indigo-700 transition flex items-center justify-center">
+                        <span id="loginBtnText">Login</span>
+                        <span id="loginLoading" class="ml-2 hidden">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                        </span>
+                </button>
         </form>
         <div class="mt-6 text-center">
             <a href="{{ url_for('auth.first_time_signin_page') }}"
@@ -85,9 +94,16 @@
         e.preventDefault();
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
-
         const loginMsg = document.getElementById('loginMsg');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginBtnText = document.getElementById('loginBtnText');
+        const loginLoading = document.getElementById('loginLoading');
         loginMsg.textContent = "";
+
+        // Show loading animation
+        loginBtn.disabled = true;
+        loginBtnText.classList.add('hidden');
+        loginLoading.classList.remove('hidden');
 
         // Strict email validation
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,6 +111,9 @@
             loginMsg.textContent = "Please enter a valid email address.";
             loginMsg.className = "mt-4 text-center text-red-600";
             document.getElementById('email').classList.add('border-red-500');
+            loginBtn.disabled = false;
+            loginBtnText.classList.remove('hidden');
+            loginLoading.classList.add('hidden');
             return;
         } else {
             document.getElementById('email').classList.remove('border-red-500');
@@ -105,6 +124,9 @@
             loginMsg.textContent = "Password is required.";
             loginMsg.className = "mt-4 text-center text-red-600";
             document.getElementById('password').classList.add('border-red-500');
+            loginBtn.disabled = false;
+            loginBtnText.classList.remove('hidden');
+            loginLoading.classList.add('hidden');
             return;
         } else {
             document.getElementById('password').classList.remove('border-red-500');
@@ -114,33 +136,44 @@
         if (hasSQLi(email) || hasSQLi(password)) {
             loginMsg.textContent = "Invalid input detected.";
             loginMsg.className = "mt-4 text-center text-red-600";
+            loginBtn.disabled = false;
+            loginBtnText.classList.remove('hidden');
+            loginLoading.classList.add('hidden');
             return;
         }
 
-        const res = await fetch('/auth/login', {
-            method: 'POST',
-            body: new URLSearchParams({email, password}),
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            try {
-              // Save JWT in sessionStorage (per-tab). Clearing when tab closes is automatic.
-              if (data.token) sessionStorage.setItem('authToken', data.token);
-            } catch(e) {}
-            // Redirect based on role
-            if (data.role === 'staff') {
-                window.location.href = '/staff/dashboard';
-            } else if (data.role === 'members') {
-                window.location.href = '/members/dashboard';
-            } else if (data.role === 'manager' || data.role === 'admin') {
-                window.location.href = '/admin/dashboard';
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                body: new URLSearchParams({email, password}),
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                try {
+                  // Save JWT in sessionStorage (per-tab). Clearing when tab closes is automatic.
+                  if (data.token) sessionStorage.setItem('authToken', data.token);
+                } catch(e) {}
+                // Redirect based on role
+                if (data.role === 'staff') {
+                    window.location.href = '/staff/dashboard';
+                } else if (data.role === 'members') {
+                    window.location.href = '/members/dashboard';
+                } else if (data.role === 'manager' || data.role === 'admin') {
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    window.location.href = '/admin/dashboard';
+                }
             } else {
-                window.location.href = '/admin/dashboard';
+                document.getElementById('loginMsg').textContent = data.message;
             }
-        } else {
-            document.getElementById('loginMsg').textContent = data.message;
+        } catch (err) {
+            loginMsg.textContent = "Network error. Please try again.";
         }
+        // Hide loading animation and restore button
+        loginBtn.disabled = false;
+        loginBtnText.classList.remove('hidden');
+        loginLoading.classList.add('hidden');
     };
     // Clear any stale per-tab token when hitting login page
     try { sessionStorage.removeItem('authToken'); } catch(e) {}
