@@ -2,7 +2,7 @@ import os
 import uuid
 import re
 import random
-from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect
+from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect, current_app
 from app.auth.decorators import login_required, role_required
 from werkzeug.utils import secure_filename
 from io import BytesIO
@@ -14,6 +14,7 @@ from PIL import Image
 from datetime import datetime
 from xhtml2pdf import pisa
 import inflect
+from httpx import RemoteProtocolError
 
 staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
 staff_bp = Blueprint('staff', __name__, url_prefix='/staff')
@@ -683,6 +684,146 @@ def fetch_account_member():
         'customer_id': m.get('customer_id'),
         'status': m.get('status')
     }), 200
+
+@staff_api_bp.route('/send-update-otp', methods=['POST'])
+def send_update_otp():
+    data = request.get_json()
+    email = data.get('email')
+    if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({'status': 'error', 'message': 'Invalid email'}), 400
+    otp = str(uuid.uuid4().int)[-6:]
+    try:
+        # Update OTP for this member (do not change other fields)
+        supabase.table("members").update({"otp": otp}).eq("email", email).execute()
+        send_otp_email(email, otp)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to send OTP', 'error': str(e)}), 500
+    return jsonify({'status': 'success', 'message': 'OTP sent'})
+
+@staff_api_bp.route('/verify-update-otp', methods=['POST'])
+def verify_update_otp():
+    data = request.get_json()
+    email = data.get('email')
+    otp = data.get('otp')
+    if not email or not otp:
+        return jsonify({'status': 'error', 'message': 'Missing email or OTP'}), 400
+    member_rows = supabase.table("members").select("otp").eq("email", email).execute()
+    if not member_rows.data or not member_rows.data[0].get("otp"):
+        return jsonify({'status': 'error', 'message': 'OTP not found for this email'}), 400
+    stored_otp = member_rows.data[0]["otp"]
+    if otp != stored_otp:
+        return jsonify({'status': 'error', 'message': 'Invalid or expired OTP'}), 400
+    return jsonify({'status': 'success'})
+
+@staff_api_bp.route('/update-customer', methods=['POST'])
+def update_customer():
+    # Accepts multipart/form-data (for images)
+    form = request.form
+    files = request.files
+    customer_id = form.get('customer_id')
+    otp = form.get('otp')
+    if not customer_id or not otp:
+        return jsonify({'status': 'error', 'message': 'Missing customer_id or OTP'}), 400
+
+    # Fetch member (single attempt)
+    try:
+        member_rows = supabase.table("members") \
+            .select("email,otp") \
+            .eq("customer_id", customer_id) \
+            .limit(1) \
+            .execute()
+    except RemoteProtocolError:
+        return jsonify({'status': 'error', 'message': 'Upstream connection issue. Retry later.'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Unexpected fetch error: {e}'}), 500
+
+    if not member_rows.data or not member_rows.data[0].get("email"):
+        return jsonify({'status': 'error', 'message': 'Customer not found'}), 404
+    stored_otp = member_rows.data[0].get('otp')
+    if otp != stored_otp:
+        return jsonify({'status': 'error', 'message': 'Invalid or expired OTP'}), 400
+
+    # Map & collect update fields
+    update_fields = {}
+    field_map = {
+        'name': 'name',
+        'kgid': 'kgid',
+        'phone': 'phone',
+        'email': 'email',
+        'salary': 'salary',
+        'aadhar_no': 'aadhar_no',
+        'aadhaar_card': 'aadhar_no',
+        'pan_no': 'pan_no',
+        'pan_card': 'pan_no',
+        'organization_name': 'organization_name',
+        'address': 'address'
+    }
+    for incoming_key, target_key in field_map.items():
+        if incoming_key in form and form.get(incoming_key) != '':
+            val = form.get(incoming_key)
+            if target_key == 'salary':
+                try:
+                    val = float(val)
+                except Exception:
+                    return jsonify({'status': 'error', 'message': 'Invalid salary value'}), 400
+            update_fields[target_key] = val
+
+    # Images
+    bucket = supabase.storage.from_(SUPABASE_BUCKET)
+    if 'photo' in files and files['photo'] and files['photo'].filename:
+        photo = files['photo']
+        try:
+            photo_filename = f"{uuid.uuid4().hex}_{secure_filename(photo.filename)}"
+            photo_buffer = compress_image(photo)
+            bucket.upload(photo_filename, photo_buffer.read())
+            update_fields['photo_url'] = f"{STORAGE_PUBLIC_PATH}/{photo_filename}"
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': 'Photo upload failed', 'error': str(e)}), 500
+    if 'signature' in files and files['signature'] and files['signature'].filename:
+        signature = files['signature']
+        try:
+            signature_filename = f"{uuid.uuid4().hex}_{secure_filename(signature.filename)}"
+            signature_buffer = compress_image(signature)
+            bucket.upload(signature_filename, signature_buffer.read())
+            update_fields['signature_url'] = f"{STORAGE_PUBLIC_PATH}/{signature_filename}"
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': 'Signature upload failed', 'error': str(e)}), 500
+
+    if not update_fields:
+        return jsonify({'status': 'error', 'message': 'No valid fields to update'}), 400
+
+    # Update + clear OTP
+    try:
+        supabase.table("members").update(update_fields).eq("customer_id", customer_id).execute()
+        supabase.table("members").update({"otp": None}).eq("customer_id", customer_id).execute()
+    except RemoteProtocolError:
+        return jsonify({'status': 'error', 'message': 'Upstream write issue. Retry later.'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Failed to update customer', 'error': str(e)}), 500
+
+    # Fetch updated record
+    try:
+        updated = supabase.table("members").select(
+            "customer_id,name,kgid,phone,email,salary,aadhar_no,pan_no,organization_name,address,photo_url,signature_url,status,balance"
+        ).eq("customer_id", customer_id).limit(1).execute()
+        customer_obj = updated.data[0] if updated.data else {}
+    except Exception as e:
+        customer_obj = {}
+        print(f"Post-update fetch failed: {e}")
+
+    return jsonify({'status': 'success', 'customer': customer_obj})
+
+    # Fetch updated record (retry)
+    try:
+        updated = supabase_retry(lambda: supabase.table("members").select(
+            "customer_id,name,kgid,phone,email,salary,aadhar_no,pan_no,organization_name,address,photo_url,signature_url,status,balance"
+        ).eq("customer_id", customer_id).limit(1).execute(), attempts=2)
+        customer_obj = updated.data[0] if updated and updated.data else {}
+    except Exception as e:
+        customer_obj = {}
+        print(f"Post-update fetch failed: {e}")
+
+    return jsonify({'status': 'success', 'customer': customer_obj})
 
 
 

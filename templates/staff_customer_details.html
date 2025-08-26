@@ -36,11 +36,47 @@
         <!-- Search Results -->
         <div id="customerSearchResults" class="hidden">
             <!-- Customer Basic Info Card -->
-            <div class="bg-gray-50 p-6 rounded-lg mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Customer Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="customerBasicInfo">
-                    <!-- Content will be populated by JavaScript -->
-                </div>
+            <div class="bg-gray-50 p-6 rounded-lg mb-6 relative">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex justify-between items-center">
+                    Customer Information
+                    <button id="editCustomerBtn" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center gap-1">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m2-2l6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Update
+                    </button>
+                </h3>
+                <form id="customerEditForm" class="relative">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="customerBasicInfo">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                    <!-- Spinner overlay for update -->
+                    <div id="customerUpdateSpinner" class="hidden absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
+                        <div class="flex flex-col items-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                            <span class="text-blue-600">Updating...</span>
+                        </div>
+                    </div>
+                    <!-- OTP Section (modified) -->
+                    <div id="customerOtpSection" class="hidden mt-6 flex flex-col items-center gap-3">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <button type="button" id="sendCustomerOtpBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                                Send OTP
+                            </button>
+                            <div id="otpEntryGroup" class="hidden flex flex-wrap gap-2 items-center">
+                                <input type="text" id="customerOtpInput" class="border px-4 py-2 rounded" placeholder="Enter OTP" />
+                                <button type="button" id="verifyCustomerOtpBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Verify OTP
+                                </button>
+                            </div>
+                        </div>
+                        <div id="customerOtpMsg" class="text-sm"></div>
+                    </div>
+                    <!-- Submit Button -->
+                    <div id="customerSubmitSection" class="hidden mt-6 flex justify-center">
+                        <button type="submit" id="customerSubmitBtn" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Submit</button>
+                    </div>
+                    <!-- Added: update message container -->
+                    <div id="customerUpdateMsg" class="hidden mt-4 text-center text-sm"></div>
+                </form>
             </div>
             
             <!-- Loans Summary -->
@@ -113,6 +149,16 @@
         const customerSearchResults = document.getElementById('customerSearchResults');
         const customerSearchError = document.getElementById('customerSearchError');
         const customerSearchErrorMessage = document.getElementById('customerSearchErrorMessage');
+        const customerEditForm = document.getElementById('customerEditForm');
+        
+        // Global variables for edit functionality
+        let customerOriginalData = null;
+        let customerEditMode = false;
+        let customerPhotoFile = null;
+        let customerSignatureFile = null;
+        let customerOtpVerified = false;
+        let customerOtpSent = false;
+        let customerEmailForOtp = null;
         
         if (customerSearchForm) {
             customerSearchForm.addEventListener('submit', async function(e) {
@@ -135,6 +181,7 @@
                     
                     if (data.status === 'success') {
                         displayCustomerDetails(data);
+                        attachEditButtonHandler();
                     } else {
                         showError(data.message || 'Customer not found');
                     }
@@ -161,10 +208,19 @@
         
         function displayCustomerDetails(data) {
             hideAllSearchStates();
-            
+            console.log('Customer details fetched:', data); // debug
             const customerInfo = data.customer;
-            const loanSummary = data.summary;
+            const loanSummary = data.summary || { total_loans: 0, active_loans: 0, pending_loans: 0 }; // fallback
             const loans = data.loans || [];
+            customerOriginalData = customerInfo;
+            // Normalize legacy field names so UI works regardless of backend naming
+            if (customerOriginalData.aadhar_no && !customerOriginalData.aadhaar_card) {
+                customerOriginalData.aadhaar_card = customerOriginalData.aadhar_no;
+            }
+            if (customerOriginalData.pan_no && !customerOriginalData.pan_card) {
+                customerOriginalData.pan_card = customerOriginalData.pan_no;
+            }
+            
             // Calculate total outstanding from loan_records summary rows (only for active or completed loans)
             let totalOutstanding = 0;
             loans.forEach(loan => {
@@ -197,100 +253,8 @@
                 </div>
             `;
             
-                        // Populate basic customer info with photos on the right side
-                        const basicInfoContainer = document.getElementById('customerBasicInfo');
-                        basicInfoContainer.className = ""; // reset grid classes (we'll control layout)
-                        basicInfoContainer.innerHTML = `
-                            <div class="flex flex-col lg:flex-row gap-8">
-                                <!-- LEFT: Details -->
-                                <div class="flex-1">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Name</p>
-                                            <p class="font-semibold text-gray-800">${customerInfo.name || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Customer ID</p>
-                                            <p class="font-semibold">${customerInfo.customer_id || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">KGID</p>
-                                            <p class="font-semibold">${customerInfo.kgid || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Phone</p>
-                                            <p class="font-medium">${customerInfo.phone || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Email</p>
-                                            <p class="font-medium break-all">${customerInfo.email || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Current Balance</p>
-                                            <p class="font-semibold text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Salary</p>
-                                            <p class="font-semibold text-blue-700">₹${(customerInfo.salary || 0).toLocaleString()}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Aadhaar Card</p>
-                                            <p class="font-medium">${customerInfo.aadhaar_card || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">PAN Card</p>
-                                            <p class="font-medium">${customerInfo.pan_card || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Organization</p>
-                                            <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Address</p>
-                                            <p class="font-medium">${customerInfo.address || 'N/A'}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Account Status</p>
-                                            <span class="inline-block mt-1 px-2 py-1 rounded-full text-xs font-semibold
-                                                ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-700'
-                                                    : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-700'
-                                                    : 'bg-yellow-100 text-yellow-700'}">
-                                                ${(customerInfo.status || 'pending').toUpperCase()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- RIGHT: Images -->
-                                <div class="w-full lg:w-72 flex flex-col items-center gap-8">
-                                    <div class="w-full bg-white rounded-xl border shadow-sm p-4">
-                                        <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Profile Photo</h4>
-                                        ${customerInfo.photo_url ? `
-                                            <img src="${customerInfo.photo_url}"
-                                                     alt="Customer Photo"
-                                                     class="mx-auto w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
-                                                     onclick="showImageModal('${customerInfo.photo_url}','Customer Photo')" />`
-                                            : `
-                                            <div class="mx-auto w-48 h-48 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-sm">
-                                                No Photo
-                                            </div>`}
-                                    </div>
-
-                                    <div class="w-full bg-white rounded-xl border shadow-sm p-4">
-                                        <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Signature</h4>
-                                        ${customerInfo.signature_url ? `
-                                            <img src="${customerInfo.signature_url}"
-                                                     alt="Customer Signature"
-                                                     class="mx-auto w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow"
-                                                     onclick="showImageModal('${customerInfo.signature_url}','Customer Signature')" />`
-                                            : `
-                                            <div class="mx-auto w-48 h-28 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-xs">
-                                                No Signature
-                                            </div>`}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+            // Populate basic customer info with read-only view initially
+            renderCustomerInfo(false);
             
             // Populate loans table
             const loansTableBody = document.getElementById('loansTableBody');
@@ -351,13 +315,264 @@
             customerSearchResults.classList.remove('hidden');
         }
 
+        // Helper function to render customer info (editable or read-only)
+        function renderCustomerInfo(editable) {
+            if (!customerOriginalData) return;
+            
+            const basicInfoContainer = document.getElementById('customerBasicInfo');
+            basicInfoContainer.className = ""; // reset grid classes
+            basicInfoContainer.innerHTML = renderCustomerInfoEditable(editable, customerOriginalData);
+            
+            if (editable) {
+                setTimeout(() => {
+                    wireImageEditButtons();
+                    wireFormChangeDetection();
+                }, 50);
+            }
+        }
+
+        // Helper function to render editable or read-only customer info
+        function renderCustomerInfoEditable(editable, data) {
+            let html = '';
+            html += `<div class="flex flex-col lg:flex-row gap-8">`;
+            html += `<div class="flex-1">`;
+            html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">`;
+            const fields = [
+                { key: 'name', label: 'Name' },
+                { key: 'customer_id', label: 'Customer ID', readonly: true },
+                { key: 'kgid', label: 'KGID' },
+                { key: 'phone', label: 'Phone' },
+                { key: 'email', label: 'Email' },
+                { key: 'balance', label: 'Current Balance', readonly: true, formatCurrency: true },
+                { key: 'salary', label: 'Salary', formatCurrency: true },
+                // Renamed to backend column names:
+                { key: 'aadhar_no', label: 'Aadhaar Card' },
+                { key: 'pan_no', label: 'PAN Card' },
+                { key: 'organization_name', label: 'Organization' },
+                { key: 'address', label: 'Address' },
+                { key: 'status', label: 'Account Status', readonly: true }
+            ];
+            // Ensure aadhar_no / pan_no values exist (copy from legacy keys if needed)
+            if (!data.aadhar_no && data.aadhaar_card) data.aadhar_no = data.aadhaar_card;
+            if (!data.pan_no && data.pan_card) data.pan_no = data.pan_card;
+            
+            for (const f of fields) {
+                if (f.key === 'status') {
+                    html += `<div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                        <span class="inline-block mt-1 px-2 py-1 rounded-full text-xs font-semibold
+                            ${data.status === 'approved' ? 'bg-green-100 text-green-700'
+                                : data.status === 'rejected' ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'}">
+                            ${(data.status || 'pending').toUpperCase()}
+                        </span>
+                    </div>`;
+                } else if (f.readonly) {
+                    if (editable && f.key === 'customer_id') {
+                        // show text + hidden input (so FormData includes customer_id)
+                        const valueRaw = data[f.key] || '';
+                        const valueDisplay = f.formatCurrency ? `₹${(data[f.key] || 0).toLocaleString()}` : (valueRaw || 'N/A');
+                        html += `<div>
+                            <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                            <p class="font-semibold">${valueDisplay}</p>
+                            <input type="hidden" name="customer_id" value="${valueRaw}">
+                        </div>`;
+                    } else {
+                        const value = f.formatCurrency ? `₹${(data[f.key] || 0).toLocaleString()}` : (data[f.key] || 'N/A');
+                        html += `<div>
+                            <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                            <p class="font-semibold ${f.formatCurrency ? 'text-green-600' : ''}">${value}</p>
+                        </div>`;
+                    }
+                } else if (editable) {
+                    html += `<div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                        <input type="text" name="${f.key}" value="${data[f.key] || ''}" class="border px-2 py-1 rounded w-full mt-1" autocomplete="off" />
+                    </div>`;
+                } else {
+                    const value = f.formatCurrency ? `₹${(data[f.key] || 0).toLocaleString()}` : (data[f.key] || 'N/A');
+                    html += `<div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                        <p class="font-medium ${f.formatCurrency ? 'text-blue-700' : ''}">${value}</p>
+                    </div>`;
+                }
+            }
+            html += `</div></div>`;
+            
+            // Images section
+            html += `
+            <div class="w-full lg:w-72 flex flex-col items-center gap-8">
+                <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Profile Photo</h4>
+                    <div class="relative inline-block mx-auto">
+                        ${data.photo_url ? `
+                            <img id="customerPhotoImg" src="${data.photo_url}" alt="Customer Photo"
+                                class="w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
+                                onclick="showImageModal('${data.photo_url}', 'Customer Photo')" />
+                        ` : `
+                            <div id="customerPhotoImg" class="w-48 h-48 bg-gray-200 rounded-lg border flex items-center justify-center">
+                                <span class="text-gray-400 text-sm">No Photo</span>
+                            </div>
+                        `}
+                        ${editable ? `
+                            <button type="button" id="editPhotoBtn" class="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow border border-gray-300 hover:bg-blue-100" title="Edit Photo">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m2-2l6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <input type="file" id="customerPhotoInput" accept="image/*" class="hidden" />
+                        ` : ''}
+                    </div>
+                    <div id="customerPhotoPreview" class="mt-2 text-center text-xs"></div>
+                </div>
+                <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Signature</h4>
+                    <div class="relative inline-block mx-auto">
+                        ${data.signature_url ? `
+                            <img id="customerSignatureImg" src="${data.signature_url}" alt="Customer Signature"
+                                class="w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow"
+                                onclick="showImageModal('${data.signature_url}', 'Customer Signature')" />
+                        ` : `
+                            <div id="customerSignatureImg" class="w-48 h-28 bg-gray-200 rounded-lg border flex items-center justify-center">
+                                <span class="text-gray-400 text-xs">No Signature</span>
+                            </div>
+                        `}
+                        ${editable ? `
+                            <button type="button" id="editSignatureBtn" class="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow border border-gray-300 hover:bg-blue-100" title="Edit Signature">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m2-2l6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <input type="file" id="customerSignatureInput" accept="image/*" class="hidden" />
+                        ` : ''}
+                    </div>
+                    <div id="customerSignaturePreview" class="mt-2 text-center text-xs"></div>
+                </div>
+            </div>
+            `;
+            html += `</div>`;
+            return html;
+        }
+
+        // Attach edit button event handler
+        function attachEditButtonHandler() {
+            const editBtn = document.getElementById('editCustomerBtn');
+            if (!editBtn) return;
+            
+            editBtn.onclick = function(e) {
+                e.preventDefault();
+                if (!customerOriginalData) {
+                    console.error('No customer data available for editing');
+                    return;
+                }
+                
+                customerEditMode = true;
+                customerOtpVerified = false;
+                customerOtpSent = false;
+                customerPhotoFile = null;
+                customerSignatureFile = null;
+                
+                // Render editable form
+                renderCustomerInfo(true);
+                
+                // Show OTP section immediately
+                document.getElementById('customerOtpSection').classList.remove('hidden');
+                // Reset OTP UI state
+                resetOtpUi();
+                document.getElementById('customerSubmitSection').classList.add('hidden');
+                document.getElementById('customerUpdateSpinner').classList.add('hidden');
+            };
+        }
+
+        // Wire up image edit buttons
+        function wireImageEditButtons() {
+            const editPhotoBtn = document.getElementById('editPhotoBtn');
+            const editSignatureBtn = document.getElementById('editSignatureBtn');
+            const customerPhotoInput = document.getElementById('customerPhotoInput');
+            const customerSignatureInput = document.getElementById('customerSignatureInput');
+            
+            if (editPhotoBtn && customerPhotoInput) {
+                editPhotoBtn.addEventListener('click', function() {
+                    customerPhotoInput.click();
+                });
+                
+                // Handle file selection for photo
+                customerPhotoInput.addEventListener('change', function() {
+                    const file = customerPhotoInput.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const imgElement = document.getElementById('customerPhotoImg');
+                            if (imgElement.tagName === 'IMG') {
+                                imgElement.src = e.target.result;
+                            } else {
+                                // Replace div with img
+                                const newImg = document.createElement('img');
+                                newImg.id = 'customerPhotoImg';
+                                newImg.src = e.target.result;
+                                newImg.alt = 'Customer Photo';
+                                newImg.className = 'w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow';
+                                imgElement.parentNode.replaceChild(newImg, imgElement);
+                            }
+                            customerPhotoFile = file;
+                        };
+                        reader.readAsDataURL(file);
+                        document.getElementById('customerPhotoPreview').textContent = '';
+                    }
+                });
+            }
+            
+            if (editSignatureBtn && customerSignatureInput) {
+                editSignatureBtn.addEventListener('click', function() {
+                    customerSignatureInput.click();
+                });
+                
+                // Handle file selection for signature
+                customerSignatureInput.addEventListener('change', function() {
+                    const file = customerSignatureInput.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const imgElement = document.getElementById('customerSignatureImg');
+                            if (imgElement.tagName === 'IMG') {
+                                imgElement.src = e.target.result;
+                            } else {
+                                // Replace div with img
+                                const newImg = document.createElement('img');
+                                newImg.id = 'customerSignatureImg';
+                                newImg.src = e.target.result;
+                                newImg.alt = 'Customer Signature';
+                                newImg.className = 'w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow';
+                                imgElement.parentNode.replaceChild(newImg, imgElement);
+                            }
+                            customerSignatureFile = file;
+                        };
+                        reader.readAsDataURL(file);
+                        document.getElementById('customerSignaturePreview').textContent = '';
+                    }
+                });
+            }
+        }
+
+        // Form change detection and OTP flow
+        function wireFormChangeDetection() {
+            const formInputs = document.querySelectorAll('#customerEditForm input[type="text"]');
+            formInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    if (customerEditMode && customerOtpVerified) {
+                        customerSubmitSection.classList.remove('hidden');
+                    } else {
+                        // keep hidden until OTP verified
+                        customerSubmitSection.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
         // Add image modal functionality
         window.showImageModal = function(imageSrc, imageTitle) {
             const existingModal = document.getElementById('imageModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-            
+            if (existingModal) existingModal.remove();
             const modal = document.createElement('div');
             modal.id = 'imageModal';
             modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
@@ -366,34 +581,20 @@
                     <div class="bg-white p-4 rounded-lg">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-bold text-gray-800">${imageTitle}</h3>
-                            <button onclick="closeImageModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">
-                                &times;
-                            </button>
+                            <button onclick="closeImageModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
                         </div>
-                        <img src="${imageSrc}" 
-                             alt="${imageTitle}" 
-                             class="max-w-full max-h-[70vh] object-contain rounded shadow-lg" />
+                        <img src="${imageSrc}" alt="${imageTitle}" class="max-w-full max-h-[70vh] object-contain rounded shadow-lg" />
                     </div>
-                </div>
-            `;
-            
-            modal.onclick = function(e) {
-                if (e.target === modal) {
-                    closeImageModal();
-                }
-            };
-            
+                </div>`;
+            modal.onclick = e => { if (e.target === modal) closeImageModal(); };
             document.body.appendChild(modal);
         };
-        
         window.closeImageModal = function() {
-            const modal = document.getElementById('imageModal');
-            if (modal) {
-                modal.remove();
-            }
+            const m = document.getElementById('imageModal');
+            if (m) m.remove();
         };
 
-        // Loan details functionality
+        // Loan deep details (restored)
         window.fetchLoanDeepDetails = async function(loanUuid) {
             const detailsPanel = document.getElementById('selectedLoanDetails');
             const detailsContent = document.getElementById('selectedLoanContent');
@@ -408,107 +609,374 @@
             try {
                 const res = await fetch(`/finance/${loanUuid}`);
                 const json = await res.json();
-                if(json.status !== 'success'){ throw new Error('Fetch failed'); }
+                if (json.status !== 'success') throw new Error('Failed to fetch loan');
                 renderSelectedLoan(json.loan, json.customer, json.sureties, json.records);
-            } catch(e){
+            } catch (e) {
                 console.error(e);
                 detailsContent.innerHTML = `<p class="text-red-600">Failed to load loan details.</p>`;
-                detailsPanel.classList.remove('hidden');
             }
         };
 
         function renderSelectedLoan(loan, customer, sureties, records) {
             records = records || [];
-            // Find the summary row (the one with repayment_amount == null)
-            const summaryRow = records.find(r => r.repayment_amount === null || r.repayment_amount === undefined);
+            const summaryRow = records.find(r => r.repayment_amount == null);
             const principal = Number(loan.loan_amount || 0);
             const totalInterest = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
             const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : 0;
-            // Only sum actual repayments (exclude summary row)
             let totalRepaid = 0;
-            records.forEach(rp => {
-                if (rp.repayment_amount !== null && rp.repayment_amount !== undefined) {
-                    totalRepaid += Number(rp.repayment_amount || 0);
-                }
-            });
-
-            const container = document.getElementById('selectedLoanContent');
-            // Determine next installment: prefer loan.next_installment, else summaryRow.next_installment, else '—', with isNaN check
+            records.forEach(r => { if (r.repayment_amount != null) totalRepaid += Number(r.repayment_amount || 0); });
             let nextInstallment = '—';
-            if (loan.next_installment !== undefined && loan.next_installment !== null && !isNaN(Number(loan.next_installment))) {
+            if (loan.next_installment != null && !isNaN(Number(loan.next_installment))) {
                 nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
-            } else if (summaryRow && summaryRow.next_installment !== undefined && summaryRow.next_installment !== null && !isNaN(Number(summaryRow.next_installment))) {
+            } else if (summaryRow && summaryRow.next_installment != null && !isNaN(Number(summaryRow.next_installment))) {
                 nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
             }
+            const container = document.getElementById('selectedLoanContent');
             container.innerHTML = `
                 <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-                    <div class="p-3 bg-blue-50 rounded">
-                        <p class="text-xs text-gray-500">Principal</p>
-                        <p class="font-semibold">₹${principal.toLocaleString()}</p>
-                    </div>
-                    <div class="p-3 bg-purple-50 rounded">
-                        <p class="text-xs text-gray-500">Interest</p>
-                        <p class="font-semibold text-purple-700">₹${Math.round(totalInterest*100)/100}</p>
-                    </div>
-                    <div class="p-3 bg-green-50 rounded">
-                        <p class="text-xs text-gray-500">Total Repaid</p>
-                        <p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p>
-                    </div>
-                    <div class="p-3 bg-yellow-50 rounded">
-                        <p class="text-xs text-gray-500">Outstanding</p>
-                        <p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p>
-                    </div>
-                    <div class="p-3 bg-indigo-50 rounded">
-                        <p class="text-xs text-gray-500">Interest Rate</p>
-                        <p class="font-semibold">${Number(loan.interest_rate||0)}%</p>
-                    </div>
-                    <div class="p-3 bg-pink-50 rounded">
-                        <p class="text-xs uppercase tracking-wide text-gray-500">Next Installment</p>
-                        <p class="font-semibold text-pink-700">${nextInstallment}</p>
-                    </div>
+                    <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${principal.toLocaleString()}</p></div>
+                    <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest</p><p class="font-semibold text-purple-700">₹${Math.round(totalInterest*100)/100}</p></div>
+                    <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p></div>
+                    <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p></div>
+                    <div class="p-3 bg-indigo-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${Number(loan.interest_rate||0)}%</p></div>
+                    <div class="p-3 bg-pink-50 rounded"><p class="text-xs text-gray-500">Next Installment</p><p class="font-semibold text-pink-700">${nextInstallment}</p></div>
                 </div>
                 <h4 class="font-semibold mb-2">Repayment History</h4>
-                ${records.filter(r => r.repayment_amount !== null && r.repayment_amount !== undefined).length === 0
+                ${
+                    records.filter(r => r.repayment_amount != null).length === 0
                     ? '<p class="text-sm text-gray-500 mb-4">No repayment records.</p>'
                     : `<div class="overflow-x-auto mb-4">
-                    <table class="min-w-full text-xs">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-2 py-2 text-left">#</th>
-                                <th class="px-2 py-2 text-left">Date</th>
-                                <th class="px-2 py-2 text-left">Amount</th>
-                                <th class="px-2 py-2 text-left">Interest</th>
-                                <th class="px-2 py-2 text-left">Outstanding After</th>
-                                <th class="px-2 py-2 text-left">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${records
-                                .filter(r => r.repayment_amount !== null && r.repayment_amount !== undefined)
-                                .map((r,i)=>`
-                                    <tr class="border-b hover:bg-gray-50">
-                                        <td class="px-2 py-1">${i+1}</td>
-                                        <td class="px-2 py-1">${r.repayment_date || '—'}</td>
-                                        <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
-                                        <td class="px-2 py-1 text-purple-700">₹${typeof r.interest_amount !== "undefined" ? Number(r.interest_amount).toLocaleString() : (typeof r.calculated_interest !== "undefined" ? Number(r.calculated_interest).toLocaleString() : "—")}</td>
-                                        <td class="px-2 py-1">₹${Number(r.outstanding_balance||0).toLocaleString()}</td>
-                                        <td class="px-2 py-1">
-                                            <span class="px-2 py-0.5 rounded text-[10px] ${r.status==='completed'?'bg-green-100 text-green-700':r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">
-                                                ${(r.status||'active').toUpperCase()}
-                                            </span>
-                                        </td>
-                                    </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>`}
-        `;
-        document.getElementById('selectedLoanDetails').classList.remove('hidden');
-    }
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-2 py-2 text-left">#</th>
+                                    <th class="px-2 py-2 text-left">Date</th>
+                                    <th class="px-2 py-2 text-left">Amount</th>
+                                    <th class="px-2 py-2 text-left">Interest</th>
+                                    <th class="px-2 py-2 text-left">Outstanding After</th>
+                                    <th class="px-2 py-2 text-left">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${
+                                    records.filter(r => r.repayment_amount != null).map((r,i)=>`
+                                        <tr class="border-b hover:bg-gray-50">
+                                            <td class="px-2 py-1">${i+1}</td>
+                                            <td class="px-2 py-1">${r.repayment_date || '—'}</td>
+                                            <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
+                                            <td class="px-2 py-1 text-purple-700">
+                                                ₹${
+                                                    typeof r.interest_amount !== 'undefined'
+                                                    ? Number(r.interest_amount).toLocaleString()
+                                                    : (typeof r.calculated_interest !== 'undefined'
+                                                        ? Number(r.calculated_interest).toLocaleString()
+                                                        : '—')
+                                                }
+                                            </td>
+                                            <td class="px-2 py-1">₹${Number(r.outstanding_balance||0).toLocaleString()}</td>
+                                            <td class="px-2 py-1">
+                                                <span class="px-2 py-0.5 rounded text-[10px] ${
+                                                    r.status==='completed'?'bg-green-100 text-green-700':
+                                                    r.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'
+                                                }">${(r.status||'active').toUpperCase()}</span>
+                                            </td>
+                                        </tr>`).join('')
+                                }
+                            </tbody>
+                        </table>
+                    </div>`
+                }`;
+            document.getElementById('selectedLoanDetails').classList.remove('hidden');
+        }
 
-        // Hide details panel when Hide button is clicked
-        document.getElementById('hideLoanDetailsBtn').onclick = function() {
+        document.getElementById('hideLoanDetailsBtn').onclick = () => {
             document.getElementById('selectedLoanDetails').classList.add('hidden');
         };
+
+        // OTP and submit handlers (remains unchanged)
+        const customerOtpInput = document.getElementById('customerOtpInput');
+        const verifyCustomerOtpBtn = document.getElementById('verifyCustomerOtpBtn');
+        const customerSubmitBtn = document.getElementById('customerSubmitBtn');
+        
+        if (verifyCustomerOtpBtn) {
+            verifyCustomerOtpBtn.addEventListener('click', async function() {
+                const otpValue = customerOtpInput.value.trim();
+                if (!otpValue) {
+                    showOtpError('Please enter the OTP');
+                    return;
+                }
+                
+                // Reset error message
+                document.getElementById('customerOtpMsg').textContent = '';
+                
+                try {
+                    const response = await fetch('/staff/api/verify-update-otp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            email: customerEmailForOtp,
+                            otp: otpValue
+                        })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        customerOtpVerified = true;
+                        document.getElementById('customerOtpSection').classList.add('hidden');
+                        document.getElementById('customerSubmitSection').classList.remove('hidden');
+                        document.getElementById('customerUpdateSpinner').classList.add('hidden');
+                        showSuccess('OTP verified successfully');
+                    } else {
+                        showOtpError(data.message || 'Invalid OTP');
+                    }
+                } catch (error) {
+                    console.error('Error verifying OTP:', error);
+                    showOtpError('Network error. Please try again.');
+                }
+            });
+        }
+        
+        if (customerSubmitBtn) {
+            customerSubmitBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                if (!customerEditMode) return;
+
+                // Basic client-side validation
+                if (!validateCustomerForm()) {
+                    showUpdateError('Please fix the form errors.');
+                    return;
+                }
+
+                // Normalize numeric fields before building FormData
+                const salaryInput = customerEditForm.querySelector('input[name="salary"]');
+                if (salaryInput) {
+                    salaryInput.value = salaryInput.value.replace(/[₹,]/g, '').trim();
+                }
+
+                const formData = new FormData(customerEditForm);
+                if (customerPhotoFile) formData.append('photo', customerPhotoFile);
+                if (customerSignatureFile) formData.append('signature', customerSignatureFile);
+
+                document.getElementById('customerUpdateSpinner').classList.remove('hidden');
+                showUpdateInfo('Updating customer details...');
+
+                try {
+                    async function tryUpdate(fd) {
+                        return await fetch('/staff/api/update-customer', { method: 'POST', body: fd });
+                    }
+                    const response = await tryUpdate(formData);
+                    let data = null;
+                    try { data = await response.clone().json(); } catch { /* ignore */ }
+
+                    // Accept success even if HTTP status not 2xx when body reports success
+                    if ((!response.ok) && !(data && data.status === 'success')) {
+                        if (response.status === 404) throw new Error('Update endpoint not found (404). Check backend route /staff/api/update-customer.');
+                        const msg = (data && data.message) ? data.message : ('Server responded with status ' + response.status);
+                        throw new Error(msg);
+                    }
+
+                    if (data && data.status === 'success') {
+                        if (data.customer) {
+                            customerOriginalData = data.customer;
+                            if (customerOriginalData.aadhar_no) customerOriginalData.aadhaar_card = customerOriginalData.aadhar_no;
+                            if (customerOriginalData.pan_no) customerOriginalData.pan_card = customerOriginalData.pan_no;
+                        } else {
+                            formData.forEach((v,k)=>{
+                                if (['photo','signature','otp'].includes(k)) return;
+                                customerOriginalData[k] = v;
+                            });
+                        }
+                    } else {
+                        // Fallback: fetch latest account if partial success
+                        const acctResp = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(customerOriginalData.customer_id)}`);
+                        if (acctResp.ok) {
+                            const acctData = await acctResp.json();
+                            if (acctData.status === 'success') {
+                                customerOriginalData = {
+                                    ...customerOriginalData,
+                                    ...acctData
+                                };
+                            }
+                        }
+                    }
+                    customerEditMode = false;
+                    customerPhotoFile = null;
+                    customerSignatureFile = null;
+                    showUpdateSuccess('Customer details updated successfully.');
+                    renderCustomerInfo(false);
+                    document.getElementById('customerSubmitSection').classList.add('hidden');
+                    // Hide OTP UI after successful update
+                    const otpSectionEl = document.getElementById('customerOtpSection');
+                    if(otpSectionEl) otpSectionEl.classList.add('hidden');
+                } catch (error) {
+                    console.error('Update error:', error);
+                    showUpdateError(error.message || 'Network / server error.');
+                } finally {
+                    document.getElementById('customerUpdateSpinner').classList.add('hidden');
+                }
+            });
+        }
+
+        // --- New helper functions for update messages ---
+        function showUpdateMsg(message, cls) {
+            const box = document.getElementById('customerUpdateMsg');
+            if (!box) return;
+            box.className = 'mt-4 text-center text-sm ' + cls;
+            box.textContent = message;
+            box.classList.remove('hidden');
+        }
+        function showUpdateError(message) {
+            showUpdateMsg(message, 'text-red-600');
+        }
+        function showUpdateSuccess(message) {
+            showUpdateMsg(message, 'text-green-600');
+        }
+        function showUpdateInfo(message) {
+            showUpdateMsg(message, 'text-blue-600');
+        }
+
+        // Adjust validateCustomerForm to not call showError (search error)
+        function validateCustomerForm() {
+            // ...existing code (add real validation as needed)...
+            return true;
+        }
+
+        // Remove any accidental use of showError for update failures (search-specific)
+        // ...existing code...
+
+        // References (add after existing const declarations)
+        const sendCustomerOtpBtn = document.getElementById('sendCustomerOtpBtn');
+        // Re-bind verify & input consts if needed (already exist)
+        const otpSection = document.getElementById('customerOtpSection');
+        const otpMsg = document.getElementById('customerOtpMsg');
+
+        // OTP helpers
+        function resetOtpUi(){
+            if(!sendCustomerOtpBtn) return;
+            sendCustomerOtpBtn.disabled = false;
+            sendCustomerOtpBtn.textContent = 'Send OTP';
+            otpEntryGroup.classList.add('hidden');          // hide verify group until OTP sent
+            customerOtpInput.value = '';
+            customerOtpInput.disabled = false;
+            verifyCustomerOtpBtn.disabled = false;
+            verifyCustomerOtpBtn.textContent = 'Verify OTP';
+            verifyCustomerOtpBtn.classList.remove('bg-green-600','hover:bg-green-700','cursor-default');
+            if(!verifyCustomerOtpBtn.classList.contains('bg-blue-600')){
+                verifyCustomerOtpBtn.classList.add('bg-blue-600','hover:bg-blue-700');
+            }
+            otpMsg.textContent = '';
+            customerSubmitSection.classList.add('hidden');  // always hide submit here
+        }
+        function setOtpMessage(msg, cls){
+            otpMsg.textContent = msg;
+            otpMsg.className = 'text-sm ' + (cls || '');
+        }
+
+        // Send OTP logic (modified)
+        if (sendCustomerOtpBtn){
+            sendCustomerOtpBtn.addEventListener('click', async () => {
+                if(!customerOriginalData || !customerOriginalData.email){
+                    setOtpMessage('Customer email not available.', 'text-red-600');
+                    return;
+                }
+                if(customerOtpVerified){
+                    setOtpMessage('OTP already verified.', 'text-green-600');
+                    return;
+                }
+                sendCustomerOtpBtn.disabled = true;
+                const originalText = sendCustomerOtpBtn.textContent;
+                sendCustomerOtpBtn.textContent = 'Sending...';
+                setOtpMessage('Sending OTP...', 'text-blue-600');
+                try{
+                    const res = await fetch('/staff/api/send-update-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: customerOriginalData.email })
+                    });
+                    const j = await res.json().catch(()=>({}));
+                    if(res.ok && j.status === 'success'){
+                        customerOtpSent = true;
+                        customerEmailForOtp = customerOriginalData.email;
+                        otpEntryGroup.classList.remove('hidden');
+                        customerSubmitSection.classList.add('hidden');
+                        setOtpMessage('OTP sent. Please check email.', 'text-green-600');
+                        customerOtpInput.focus();
+                        sendCustomerOtpBtn.textContent = 'Resend OTP';
+                        sendCustomerOtpBtn.disabled = false;
+                    } else {
+                        setOtpMessage((j && j.message) || 'Failed to send OTP.', 'text-red-600');
+                        sendCustomerOtpBtn.textContent = originalText;
+                        sendCustomerOtpBtn.disabled = false;
+                    }
+                }catch(e){
+                    console.error(e);
+                    setOtpMessage('Network error sending OTP.', 'text-red-600');
+                    sendCustomerOtpBtn.textContent = originalText;
+                    sendCustomerOtpBtn.disabled = false;
+                }
+            });
+        }
+
+        // Verify OTP logic (modified to only appear after send)
+        if (verifyCustomerOtpBtn){
+            verifyCustomerOtpBtn.addEventListener('click', async () => {
+                if(!customerOtpSent){
+                    setOtpMessage('Please send OTP first.', 'text-red-600');
+                    return;
+                }
+                const code = customerOtpInput.value.trim();
+                if(!code){
+                    setOtpMessage('Enter the OTP.', 'text-red-600');
+                    return;
+                }
+                verifyCustomerOtpBtn.disabled = true;
+                const originalText = verifyCustomerOtpBtn.textContent;
+                verifyCustomerOtpBtn.textContent = 'Verifying...';
+                setOtpMessage('Verifying...', 'text-blue-600');
+                try{
+                    const res = await fetch('/staff/api/verify-update-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: customerOriginalData.email, otp: code })
+                    });
+                    const j = await res.json().catch(()=>({}));
+                    if(res.ok && j.status === 'success'){
+                        customerOtpVerified = true;
+                        setOtpMessage('OTP verified successfully.', 'text-green-600');
+                        customerOtpInput.disabled = true;
+                        verifyCustomerOtpBtn.disabled = true;
+                        verifyCustomerOtpBtn.textContent = 'Verified';
+                        verifyCustomerOtpBtn.classList.remove('bg-blue-600','hover:bg-blue-700');
+                        verifyCustomerOtpBtn.classList.add('bg-green-600','hover:bg-green-700','cursor-default');
+                        sendCustomerOtpBtn.disabled = true;
+                        sendCustomerOtpBtn.textContent = 'OTP Verified';
+                        let hiddenOtp = document.getElementById('verifiedOtpHidden');
+                        if(!hiddenOtp){
+                            hiddenOtp = document.createElement('input');
+                            hiddenOtp.type='hidden';
+                            hiddenOtp.name='otp';
+                            hiddenOtp.id='verifiedOtpHidden';
+                            customerEditForm.appendChild(hiddenOtp);
+                        }
+                        hiddenOtp.value = code;
+                        // NOW show submit
+                        customerSubmitSection.classList.remove('hidden');
+                    } else {
+                        setOtpMessage((j && j.message) || 'Invalid OTP.', 'text-red-600');
+                        verifyCustomerOtpBtn.disabled = false;
+                        verifyCustomerOtpBtn.textContent = originalText;
+                    }
+                }catch(e){
+                    console.error(e);
+                    setOtpMessage('Network error verifying OTP.', 'text-red-600');
+                    verifyCustomerOtpBtn.disabled = false;
+                    verifyCustomerOtpBtn.textContent = originalText;
+                }
+            });
+        }
     });
     </script>
 </body>
