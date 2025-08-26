@@ -1,4 +1,6 @@
-from flask import request, jsonify, render_template, make_response, abort, session, url_for
+# Route to render loan_repayment.html for staff dashboard iframe
+
+from flask import request, jsonify, render_template, make_response, abort, session, url_for, current_app
 import os
 import uuid
 import re
@@ -9,6 +11,136 @@ import inflect
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
+import pdfkit
+import smtplib
+from email.mime.application import MIMEApplication
+
+# Import notify_admin_loan_application to fix NameError
+from app.auth.routes import notify_admin_loan_application
+
+# Use the shared finance blueprint defined in app.finance.__init__
+from . import finance_bp
+
+# Route to view/print/download a loan repayment certificate
+@finance_bp.route('/repayment-certificate/<repayment_id>')
+def repayment_certificate(repayment_id):
+    """
+    View, print, or download a loan repayment certificate by repayment record ID.
+    Query param: action=view|download|print|json (default: view)
+    """
+    action = request.args.get('action', 'view')
+    # Fetch repayment record
+    repayment = supabase.table("loan_records").select("*", "loan_id").eq("id", repayment_id).execute()
+    if not repayment.data:
+        return jsonify({"status": "error", "message": "Repayment record not found"}), 404
+    repayment_row = repayment.data[0]
+
+    # Fetch loan details
+    loan = None
+    loan_id = repayment_row.get("loan_id")
+    if loan_id:
+        loan_resp = supabase.table("loans").select("*", "customer_id").eq("loan_id", loan_id).execute()
+        if loan_resp.data:
+            loan = loan_resp.data[0]
+    if not loan:
+        return jsonify({"status": "error", "message": "Loan not found for repayment"}), 404
+
+    # Fetch member details
+    member = None
+    customer_id = loan.get("customer_id")
+    if customer_id:
+        member_resp = supabase.table("members").select("*").eq("customer_id", customer_id).execute()
+        if member_resp.data:
+            member = member_resp.data[0]
+    if not member:
+        member = {"name": "Customer information not available"}
+
+    # Ensure repayment values are always present and correct
+    repayment_amount = repayment_row.get("repayment_amount")
+    try:
+        repayment_amount = float(repayment_amount) if repayment_amount not in (None, '', 'None') else 0.0
+    except Exception:
+        repayment_amount = 0.0
+
+    interest_paid = repayment_row.get("interest_amount")
+    try:
+        interest_paid = float(interest_paid) if interest_paid not in (None, '', 'None') else 0.0
+    except Exception:
+        interest_paid = 0.0
+
+    # If principal_amount is missing, calculate as repayment_amount - interest_paid
+    principal_paid = repayment_row.get("principal_amount")
+    if principal_paid in (None, '', 'None', '-'): 
+        principal_paid = repayment_amount - interest_paid
+    try:
+        principal_paid = float(principal_paid)
+    except Exception:
+        principal_paid = 0.0
+
+    # Date fallback
+    repayment_date = repayment_row.get("repayment_date")
+    if not repayment_date or repayment_date in (None, '', 'None'):
+        repayment_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Amount in words fallback
+    amount_words = amount_to_words(repayment_amount) if repayment_amount else "Zero Rupees Only"
+
+    cert_data = dict(
+        transaction={
+            "stid": repayment_row.get("id"),
+            "date": repayment_date,
+            "amount": repayment_amount,
+            "principal_paid": principal_paid,
+            "interest_paid": interest_paid,
+            "from_account": member.get("customer_id", ""),
+            "to_account": loan.get("loan_id", ""),
+            "balance_after": repayment_row.get("outstanding_balance", 0.0),
+            "remarks": repayment_row.get("remarks", f"Loan repayment for {loan.get('loan_id')}")
+        },
+        member=member,
+        society_name="KSTHST Coof Society",
+        taluk_name="Taluk",
+        district_name="District",
+        amount_words=amount_words
+    )
+
+    if action == "json":
+        return jsonify({"status": "success", **cert_data}), 200
+
+    html = render_template("repayment_certificate.html", **cert_data)
+
+    if action == "download":
+        try:
+            import pdfkit
+            pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
+            response = make_response(pdf)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename=repayment_{repayment_id}.pdf'
+            return response
+        except Exception as e:
+            current_app.logger.error(f"PDF generation failed: {e}")
+            return html
+    elif action == "print":
+        html += "<script>window.onload = function(){window.print();}</script>"
+        return html
+    else:
+        return html
+# Route to render loan_repayment.html for staff dashboard iframe
+
+from flask import request, jsonify, render_template, make_response, abort, session, url_for, current_app
+import os
+import uuid
+import re
+from supabase import create_client, Client
+from dotenv import load_dotenv
+import pdfkit
+import inflect
+import smtplib
+from email.mime.text import MIMEText
+from datetime import datetime
+import pdfkit
+import smtplib
+from email.mime.application import MIMEApplication
 
 # Import notify_admin_loan_application to fix NameError
 from app.auth.routes import notify_admin_loan_application
@@ -127,85 +259,154 @@ def apply_loan():
     Handle loan application submissions
     """
     try:
-        # Get JSON data from request
-        data = request.get_json() or {}
+        def repay_loan():
+            """
+            API to make a loan repayment, generate a repayment certificate, email it, and record as transaction.
+            """
+            try:
+                data = request.get_json() or {}
+                loan_id = data.get("loan_id")
 
-        # Validate required fields
-        required_fields = ["loan_type", "customer_id", "loan_amount", "interest_rate", "loan_term_months", "sureties"]
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"status": "error", "message": f"Missing required field: {field}"}), 400
+                def safe_float(val):
+                    try:
+                        return float(val) if val is not None else 0.0
+                    except Exception:
+                        return 0.0
 
-        # Extract sureties from request data before creating loan record
-        sureties = data.get("sureties", [])
+                custom_amount = safe_float(data.get("amount"))
+                principal_part = safe_float(data.get("principal_amount"))
+                interest_part = safe_float(data.get("interest_amount"))
+                repayment_date = data.get("repayment_date") or datetime.now().date().isoformat()
 
-        # Enforce exactly 2 sureties
-        if not isinstance(sureties, list) or len(sureties) != 2:
-            return jsonify({"status": "error", "message": "Exactly 2 sureties are required for loan application."}), 400
+                if not loan_id or custom_amount <= 0:
+                    return jsonify({"status": "error", "message": "Invalid loan or amount."}), 400
 
-        # Generate a unique loan ID in format LNXXXX
-        loan_id = generate_loan_id()
-        
-        # Prepare loan data - removed sureties field as it doesn't exist in schema
-        loan_data = {
-            "loan_id": loan_id,
-            "customer_id": data["customer_id"],
-            "loan_type": data["loan_type"],
-            "loan_amount": data["loan_amount"],
-            "interest_rate": data["interest_rate"],
-            "loan_term_months": data["loan_term_months"],
-            "status": "pending_approval"
-        }
-        
-        # Add optional fields based on loan type
-        if data["loan_type"] == "normal" and "purpose_of_loan" in data:
-            loan_data["purpose_of_loan"] = data["purpose_of_loan"]
-        elif data["loan_type"] == "emergency" and "purpose_of_emergency_loan" in data:
-            loan_data["purpose_of_emergency_loan"] = data["purpose_of_emergency_loan"]
-        
-        # Get staff email from session
-        staff_email = session.get("email")
-        if staff_email:
-            loan_data["staff_email"] = staff_email
-        
-        # Insert loan application in database
-        result = supabase.table("loans").insert(loan_data).execute()
-        
-        if not result.data:
-            return jsonify({"status": "error", "message": "Failed to submit loan application"}), 500
-        
-        # Get the created loan ID from the response
-        created_loan_id = result.data[0].get("id")
-        
-        # Store sureties in separate table
-        if sureties and created_loan_id:
-            for surety_id in sureties:
-                # Get surety details from members table
-                surety_member = supabase.table("members") \
-                    .select("name,phone,signature_url,photo_url") \
-                    .eq("customer_id", surety_id) \
-                    .execute()
-                
-                if not surety_member.data or len(surety_member.data) == 0:
-                    print(f"Warning: Surety with ID {surety_id} not found in members table")
-                    continue
-                
-                surety_info = surety_member.data[0]
-                
-                surety_data = {
-                    "loan_id": created_loan_id,
-                    "surety_customer_id": surety_id,
-                    "surety_name": surety_info.get("name", "Unknown"),
-                    "surety_mobile": surety_info.get("phone", "0000000000"),  # Required field
-                    "surety_signature_url": surety_info.get("signature_url"),
-                    "surety_photo_url": surety_info.get("photo_url"),
-                    "active": False  # Sureties become active only after loan approval
+                # Fetch loan details
+                loan_resp = supabase.table("loans").select("*").eq("id", loan_id).execute()
+                if not loan_resp.data:
+                    return jsonify({"status": "error", "message": "Loan not found."}), 404
+                loan = loan_resp.data[0]
+
+                # Fetch member details
+                member_resp = supabase.table("members").select("*").eq("customer_id", loan["customer_id"]).execute()
+                member = member_resp.data[0] if member_resp.data else None
+
+                # Fetch summary row from loan_records
+                loan_records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).execute()
+                loan_records = loan_records_resp.data or []
+                summary = None
+                for rec in loan_records:
+                    if rec.get("repayment_amount") in (None, ""):
+                        summary = rec
+                        break
+                if not summary:
+                    return jsonify({"status": "error", "message": "Loan summary not found."}), 404
+
+                outstanding = safe_float(summary.get("outstanding_balance"))
+                interest_amount = safe_float(summary.get("interest_amount"))
+
+                # Don't allow overpayment
+                repayment_amount = min(custom_amount, outstanding)
+                # If principal/interest split not provided, calculate proportionally
+                if principal_part <= 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
+                    # Proportionally split
+                    if outstanding > 0:
+                        principal_part = repayment_amount * (safe_float(loan.get("loan_amount")) / outstanding)
+                        interest_part = repayment_amount - principal_part
+                    else:
+                        principal_part = repayment_amount
+                        interest_part = 0
+
+                new_outstanding = max(outstanding - repayment_amount, 0)
+
+                # Insert repayment record
+                supabase.table("loan_records").insert({
+                    "loan_id": loan.get("loan_id"),
+                    "repayment_date": repayment_date,
+                    "repayment_amount": repayment_amount,
+                    "outstanding_balance": new_outstanding,
+                    "status": "completed" if new_outstanding == 0 else "active",
+                    "interest_amount": interest_part
+                }).execute()
+
+                supabase.table("loan_records").update({
+                    "outstanding_balance": new_outstanding,
+                    "interest_amount": max(safe_float(summary.get("interest_amount")) - interest_part, 0)
+                }).eq("id", summary["id"]).execute()
+
+                # Record repayment as a transaction
+                txn_data = {
+                    "customer_id": loan["customer_id"],
+                    "type": "loan_repayment",
+                    "date": repayment_date,
+                    "amount": repayment_amount,
+                    "loan_id": loan.get("loan_id"),
+                    "principal_paid": principal_part,
+                    "interest_paid": interest_part,
+                    "balance_after": new_outstanding,
+                    "remarks": f"Loan repayment for {loan.get('loan_id')}"
                 }
-                
-                # Insert surety into sureties table
-                surety_result = supabase.table("sureties").insert(surety_data).execute()
-                if not surety_result.data:
-                    print(f"Warning: Failed to insert surety {surety_id} for loan {loan_id}")
+                supabase.table("transactions").insert(txn_data).execute()
+
+                # Generate repayment certificate (using certificate.html style)
+                cert_data = {
+                    "transaction": {
+                        "stid": f"RP{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        "date": repayment_date,
+                        "type": "Loan Repayment",
+                        "amount": repayment_amount,
+                        "from_account": member.get("customer_id") if member else "",
+                        "to_account": loan.get("loan_id"),
+                        "from_bank_name": member.get("bank_name", "") if member else "",
+                        "to_bank_name": "KSTHST Society",
+                        "balance_after": new_outstanding,
+                        "remarks": f"Loan repayment for {loan.get('loan_id')}",
+                    },
+                    "member": member or {},
+                    "society_name": "KSTHST Coof Society",
+                    "taluk_name": "Taluk",
+                    "district_name": "District",
+                    "amount_words": amount_to_words(repayment_amount)
+                }
+                html = render_template("certificate.html", **cert_data)
+                pdf = None
+                try:
+                    pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
+                except Exception as e:
+                    current_app.logger.error(f"PDF generation failed: {e}")
+                    pdf = None
+
+                # Email certificate to member
+                if member and member.get("email"):
+                    EMAIL_USER = os.environ.get("EMAIL_USER")
+                    EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+                    if EMAIL_USER and EMAIL_PASSWORD:
+                        msg = MIMEText("Dear {},\n\nYour loan repayment has been received. Please find the attached repayment certificate.\n\nThank you.".format(member.get("name", "Member")))
+                        msg['Subject'] = f"Loan Repayment Certificate - {loan.get('loan_id')}"
+                        msg['From'] = EMAIL_USER
+                        msg['To'] = member["email"]
+                        if pdf:
+                            part = MIMEApplication(pdf, Name="repayment_certificate.pdf")
+                            part['Content-Disposition'] = 'attachment; filename="repayment_certificate.pdf"'
+                            msg.attach(part)
+                        try:
+                            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                                server.login(EMAIL_USER, EMAIL_PASSWORD)
+                                server.sendmail(EMAIL_USER, [member["email"]], msg.as_string())
+                        except Exception as e:
+                            current_app.logger.error(f"Failed to send repayment certificate email: {e}")
+
+                return jsonify({
+                    "status": "success",
+                    "outstanding_balance": new_outstanding
+                }), 200
+
+            except Exception as e:
+                import traceback
+                print("Error in repay_loan:", e)
+                print(traceback.format_exc())
+                return jsonify({"status": "error", "message": str(e)}), 500
+            # ...existing code...
         
         # Notify administrators about the new loan application
         notify_admin_loan_application(
@@ -590,116 +791,143 @@ def fetch_customer_details():
     if not customer_id:
         return jsonify({"status": "error", "message": "Missing customer_id parameter"}), 400
     
-    try:
-        # Fetch comprehensive customer/member information
-        customer_resp = supabase.table("members").select("*").eq("customer_id", customer_id).execute()
-        
-        if not customer_resp.data:
-            return jsonify({
-                "status": "error", 
-                "message": f"Customer not found for ID: {customer_id}",
-                "customer_id": customer_id
-            }), 404
-        
-        customer_info = customer_resp.data[0]
-        
-        # Remove sensitive information from response
-        sensitive_fields = ['password', 'otp', 'reset_token']
-        for field in sensitive_fields:
-            customer_info.pop(field, None)
-        
-        # Fetch all loans for the customer
-        loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).execute()
-        
-        loans_with_details = []
-        
-        if loans_resp.data:
-            for loan in loans_resp.data:
-                loan_details = dict(loan)  # Copy loan data
-                
-                # Fetch loan records (repayments) for this specific loan
-                if loan.get("loan_id"):
-                    records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan["loan_id"]).execute()
-                    loan_details["repayment_records"] = records_resp.data if records_resp.data else []
-                    
-                    # Calculate total repaid amount
-                    total_repaid = 0
-                    for record in loan_details["repayment_records"]:
-                        if record.get("repayment_amount"):
-                            total_repaid += float(record["repayment_amount"])
-                    
-                    loan_details["total_repaid"] = total_repaid
-                    loan_details["remaining_balance"] = max(float(loan["loan_amount"]) - total_repaid, 0)
-                else:
-                    loan_details["repayment_records"] = []
-                    loan_details["total_repaid"] = 0
-                    loan_details["remaining_balance"] = max(float(loan["loan_amount"]), 0)
-                
-                # NEW: auto-complete status if fully repaid
-                try:
-                    if loan_details.get("status") == "approved" and loan_details["remaining_balance"] <= 0:
-                        supabase.table("loans").update({"status": "completed"}).eq("id", loan_details["id"]).execute()
-                        loan_details["status"] = "completed"
-                except Exception as e:
-                    print(f"Auto-complete update failed for loan {loan_details.get('id')}: {e}")
-                
-                # Fetch staff details if available
-                if loan.get("staff_email"):
-                    staff_resp = supabase.table("staff").select("name,phone,email").eq("email", loan["staff_email"]).execute()
-                    if staff_resp.data:
-                        loan_details["staff_details"] = staff_resp.data[0]
-                    else:
-                        loan_details["staff_details"] = {
-                            "name": loan.get("staff_name"),
-                            "phone": loan.get("staff_phone"),
-                            "email": loan.get("staff_email")
-                        }
-                else:
-                    loan_details["staff_details"] = None
-                
-                # Fetch sureties for this loan
-                sureties_resp = supabase.table("sureties").select("*").eq("loan_id", loan["id"]).execute()
-                loan_details["sureties"] = sureties_resp.data if sureties_resp.data else []
-                
-                loans_with_details.append(loan_details)
-        
-        # Calculate summary statistics
-        total_loans = len(loans_with_details)
-        active_loans = len([loan for loan in loans_with_details if loan.get("status") == "approved"])
-        pending_loans = len([loan for loan in loans_with_details if loan.get("status") == "pending_approval"])
-        rejected_loans = len([loan for loan in loans_with_details if loan.get("status") == "rejected"])
-        # FIX: complete broken line and include completed loans in aggregates
-        total_loan_amount = sum(
-            float(loan["loan_amount"]) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
-        )
-        total_repaid_amount = sum(loan.get("total_repaid", 0) for loan in loans_with_details)
-        total_outstanding = sum(
-            loan.get("remaining_balance", 0) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
-        )
+    # Fetch comprehensive customer/member information
+    customer_resp = supabase.table("members").select("*").eq("customer_id", customer_id).execute()
 
-        # Fetch transactions
-        transactions_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).order("date", desc=True).execute()
-        transactions = transactions_resp.data if transactions_resp.data else []
+    if not customer_resp.data:
+        return jsonify({
+            "status": "error", 
+            "message": f"Customer not found for ID: {customer_id}",
+            "customer_id": customer_id
+        }), 404
 
-        response_data = {
-            "status": "success",
-            "customer": customer_info,
-            "loans": loans_with_details,
-            "summary": {
-                "total_loans": total_loans,
-                "active_loans": active_loans,
-                "pending_loans": pending_loans,
-                "rejected_loans": rejected_loans,
-                "total_loan_amount": total_loan_amount,
-                "total_repaid_amount": total_repaid_amount,
-                "total_outstanding": total_outstanding
-            },
-            "transactions": transactions
-        }
-        return jsonify(response_data), 200
-    except Exception as e:
-        print(f"Error fetching customer details: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+    customer_info = customer_resp.data[0]
+
+    # Remove sensitive information from response
+    sensitive_fields = ['password', 'otp', 'reset_token']
+    for field in sensitive_fields:
+        customer_info.pop(field, None)
+
+    # Ensure salary is present (default to 0 if missing)
+    if "salary" not in customer_info:
+        customer_info["salary"] = 0
+
+    # Map DB fields to API fields for Aadhaar and PAN
+    customer_info["aadhaar_card"] = customer_info.get("aadhar_no", "")
+    customer_info["pan_card"] = customer_info.get("pan_no", "")
+
+    # Fetch all loans for the customer
+    loans_resp = supabase.table("loans").select("*").eq("customer_id", customer_id).execute()
+
+    loans_with_details = []
+
+    if loans_resp.data:
+        for loan in loans_resp.data:
+            loan_details = dict(loan)  # Copy loan data
+
+            # Fetch loan records (repayments) for this specific loan
+            if loan.get("loan_id"):
+                records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan["loan_id"]).execute()
+                loan_details["repayment_records"] = records_resp.data if records_resp.data else []
+
+                # Calculate total repaid amount
+                total_repaid = 0
+                for record in loan_details["repayment_records"]:
+                    if record.get("repayment_amount"):
+                        total_repaid += float(record["repayment_amount"])
+
+                loan_details["total_repaid"] = total_repaid
+                loan_details["remaining_balance"] = max(float(loan["loan_amount"]) - total_repaid, 0)
+            else:
+                loan_details["repayment_records"] = []
+                loan_details["total_repaid"] = 0
+                loan_details["remaining_balance"] = max(float(loan["loan_amount"]), 0)
+
+            # Add next installment calculation (EMI, capped by remaining)
+            principal = float(loan.get("loan_amount") or 0)
+            months = int(loan.get("loan_term_months") or 0)
+            rate = float(loan.get("interest_rate") or 0)
+            remaining = loan_details["remaining_balance"]
+            monthly_rate = rate / (12 * 100) if months else 0
+            if principal > 0 and months > 0:
+                if monthly_rate > 0:
+                    try:
+                        pow_term = (1 + monthly_rate) ** months
+                        emi = principal * monthly_rate * pow_term / (pow_term - 1)
+                    except Exception:
+                        emi = principal / months
+                else:
+                    emi = principal / months
+            else:
+                emi = 0.0
+            next_installment = min(emi, remaining) if remaining > 0 and emi > 0 else (0.0 if remaining <= 0 else remaining)
+            loan_details["next_installment"] = round(next_installment, 2)
+
+            # NEW: auto-complete status if fully repaid
+            try:
+                if loan_details.get("status") == "approved" and loan_details["remaining_balance"] <= 0:
+                    supabase.table("loans").update({"status": "completed"}).eq("id", loan_details["id"]).execute()
+                    loan_details["status"] = "completed"
+            except Exception as e:
+                print(f"Auto-complete update failed for loan {loan_details.get('id')}: {e}")
+
+            # Fetch staff details if available
+            if loan.get("staff_email"):
+                staff_resp = supabase.table("staff").select("name,phone,email").eq("email", loan["staff_email"]).execute()
+                if staff_resp.data:
+                    loan_details["staff_details"] = staff_resp.data[0]
+                else:
+                    loan_details["staff_details"] = {
+                        "name": loan.get("staff_name"),
+                        "phone": loan.get("staff_phone"),
+                        "email": loan.get("staff_email")
+                    }
+            else:
+                loan_details["staff_details"] = None
+
+            # Fetch sureties for this loan
+            sureties_resp = supabase.table("sureties").select("*").eq("loan_id", loan["id"]).execute()
+            loan_details["sureties"] = sureties_resp.data if sureties_resp.data else []
+
+            loans_with_details.append(loan_details)
+
+    # Calculate summary statistics
+    total_loans = len(loans_with_details)
+    active_loans = len([loan for loan in loans_with_details if loan.get("status") == "approved"])
+    pending_loans = len([loan for loan in loans_with_details if loan.get("status") == "pending_approval"])
+    rejected_loans = len([loan for loan in loans_with_details if loan.get("status") == "rejected"])
+    # FIX: complete broken line and include completed loans in aggregates
+    total_loan_amount = sum(
+        float(loan["loan_amount"]) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
+    )
+    total_repaid_amount = sum(loan.get("total_repaid", 0) for loan in loans_with_details)
+    total_outstanding = sum(
+        loan.get("remaining_balance", 0) for loan in loans_with_details if loan.get("status") in ("approved", "completed")
+    )
+
+    # Fetch transactions
+    transactions_resp = supabase.table("transactions").select("*").eq("customer_id", customer_id).order("date", desc=True).execute()
+    transactions = transactions_resp.data if transactions_resp.data else []
+
+    response_data = {
+        "status": "success",
+        "customer": customer_info,
+        "loans": loans_with_details,
+        "summary": {
+            "total_loans": total_loans,
+            "active_loans": active_loans,
+            "pending_loans": pending_loans,
+            "rejected_loans": rejected_loans,
+            "total_loan_amount": total_loan_amount,
+            "total_repaid_amount": total_repaid_amount,
+            "total_outstanding": total_outstanding
+        },
+        "transactions": transactions
+    }
+    return jsonify(response_data), 200
+@finance_bp.route('/loan-repayment-page')
+def loan_repayment_page():
+    return render_template('loan_repayment.html')
 
 @finance_bp.route('/repay-loan', methods=['POST'])
 def repay_loan():
@@ -756,29 +984,45 @@ def repay_loan():
         outstanding = safe_float(summary.get("outstanding_balance"))
         interest_amount = safe_float(summary.get("interest_amount"))
 
-        # Don't allow overpayment
+        # Don't allow overpayment or zero/negative repayments
+        if outstanding <= 0 or custom_amount <= 0:
+            return jsonify({"status": "error", "message": "No outstanding balance or invalid amount."}), 400
+
         repayment_amount = min(custom_amount, outstanding)
-        # If principal/interest split not provided, calculate proportionally
-        if principal_part <= 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
+
+        # If principal/interest split not provided or invalid, calculate proportionally
+        if principal_part < 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
             principal = safe_float(loan.get("loan_amount"))
             total_interest = safe_float(summary.get("interest_amount"))
-            principal_out = max(principal, 1)
-            interest_out = max(total_interest, 0)
-            total_out = principal_out + interest_out
-            principal_part = round(repayment_amount * (principal_out / total_out), 2)
-            interest_part = round(repayment_amount * (interest_out / total_out), 2)
+            total_out = principal + total_interest
+            if total_out > 0:
+                principal_part = round(repayment_amount * (principal / total_out), 2)
+                interest_part = round(repayment_amount * (total_interest / total_out), 2)
+            else:
+                principal_part = repayment_amount
+                interest_part = 0.0
+
+        # Ensure no negative splits
+        if principal_part < 0:
+            principal_part = 0.0
+        if interest_part < 0:
+            interest_part = 0.0
+        # Ensure sum matches repayment_amount
+        if abs(principal_part + interest_part - repayment_amount) > 0.01:
+            # Adjust interest to match
+            interest_part = repayment_amount - principal_part
 
         new_outstanding = max(outstanding - repayment_amount, 0)
 
-        # Insert repayment record (DO NOT include principal_amount column)
+        # Insert repayment record (now includes principal_amount column)
         supabase.table("loan_records").insert({
             "loan_id": loan.get("loan_id"),
             "repayment_date": repayment_date,
             "repayment_amount": repayment_amount,
+            "principal_amount": principal_part,
             "outstanding_balance": new_outstanding,
             "status": "completed" if new_outstanding == 0 else "active",
             "interest_amount": interest_part
-            # principal_part is NOT stored in DB, only for UI
         }).execute()
 
         supabase.table("loan_records").update({
@@ -786,8 +1030,67 @@ def repay_loan():
             "interest_amount": max(safe_float(summary.get("interest_amount")) - interest_part, 0)
         }).eq("id", summary["id"]).execute()
 
+
+
+        # Send repayment email with repayment certificate download URL (no PDF attachment)
+        member_email = None
+        member_name = None
+        member_resp = supabase.table("members").select("email,name").eq("customer_id", loan["customer_id"]).execute()
+        if member_resp.data and member_resp.data[0].get("email"):
+            member_email = member_resp.data[0]["email"]
+            member_name = member_resp.data[0].get("name") or "Member"
+
+        # Fetch the latest repayment record to get its ID
+        repayment_record_resp = supabase.table("loan_records").select("id").eq("loan_id", loan.get("loan_id")).order("repayment_date", desc=True).limit(1).execute()
+        repayment_id = None
+        if repayment_record_resp.data and len(repayment_record_resp.data) > 0:
+            repayment_id = repayment_record_resp.data[0]["id"]
+
+        # Build repayment certificate URL (public site)
+        base_url = "https://ksthstsociety.com"
+        if repayment_id:
+            certificate_url = f"{base_url}/loan/repayment-certificate/{repayment_id}?action=view"
+        else:
+            certificate_url = ""
+
+        # Send email with repayment certificate link (no PDF)
+        if member_email and certificate_url:
+            EMAIL_USER = os.environ.get("EMAIL_USER")
+            EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+            if EMAIL_USER and EMAIL_PASSWORD:
+                from email.mime.text import MIMEText
+                import smtplib
+                subject = f"Loan Repayment Certificate - {loan.get('loan_id')}"
+                body = (
+                    f"Dear {member_name},\n\n"
+                    f"Your loan repayment has been received. You can view and download your repayment certificate at the following link:\n"
+                    f"{certificate_url}\n\nThank you."
+                )
+                msg = MIMEText(body)
+                msg['Subject'] = subject
+                msg['From'] = EMAIL_USER
+                msg['To'] = member_email
+                try:
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                        server.login(EMAIL_USER, EMAIL_PASSWORD)
+                        server.sendmail(EMAIL_USER, [member_email], msg.as_string())
+                except Exception as e:
+                    current_app.logger.error(f"Failed to send repayment certificate email: {e}")
+
         if new_outstanding == 0 and loan.get("status") == "approved":
             supabase.table("loans").update({"status": "completed"}).eq("id", loan["id"]).execute()
+
+        # Build repayment certificate URL with action=view for API response
+        from flask import url_for
+        if repayment_id:
+            certificate_url = url_for(
+                'finance.repayment_certificate',
+                repayment_id=repayment_id,
+                action='view',
+                _external=True
+            )
+        else:
+            certificate_url = ""
 
         return jsonify({
             "status": "success",
@@ -795,7 +1098,9 @@ def repay_loan():
             "repayment_amount": repayment_amount,
             "principal_amount": principal_part,  # for UI only
             "interest_amount": interest_part,    # for UI only
-            "outstanding_balance": new_outstanding
+            "outstanding_balance": new_outstanding,
+            "certificate_url": certificate_url,
+            "repayment_id": repayment_id
         }), 200
 
     except Exception as e:

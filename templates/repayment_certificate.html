@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loan Repayment Certificate</title>
+    <link rel="icon" href="{{ url_for('static', filename='society_logo.png') }}" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { margin: 0; }
+        }
+        @page { size: A4; margin: 2cm; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #222;
+        }
+        .certificate-container {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 2em;
+            box-sizing: border-box;
+            min-height: 900px;
+            border: 1px solid #eee;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2em;
+        }
+        .society-name {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .certificate-title {
+            font-size: 1.2em;
+            margin: 1em 0;
+            font-weight: bold;
+        }
+        .details-table {
+            width: 100%;
+            margin-bottom: 2em;
+            border-collapse: collapse;
+        }
+        .details-table td {
+            padding: 0.5em 0.7em;
+            vertical-align: top;
+        }
+        .amount-words {
+            margin: 1.5em 0;
+            font-style: italic;
+            font-size: 1.1em;
+        }
+        .footer {
+            margin-top: 3em;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .staff-signature-block {
+            text-align: center;
+            min-width: 200px;
+        }
+        .staff-signature-block img {
+            display: block;
+            margin: 0 auto 0.5em auto;
+            max-width: 120px;
+            max-height: 50px;
+            object-fit: contain;
+        }
+        .download-btn {
+            display: inline-block;
+            margin-bottom: 1em;
+            padding: 0.5em 1.2em;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+        }
+    </style>
+    <script>
+        function downloadPDF() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('action', 'download');
+            window.open(url.toString(), '_blank');
+        }
+    </script>
+</head>
+<body>
+    <div class="certificate-container">
+        <div class="header">
+            <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Society Logo" style="height:80px; margin-bottom:0.5em; display:block; margin-left:auto; margin-right:auto;">
+            <div class="society-name">{{ society_name }}</div>
+            <div>{{ taluk_name }}, {{ district_name|title }}</div>
+            <div class="certificate-title">Loan Repayment Certificate</div>
+        </div>
+
+        <table class="details-table" border="1" style="border-collapse:collapse;">
+            <tr>
+                <td style="font-weight:bold;">Repayment ID:</td>
+                <td>{{ transaction.stid if transaction.stid not in (None, '', 'None') else 'N/A' }}</td>
+                <td style="font-weight:bold;">Date:</td>
+                <td>{% if transaction.date and transaction.date not in ('None', None, '') %}{{ transaction.date }}{% else %}N/A{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">Member Name:</td>
+                <td>{{ member.name }}</td>
+                <td style="font-weight:bold;">Member ID:</td>
+                <td>{{ member.customer_id }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">Repayment Amount:</td>
+                <td>₹ {% if transaction.amount not in (None, '', 'None') %}{{ '%.2f'|format(transaction.amount|float) }}{% else %}0.00{% endif %}</td>
+                <td style="font-weight:bold;">Outstanding After:</td>
+                <td>₹ {% if transaction.balance_after not in (None, '', 'None') %}{{ '%.2f'|format(transaction.balance_after|float) }}{% else %}0.00{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">Principal Paid:</td>
+                <td>₹ {% if transaction.principal_paid not in (None, '', 'None', '-') %}{{ '%.2f'|format(transaction.principal_paid|float) }}{% else %}0.00{% endif %}</td>
+                <td style="font-weight:bold;">Interest Paid:</td>
+                <td>₹ {% if transaction.interest_paid not in (None, '', 'None', '-') %}{{ '%.2f'|format(transaction.interest_paid|float) }}{% else %}0.00{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">From Account:</td>
+                <td>{{ transaction.from_account }}</td>
+                <td style="font-weight:bold;">To Account:</td>
+                <td>{{ transaction.to_account }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">Remarks:</td>
+                <td colspan="3">{{ transaction.remarks }}</td>
+            </tr>
+        </table>
+
+        <div class="amount-words">
+            <b>Amount in Words:</b>
+            {% if amount_words and amount_words not in ('None', None, '') %}{{ amount_words }}{% else %}Zero Rupees Only{% endif %}
+        </div>
+
+        <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
+        <div style="color:#b71c1c; font-size:0.95em; margin-bottom:1em;" class="no-print">
+            {% if request.args.get('action') == 'download' %}
+                {% if not pdfkit %}
+                    PDF download requires <b>wkhtmltopdf</b> to be installed on the server.<br>
+                    <a href="https://github.com/JazzCore/python-pdfkit/wiki/Installing-wkhtmltopdf" target="_blank" style="color:#1976d2;">Installation instructions</a>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            <div></div>
+            <!-- Staff signature block can be added here if needed -->
+        </div>
+    </div>
+</body>
+</html>

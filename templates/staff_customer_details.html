@@ -62,6 +62,7 @@
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Interest</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Next Installment</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
@@ -196,93 +197,105 @@
                 </div>
             `;
             
-            // Populate basic customer info with photos on the right side
-            const basicInfoContainer = document.getElementById('customerBasicInfo');
-            basicInfoContainer.className = ""; // reset grid classes (we'll control layout)
-            basicInfoContainer.innerHTML = `
-              <div class="flex flex-col lg:flex-row gap-8">
-                <!-- LEFT: Details -->
-                <div class="flex-1">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Name</p>
-                      <p class="font-semibold text-gray-800">${customerInfo.name || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Customer ID</p>
-                      <p class="font-semibold">${customerInfo.customer_id || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">KGID</p>
-                      <p class="font-semibold">${customerInfo.kgid || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Phone</p>
-                      <p class="font-medium">${customerInfo.phone || 'N/A'}</p>
-                    </div>
-                    <div class="">
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Email</p>
-                      <p class="font-medium break-all">${customerInfo.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Current Balance</p>
-                      <p class="font-semibold text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Organization</p>
-                      <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Address</p>
-                      <p class="font-medium">${customerInfo.address || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase tracking-wide text-gray-500">Account Status</p>
-                      <span class="inline-block mt-1 px-2 py-1 rounded-full text-xs font-semibold
-                        ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-700'
-                          : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-700'
-                          : 'bg-yellow-100 text-yellow-700'}">
-                        ${(customerInfo.status || 'pending').toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                        // Populate basic customer info with photos on the right side
+                        const basicInfoContainer = document.getElementById('customerBasicInfo');
+                        basicInfoContainer.className = ""; // reset grid classes (we'll control layout)
+                        basicInfoContainer.innerHTML = `
+                            <div class="flex flex-col lg:flex-row gap-8">
+                                <!-- LEFT: Details -->
+                                <div class="flex-1">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Name</p>
+                                            <p class="font-semibold text-gray-800">${customerInfo.name || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Customer ID</p>
+                                            <p class="font-semibold">${customerInfo.customer_id || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">KGID</p>
+                                            <p class="font-semibold">${customerInfo.kgid || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Phone</p>
+                                            <p class="font-medium">${customerInfo.phone || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Email</p>
+                                            <p class="font-medium break-all">${customerInfo.email || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Current Balance</p>
+                                            <p class="font-semibold text-green-600">₹${(customerInfo.balance || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Salary</p>
+                                            <p class="font-semibold text-blue-700">₹${(customerInfo.salary || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Aadhaar Card</p>
+                                            <p class="font-medium">${customerInfo.aadhaar_card || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">PAN Card</p>
+                                            <p class="font-medium">${customerInfo.pan_card || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Organization</p>
+                                            <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Address</p>
+                                            <p class="font-medium">${customerInfo.address || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Account Status</p>
+                                            <span class="inline-block mt-1 px-2 py-1 rounded-full text-xs font-semibold
+                                                ${customerInfo.status === 'approved' ? 'bg-green-100 text-green-700'
+                                                    : customerInfo.status === 'rejected' ? 'bg-red-100 text-red-700'
+                                                    : 'bg-yellow-100 text-yellow-700'}">
+                                                ${(customerInfo.status || 'pending').toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <!-- RIGHT: Images -->
-                <div class="w-full lg:w-72 flex flex-col items-center gap-8">
-                  <div class="w-full bg-white rounded-xl border shadow-sm p-4">
-                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Profile Photo</h4>
-                    ${customerInfo.photo_url ? `
-                      <img src="${customerInfo.photo_url}"
-                           alt="Customer Photo"
-                           class="mx-auto w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
-                           onclick="showImageModal('${customerInfo.photo_url}','Customer Photo')" />`
-                      : `
-                      <div class="mx-auto w-48 h-48 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-sm">
-                        No Photo
-                      </div>`}
-                  </div>
+                                <!-- RIGHT: Images -->
+                                <div class="w-full lg:w-72 flex flex-col items-center gap-8">
+                                    <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                                        <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Profile Photo</h4>
+                                        ${customerInfo.photo_url ? `
+                                            <img src="${customerInfo.photo_url}"
+                                                     alt="Customer Photo"
+                                                     class="mx-auto w-48 h-48 object-cover rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
+                                                     onclick="showImageModal('${customerInfo.photo_url}','Customer Photo')" />`
+                                            : `
+                                            <div class="mx-auto w-48 h-48 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-sm">
+                                                No Photo
+                                            </div>`}
+                                    </div>
 
-                  <div class="w-full bg-white rounded-xl border shadow-sm p-4">
-                    <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Signature</h4>
-                    ${customerInfo.signature_url ? `
-                      <img src="${customerInfo.signature_url}"
-                           alt="Customer Signature"
-                           class="mx-auto w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow"
-                           onclick="showImageModal('${customerInfo.signature_url}','Customer Signature')" />`
-                      : `
-                      <div class="mx-auto w-48 h-28 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-xs">
-                        No Signature
-                      </div>`}
-                  </div>
-                </div>
-              </div>
-            `;
+                                    <div class="w-full bg-white rounded-xl border shadow-sm p-4">
+                                        <h4 class="text-sm font-semibold text-gray-600 mb-3 text-center">Signature</h4>
+                                        ${customerInfo.signature_url ? `
+                                            <img src="${customerInfo.signature_url}"
+                                                     alt="Customer Signature"
+                                                     class="mx-auto w-48 h-28 object-contain rounded-lg border bg-white cursor-pointer hover:shadow-lg transition-shadow"
+                                                     onclick="showImageModal('${customerInfo.signature_url}','Customer Signature')" />`
+                                            : `
+                                            <div class="mx-auto w-48 h-28 flex items-center justify-center rounded-lg border bg-gray-100 text-gray-400 text-xs">
+                                                No Signature
+                                            </div>`}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
             
             // Populate loans table
             const loansTableBody = document.getElementById('loansTableBody');
             if (loans.length === 0) {
-                loansTableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+                loansTableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
             } else {
                 loansTableBody.innerHTML = loans.map(loan => {
                     // Find the summary row for this loan to get interest_amount and outstanding_balance
@@ -299,12 +312,20 @@
                         statusLabel = "REJECTED";
                         statusClass = "bg-red-100 text-red-800";
                     }
+                    // Fix: next_installment logic (prefer loan, then summaryRow, else '—')
+                    let nextInstallment = '—';
+                    if (loan.next_installment !== undefined && loan.next_installment !== null && !isNaN(Number(loan.next_installment))) {
+                        nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
+                    } else if (summaryRow && summaryRow.next_installment !== undefined && summaryRow.next_installment !== null && !isNaN(Number(summaryRow.next_installment))) {
+                        nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
+                    }
                     return `
                         <tr class="border-t">
                             <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
                             <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
                             <td class="px-4 py-3">₹${principal.toLocaleString()}</td>
                             <td class="px-4 py-3">₹${interestAmount.toLocaleString()}</td>
+                            <td class="px-4 py-3">${nextInstallment}</td>
                             <td class="px-4 py-3">
                                 <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
                                     ${statusLabel}
@@ -412,8 +433,15 @@
             });
 
             const container = document.getElementById('selectedLoanContent');
+            // Determine next installment: prefer loan.next_installment, else summaryRow.next_installment, else '—', with isNaN check
+            let nextInstallment = '—';
+            if (loan.next_installment !== undefined && loan.next_installment !== null && !isNaN(Number(loan.next_installment))) {
+                nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
+            } else if (summaryRow && summaryRow.next_installment !== undefined && summaryRow.next_installment !== null && !isNaN(Number(summaryRow.next_installment))) {
+                nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
+            }
             container.innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
                     <div class="p-3 bg-blue-50 rounded">
                         <p class="text-xs text-gray-500">Principal</p>
                         <p class="font-semibold">₹${principal.toLocaleString()}</p>
@@ -433,6 +461,10 @@
                     <div class="p-3 bg-indigo-50 rounded">
                         <p class="text-xs text-gray-500">Interest Rate</p>
                         <p class="font-semibold">${Number(loan.interest_rate||0)}%</p>
+                    </div>
+                    <div class="p-3 bg-pink-50 rounded">
+                        <p class="text-xs uppercase tracking-wide text-gray-500">Next Installment</p>
+                        <p class="font-semibold text-pink-700">${nextInstallment}</p>
                     </div>
                 </div>
                 <h4 class="font-semibold mb-2">Repayment History</h4>

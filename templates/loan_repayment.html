@@ -20,12 +20,12 @@
                             <span>By Loan ID</span>
                         </label>
                         <label class="flex items-center gap-2">
-                            <input type="radio" name="searchType" value="kgid" class="form-radio" />
-                            <span>By KGID</span>
+                            <input type="radio" name="searchType" value="customer_id" class="form-radio" />
+                            <span>By Customer ID</span>
                         </label>
                     </div>
                     <div class="flex gap-2">
-                        <input id="repaymentSearchInput" type="text" class="flex-1 px-4 py-2 border rounded" placeholder="Enter Loan ID or KGID" required />
+                        <input id="repaymentSearchInput" type="text" class="flex-1 px-4 py-2 border rounded" placeholder="Enter Loan ID or Customer ID" required />
                         <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Search</button>
                     </div>
                 </form>
@@ -167,7 +167,7 @@
             let loan = null;
             if (searchType === 'loanId') {
                 // Fetch by loan id
-                const res = await fetch(`/finance/${encodeURIComponent(searchValue)}`);
+                const res = await fetch(`/loan/${encodeURIComponent(searchValue)}`);
                 if (!res.ok) {
                     throw new Error(`Server returned ${res.status}: ${res.statusText}`);
                 }
@@ -179,8 +179,8 @@
                     throw new Error("Invalid response format from server");
                 }
             } else {
-                // Fetch by KGID (customer_id)
-                const res = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+                // Fetch by Customer ID
+                const res = await fetch(`/loan/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
                 if (!res.ok) {
                     throw new Error(`Server returned ${res.status}: ${res.statusText}`);
                 }
@@ -315,9 +315,9 @@
             principalPart = Math.round(currentEMIPrincipal * ratio * 100) / 100;
             interestPart = Math.round(currentEMIInterest * ratio * 100) / 100;
         }
-        // Call /finance/repay-loan API with principal and interest breakdown
+        // Call /loan/repay-loan API with principal and interest breakdown
         try {
-            const res = await fetch('/finance/repay-loan', {
+            const res = await fetch('/loan/repay-loan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -329,7 +329,11 @@
             });
             const data = await res.json();
             if (res.ok && data.status === 'success') {
-                msg.textContent = "Repayment successful. Pending: ₹" + Number(data.outstanding_balance).toLocaleString();
+                let certMsg = '';
+                if (data.certificate_url) {
+                    certMsg = `<br><a href="${data.certificate_url}" target="_blank" class="inline-block mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Download Repayment Certificate</a><br><span class='block mt-2 text-xs text-gray-600'>A download link has also been sent to your registered email.</span>`;
+                }
+                msg.innerHTML = "Repayment successful. Pending: ₹" + Number(data.outstanding_balance).toLocaleString() + certMsg;
                 msg.className = "mt-3 text-center text-green-600";
             } else {
                 msg.textContent = (data && data.message) || "Repayment failed.";

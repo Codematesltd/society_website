@@ -393,30 +393,14 @@
         </div>
       </section>
 
-      <!-- Loan Repayment Section -->
+      <!-- Loan Repayment Section: Now loads loan_repayment.html in an iframe -->
       <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
-        <div class="loader hidden text-center text-blue-600">Loading...</div>
-        <div class="content">
-          <h2 class="text-xl font-bold text-blue-700 mb-4">Loan Repayment</h2>
-          <!-- Search Type Selection -->
-          <div class="mb-4">
-            <label class="font-semibold mr-2">Search By:</label>
-            <select id="loanSearchType" class="border p-2 rounded">
-              <option value="loanId">Loan ID</option>
-              <option value="accountNumber">Account Number</option>
-            </select>
-          </div>
-          <!-- Search Bar -->
-          <form id="loanSearchForm" class="mb-4 flex gap-2">
-            <input type="text" id="loanSearchInput" placeholder="Enter Loan ID or Account Number" class="border p-2 w-full rounded" />
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
-          </form>
-          <!-- Loan Info Result -->
-          <div id="loanInfoResult"></div>
-          <!-- Auto Transaction Form -->
-          <div id="autoTransactionFormContainer" class="mt-6"></div>
-        </div>
+        <iframe src="{{ url_for('finance.loan_repayment_page') }}" class="w-full min-h-[900px] border-0 rounded-xl shadow" title="Loan Repayment"></iframe>
       </section>
+        <!-- Loan Repayment Section: Now loads loan_repayment.html in an iframe -->
+        <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
+          <iframe src="{{ url_for('finance.loan_repayment_page') }}" class="w-full min-h-[900px] border-0 rounded-xl shadow" title="Loan Repayment"></iframe>
+        </section>
       
       <!-- Recent Transactions Section -->
       <section id="recentTransactionsStaff" class="dynamic-section hidden bg-white p-6 rounded shadow">
