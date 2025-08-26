@@ -16,6 +16,13 @@
       transform: translateY(0);
       opacity: 1;
     }
+    /* Highlight active sidebar button */
+    .active-nav, .nav-button.active-nav {
+      background-color: #2563eb !important; /* tailwind blue-600 */
+      color: #fff !important;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+    }
   </style>
   <!-- Provide runtime config for external JS -->
   <script>
@@ -46,7 +53,7 @@
     <aside class="w-64 bg-white shadow-lg p-6 space-y-4">
       <h2 class="font-bold text-xl text-blue-700 mb-6">Staff Dashboard</h2>
       <nav class="space-y-3">
-        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all" data-target="loanInfoSearch">🔍 Loan Info Search</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanInfoSearch" id="loanInfoSearchBtn">🔍 Loan Info Search</button>
         <button type="button" id="homeBtn" class="w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">🏠 Home</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="applyLoan">📝 Apply Loan</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountInfoIframe">👤 Customer Details</button>
@@ -56,7 +63,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactionsStaff">🕒 Recent Transactions</button>
-        <button id="getTransactionBtn" class="w-full text-left px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">🔎 Get Transaction</button>
+        <button id="getTransactionBtn" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">🔎 Get Transaction</button>
       </nav>
     </aside>
 
@@ -521,34 +528,27 @@
   <script src="{{ url_for('static', filename='shared.js') }}"></script>
   <!-- External consolidated dashboard script -->
   <script src="{{ url_for('static', filename='js/staff_dashboard.js') }}"></script>
+  <script>
+    // Highlight active sidebar button
+    document.addEventListener('DOMContentLoaded', function() {
+      const navBtns = document.querySelectorAll('.nav-button');
+      navBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          navBtns.forEach(b => b.classList.remove('active-nav'));
+          btn.classList.add('active-nav');
+        });
+      });
+      // Optionally, highlight Home on load
+      const homeBtn = document.getElementById('homeBtn');
+      if (homeBtn) {
+        homeBtn.addEventListener('click', function() {
+          navBtns.forEach(b => b.classList.remove('active-nav'));
+        });
+      }
+    });
+  </script>
 </body>
 </html>
-  </div>
-  
-  <script src="{{ url_for('static', filename='shared.js') }}"></script>
-  <!-- External consolidated dashboard script -->
-  <script src="{{ url_for('static', filename='js/staff_dashboard.js') }}"></script>
-</body>
-</html>
-    </div>
-
-    <!-- Withdraw Form -->
-    <div id="withdrawForm" class="bg-white p-6 rounded-xl shadow hidden">
-      <h3 class="text-lg font-semibold mb-4 text-red-700 text-center">Withdraw</h3>
-      <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawCustomerId" />
-      <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="withdrawAmount" />
-      <div class="flex gap-2 mb-3">
-        <input type="text" placeholder="from Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawFromAccount" />
-        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawFromBank" />
-      </div>
-      <div class="flex gap-2 mb-3">
-        <input type="text" placeholder="To Account Number" class="w-1/2 px-4 py-2 border rounded" id="withdrawToAccount" />
-        <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="withdrawToBank" />
-      </div>
-      <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="withdrawDate" />
-      <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="withdrawTxnId" />
-      <input type="text" placeholder="Remarks" class="w-full px-4 py-2 border rounded mb-3" id="withdrawRemarks" />
-      <button id="withdrawBtn" class="bg-red-500 text-white px-6 py-2 rounded w-full shadow hover:bg-red-600 transition">Withdraw</button>
     </div>
 
   </div>
