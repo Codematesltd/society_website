@@ -1060,4 +1060,72 @@
     }
   });
 
+  /* ================= Add Expense Form Handler ================= */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const addExpenseForm = document.getElementById('addExpenseForm');
+    const addExpenseBtn = document.getElementById('addExpenseBtn');
+    const addExpenseBtnText = document.getElementById('addExpenseBtnText');
+    const addExpenseSpinner = document.getElementById('addExpenseSpinner');
+    if (addExpenseForm && addExpenseBtn) {
+      addExpenseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Get form values
+        const transactionId = document.getElementById('expenseTransactionId').value.trim();
+        const name = document.getElementById('expenseName').value.trim();
+        const amount = document.getElementById('expenseAmount').value.trim();
+        const date = document.getElementById('expenseDate').value.trim();
+        const description = document.getElementById('expenseDescription').value.trim();
+
+        // Validate required fields
+        if (!name || !amount || !date) {
+          showDashboardMsgModal("Please fill all required fields: Expense Name, Amount, and Date.", "error");
+          return;
+        }
+
+        // Prepare data
+        const expenseData = {
+          name: name,
+          amount: parseFloat(amount),
+          date: date,
+          description: description || null,
+          transaction_id: transactionId || null
+        };
+
+        // Show loading state with spinner
+        addExpenseBtn.disabled = true;
+        if (addExpenseBtnText) addExpenseBtnText.textContent = 'Adding...';
+        if (addExpenseSpinner) addExpenseSpinner.classList.remove('hidden');
+
+        try {
+          const response = await fetch('/api/staff/add-expense', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // If you use JWT/session, credentials: 'include' is needed
+            },
+            credentials: 'include',
+            body: JSON.stringify(expenseData)
+          });
+
+          let result = null;
+          try { result = await response.json(); } catch {}
+
+          if (response.ok && result && result.status === 'success') {
+            showDashboardMsgModal("Expense added successfully!", "success");
+            addExpenseForm.reset();
+          } else {
+            showDashboardMsgModal((result && (result.message || result.error)) || "Failed to add expense.", "error");
+          }
+        } catch (error) {
+          showDashboardMsgModal("Network error. Please try again.", "error");
+        } finally {
+          addExpenseBtn.disabled = false;
+          if (addExpenseBtnText) addExpenseBtnText.textContent = 'Add Expense';
+          if (addExpenseSpinner) addExpenseSpinner.classList.add('hidden');
+        }
+      });
+    }
+  });
+
 })();

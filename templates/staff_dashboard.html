@@ -319,32 +319,28 @@
       <!-- Check Expense Section -->
       <section id="checkExpense" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
-        
         <!-- Header with Download Button -->
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-blue-700">Check Expense</h2>
+          <h2 class="text-xl font-bold text-blue-700">Add Expense</h2>
           <button id="downloadReportBtn" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
             Download Report
           </button>
         </div>
-
         <div class="content space-y-4">
-          <!-- Transaction ID -->
-          <input type="text" placeholder="Transaction ID" class="w-full border p-2 rounded" />
-
-          <!-- Expense Fields -->
-          <input type="text" placeholder="Expense Name" class="w-full border p-2 rounded" />
-          <input type="number" placeholder="Amount" class="w-full border p-2 rounded" />
-
-          <!-- From & To Date -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="date" placeholder="From Date" class="w-full border p-2 rounded" />
-            <input type="date" placeholder="End Date" class="w-full border p-2 rounded" />
-          </div>
-
-          <textarea placeholder="Description" class="w-full border p-2 rounded"></textarea>
-
-          <button class="px-4 py-2 bg-blue-500 text-white rounded">Add Expense</button>
+          <form id="addExpenseForm" class="space-y-4">
+            <input type="text" id="expenseTransactionId" placeholder="Transaction ID (Optional)" class="w-full border p-2 rounded" />
+            <input type="text" id="expenseName" placeholder="Expense Name *" class="w-full border p-2 rounded" required />
+            <input type="number" id="expenseAmount" placeholder="Amount *" class="w-full border p-2 rounded" step="0.01" required />
+            <input type="date" id="expenseDate" class="w-full border p-2 rounded" required />
+            <textarea id="expenseDescription" placeholder="Description (Optional)" class="w-full border p-2 rounded"></textarea>
+            <button type="submit" id="addExpenseBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 w-full flex items-center justify-center gap-2">
+              <span id="addExpenseBtnText">Add Expense</span>
+              <svg id="addExpenseSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+            </button>
+          </form>
         </div>
       </section>
 
@@ -636,6 +632,10 @@
     <div id="civilResult" class="mt-3 text-center text-blue-700"></div>
   </div>
   
+  <script src="{{ url_for('static', filename='shared.js') }}"></script>
+</body>
+</html>
+</html>
   <script src="{{ url_for('static', filename='shared.js') }}"></script>
 </body>
 </html>
