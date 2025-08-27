@@ -139,7 +139,7 @@ def login():
             blocked = attempts >= 3
             supabase.table(role).update({"login_attempts": attempts, "blocked": blocked}).eq("email", email).execute()
             if blocked:
-                return jsonify({'status': 'error', 'message': 'Account blocked due to 3 failed attempts'}), 403
+                return jsonify({'status': 'error', 'message': 'Account blocked due to 3 failed attempts. Please contact staff to unblock.'}), 403
             return jsonify({'status': 'error', 'message': f'Invalid password. {3 - attempts} attempts left'}), 401
 
     # On successful login, always reset login_attempts to zero
@@ -256,8 +256,10 @@ def set_password():
             return jsonify({'status': 'success', 'message': 'Password set. You can now login.'}), 200
     return jsonify({'status': 'error', 'message': 'Invalid or expired token'}), 400
 
-@auth_bp.route('/forgot_password', methods=['POST'])
+@auth_bp.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
+    if request.method == 'GET':
+        return render_template('forgot_password.html')
     email = request.form.get('email')
     role = find_role(email)
     if not email or not role:
@@ -269,7 +271,7 @@ def forgot_password():
     send_reset_email(email, token)
     return jsonify({'status': 'success', 'message': 'Password reset link sent to email'}), 200
 
-@auth_bp.route('/reset_password', methods=['POST'])
+@auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
     token = request.args.get('token') or request.form.get('token')
     password = request.form.get('password')

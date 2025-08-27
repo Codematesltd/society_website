@@ -825,6 +825,18 @@ def update_customer():
 
     return jsonify({'status': 'success', 'customer': customer_obj})
 
+@staff_api_bp.route('/list-blocked-members', methods=['GET'])
+def list_blocked_members():
+    """
+    List all blocked member accounts for staff to unblock.
+    """
+    try:
+        resp = supabase.table("members").select("name,email,phone,kgid,status,blocked").eq("blocked", True).execute()
+        members = resp.data if hasattr(resp, 'data') and resp.data else []
+        return jsonify({'status': 'success', 'members': members}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 
 

@@ -1,0 +1,108 @@
+<div>
+  <h2 class="text-2xl font-bold text-blue-700 mb-4">Blocked Accounts</h2>
+  <div id="unblockMsg" class="mb-4"></div>
+  <div id="blockedAccountsLoading" class="text-blue-600 mb-4 hidden">Loading...</div>
+  <div id="blockedAccountsError" class="text-red-600 mb-4 hidden"></div>
+  <div id="blockedAccountsTableContainer" class="overflow-x-auto">
+    <table class="min-w-full table-auto border-collapse">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Email</th>
+          <th class="px-4 py-2 text-left">Phone</th>
+          <th class="px-4 py-2 text-left">KGID</th>
+          <th class="px-4 py-2 text-left">Status</th>
+          <th class="px-4 py-2 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="blockedAccountsTableBody">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+// filepath: d:\codemates\society_website\templates\unblock_account.html
+document.addEventListener('DOMContentLoaded', function() {
+  const loading = document.getElementById('blockedAccountsLoading');
+  const error = document.getElementById('blockedAccountsError');
+  const tableBody = document.getElementById('blockedAccountsTableBody');
+  const msg = document.getElementById('unblockMsg');
+
+  async function loadBlockedAccounts() {
+    loading.classList.remove('hidden');
+    error.classList.add('hidden');
+    msg.textContent = '';
+    tableBody.innerHTML = '';
+    try {
+      const res = await fetch('/staff/api/list-blocked-members');
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      const members = data.members || [];
+      if (!members.length) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-4">No blocked accounts found.</td></tr>';
+      } else {
+        tableBody.innerHTML = members.map(m => `
+          <tr>
+            <td class="px-4 py-2">${m.name || '-'}</td>
+            <td class="px-4 py-2">${m.email || '-'}</td>
+            <td class="px-4 py-2">${m.phone || '-'}</td>
+            <td class="px-4 py-2">${m.kgid || '-'}</td>
+            <td class="px-4 py-2">${m.status || '-'}</td>
+            <td class="px-4 py-2">
+              <button class="unblockBtn bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" data-email="${m.email}">Send Unblock Link</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+    } catch (e) {
+      error.textContent = e.message || 'Failed to load blocked accounts.';
+      error.classList.remove('hidden');
+    } finally {
+      loading.classList.add('hidden');
+    }
+  }
+
+  tableBody.addEventListener('click', async function(e) {
+    if (e.target.classList.contains('unblockBtn')) {
+      const email = e.target.getAttribute('data-email');
+      if (!email) return;
+      e.target.disabled = true;
+      e.target.textContent = 'Sending...';
+      msg.textContent = '';
+      try {
+        // Use the same API as first-time login/password creation
+        const res = await fetch('/auth/forgot_password', {
+          method: 'POST',
+          body: new URLSearchParams({ email })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          msg.textContent = `Unblock link sent to ${email}.`;
+          msg.className = 'mb-4 text-green-600';
+        } else {
+          msg.textContent = data.message || 'Failed to send unblock link.';
+          msg.className = 'mb-4 text-red-600';
+        }
+      } catch (err) {
+        msg.textContent = 'Network error.';
+        msg.className = 'mb-4 text-red-600';
+      } finally {
+        e.target.disabled = false;
+        e.target.textContent = 'Send Unblock Link';
+      }
+    }
+  });
+
+  // Auto-load when section is shown
+  if (document.getElementById('unblockAccountSection')) {
+    // If section is visible now, load immediately; else, load on nav click
+    if (!document.getElementById('unblockAccountSection').classList.contains('hidden')) {
+      loadBlockedAccounts();
+    }
+    // Listen for nav-button click to load when shown
+    const navBtn = document.querySelector('.nav-button[data-target="unblockAccountSection"]');
+    if (navBtn) navBtn.addEventListener('click', loadBlockedAccounts);
+  }
+});
+</script>
