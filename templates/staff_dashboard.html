@@ -257,7 +257,17 @@
               <!-- Phone & Email Row -->
               <div>
                 <label class="block text-sm font-medium mb-1">Phone Number</label>
-                <input type="text" name="phone" placeholder="Phone Number" class="border p-2 rounded w-full" required />
+                <input 
+    type="text" 
+    name="phone" 
+    required 
+    pattern="[0-9]{10}" 
+    maxlength="10"
+    placeholder="Enter 10-digit phone number"
+    class="border p-2 rounded w-full"
+    title="Enter a valid 10-digit phone number"
+    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+  />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Email</label>
@@ -288,11 +298,37 @@
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Aadhar Number</label>
-                <input type="text" name="aadhar_no" placeholder="Aadhar Number" class="border p-2 rounded w-full" required />
+                 <input 
+    type="text" 
+    name="aadhar_no" 
+    required 
+    maxlength="14" 
+    placeholder="1234 5678 9012"
+    class="border p-2 rounded w-full"
+    title="Enter a valid 12-digit Aadhar number"
+    oninput="
+      // Remove all non-digits
+      this.value = this.value.replace(/[^0-9]/g, '');
+      // Insert space after every 4 digits
+      this.value = this.value.replace(/(\d{4})(?=\d)/g, '$1 ');
+    "
+    pattern="^[0-9]{4}\s[0-9]{4}\s[0-9]{4}$"
+  /> 
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">PAN Number</label>
-                <input type="text" name="pan_no" placeholder="PAN Number" class="border p-2 rounded w-full" required />
+                <label class="block text-sm font-medium mb-1">PAN Number</label>
+  <input 
+    type="text" 
+    name="pan_no" 
+    required 
+    maxlength="10"
+    placeholder="ABCDE1234F"
+    class="border p-2 rounded w-full uppercase"
+    pattern="^[A-Z]{5}[0-9]{4}[A-Z]{1}$"
+    title="Enter a valid PAN Number (e.g., ABCDE1234F)"
+    oninput="this.value = this.value.toUpperCase()"
+  />
               </div>
               <!-- Address -->
               <div class="col-span-1 md:col-span-2">
