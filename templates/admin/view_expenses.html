@@ -1,0 +1,269 @@
+<!-- Expenses Table Page (Admin) -->
+<div class="bg-white p-6 rounded-xl shadow">
+  <h2 class="text-2xl font-bold text-indigo-700 mb-4">Expenses</h2>
+  <!-- Filter & Sorting Box -->
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    <label for="expenseSort" class="text-sm text-gray-600">Sort by:</label>
+    <select id="expenseSort" class="px-3 py-2 border rounded-lg">
+      <option value="date.desc">Date (Newest First)</option>
+      <option value="date.asc">Date (Oldest First)</option>
+      <option value="amount.desc">Amount (High to Low)</option>
+      <option value="amount.asc">Amount (Low to High)</option>
+    </select>
+    <span class="ml-4 text-sm text-gray-600">Filter:</span>
+    <select id="expenseFilterType" class="px-3 py-2 border rounded-lg">
+      <option value="all">All Time</option>
+      <option value="year">Year</option>
+      <option value="month">Month</option>
+      <option value="custom">Custom Range</option>
+    </select>
+    <select id="expenseFilterYear" class="px-3 py-2 border rounded-lg hidden"></select>
+    <select id="expenseFilterMonth" class="px-3 py-2 border rounded-lg hidden"></select>
+    <input type="date" id="expenseFilterStart" class="px-3 py-2 border rounded-lg hidden" />
+    <span id="expenseFilterTo" class="hidden text-gray-500">to</span>
+    <input type="date" id="expenseFilterEnd" class="px-3 py-2 border rounded-lg hidden" />
+    <button id="expenseFilterBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Apply</button>
+    <!-- Download Button -->
+    <div class="ml-auto flex gap-2">
+      <button id="downloadExcelBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700" title="Download as Excel">Download Excel</button>
+      <button id="downloadPdfBtn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700" title="Download as PDF">Download PDF</button>
+    </div>
+  </div>
+  <div id="expensesLoading" class="text-center py-4 hidden">
+    <div class="inline-flex items-center">
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-2"></div>
+      <span class="text-indigo-600">Loading expenses...</span>
+    </div>
+  </div>
+  <div id="expensesError" class="text-red-600 mb-4 hidden"></div>
+  <div id="expensesContainer" class="overflow-x-auto">
+    <table class="w-full table-auto">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left">ID</th>
+          <th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Amount</th>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Description</th>
+          <th class="px-4 py-2 text-left">Transaction ID</th>
+          <th class="px-4 py-2 text-left">Created By</th>
+        </tr>
+      </thead>
+      <tbody id="expensesTableBody">
+        <!-- Only show loading row if not already showing spinner above -->
+      </tbody>
+    </table>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+// filepath: d:\codemates\society_website\templates\admin\view_expenses.html
+document.addEventListener('DOMContentLoaded', function() {
+  const expensesLoading = document.getElementById('expensesLoading');
+  const expensesError = document.getElementById('expensesError');
+  const expensesTableBody = document.getElementById('expensesTableBody');
+  const expenseSort = document.getElementById('expenseSort');
+  const expenseFilterType = document.getElementById('expenseFilterType');
+  const expenseFilterYear = document.getElementById('expenseFilterYear');
+  const expenseFilterMonth = document.getElementById('expenseFilterMonth');
+  const expenseFilterStart = document.getElementById('expenseFilterStart');
+  const expenseFilterEnd = document.getElementById('expenseFilterEnd');
+  const expenseFilterTo = document.getElementById('expenseFilterTo');
+  const expenseFilterBtn = document.getElementById('expenseFilterBtn');
+
+  let lastExpensesData = []; // Store last loaded data for download
+
+  // Populate year and month selectors
+  function populateYearMonthSelectors() {
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
+    // Years: last 10 years
+    expenseFilterYear.innerHTML = '';
+    for (let y = cy; y >= cy - 9; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      expenseFilterYear.appendChild(opt);
+    }
+    expenseFilterYear.value = cy;
+    // Months
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    expenseFilterMonth.innerHTML = '';
+    monthNames.forEach((n, i) => {
+      const opt = document.createElement('option');
+      opt.value = i + 1;
+      opt.textContent = n;
+      expenseFilterMonth.appendChild(opt);
+    });
+    expenseFilterMonth.value = cm;
+  }
+  populateYearMonthSelectors();
+
+  // Show/hide filter controls based on filter type
+  function updateFilterControls() {
+    expenseFilterYear.classList.add('hidden');
+    expenseFilterMonth.classList.add('hidden');
+    expenseFilterStart.classList.add('hidden');
+    expenseFilterEnd.classList.add('hidden');
+    expenseFilterTo.classList.add('hidden');
+    if (expenseFilterType.value === 'year') {
+      expenseFilterYear.classList.remove('hidden');
+    } else if (expenseFilterType.value === 'month') {
+      expenseFilterYear.classList.remove('hidden');
+      expenseFilterMonth.classList.remove('hidden');
+    } else if (expenseFilterType.value === 'custom') {
+      expenseFilterStart.classList.remove('hidden');
+      expenseFilterTo.classList.remove('hidden');
+      expenseFilterEnd.classList.remove('hidden');
+    }
+  }
+  expenseFilterType.addEventListener('change', updateFilterControls);
+  updateFilterControls();
+
+  // Compose filter params for API
+  function getFilterParams() {
+    const params = new URLSearchParams();
+    params.set('select', '*');
+    params.set('order', expenseSort.value || 'date.desc');
+    params.set('limit', '100');
+    if (expenseFilterType.value === 'year') {
+      params.set('year', expenseFilterYear.value);
+    } else if (expenseFilterType.value === 'month') {
+      params.set('year', expenseFilterYear.value);
+      params.set('month', expenseFilterMonth.value);
+    } else if (expenseFilterType.value === 'custom') {
+      if (expenseFilterStart.value) params.set('start', expenseFilterStart.value);
+      if (expenseFilterEnd.value) params.set('end', expenseFilterEnd.value);
+    }
+    // For "all", no extra params
+    return params;
+  }
+
+  async function loadExpenses() {
+    expensesLoading.classList.remove('hidden');
+    expensesError.classList.add('hidden');
+    expensesTableBody.innerHTML = '';
+    try {
+      const params = getFilterParams();
+      const res = await fetch('/api/admin/list-expenses?' + params.toString());
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      const expenses = data.expenses || [];
+      lastExpensesData = expenses; // Save for download
+      if (!expenses.length) {
+        expensesTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-4">No expenses found.</td></tr>';
+      } else {
+        expensesTableBody.innerHTML = expenses.map(e => `
+          <tr>
+            <td class="px-4 py-2">${e.id || ''}</td>
+            <td class="px-4 py-2">${e.name || ''}</td>
+            <td class="px-4 py-2 text-yellow-700 font-semibold">₹${Number(e.amount || 0).toLocaleString()}</td>
+            <td class="px-4 py-2">${e.date ? new Date(e.date).toLocaleDateString() : ''}</td>
+            <td class="px-4 py-2">${e.description || ''}</td>
+            <td class="px-4 py-2">${e.transaction_id || ''}</td>
+            <td class="px-4 py-2">${e.created_by || ''}</td>
+          </tr>
+        `).join('');
+      }
+    } catch (err) {
+      expensesTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-red-600 py-4">Failed to load expenses.</td></tr>';
+      expensesError.textContent = err.message || 'Failed to load expenses.';
+      expensesError.classList.remove('hidden');
+    } finally {
+      expensesLoading.classList.add('hidden');
+    }
+  }
+
+  // Filter and sort event handlers
+  if (expenseSort) expenseSort.addEventListener('change', loadExpenses);
+  if (expenseFilterBtn) expenseFilterBtn.addEventListener('click', loadExpenses);
+
+  // Also reload when filter type, year, month, or custom range changes
+  if (expenseFilterType) expenseFilterType.addEventListener('change', () => {
+    updateFilterControls();
+    // Optionally auto-load on filter type change
+    // loadExpenses();
+  });
+  if (expenseFilterYear) expenseFilterYear.addEventListener('change', () => {
+    if (expenseFilterType.value === 'year' || expenseFilterType.value === 'month') loadExpenses();
+  });
+  if (expenseFilterMonth) expenseFilterMonth.addEventListener('change', () => {
+    if (expenseFilterType.value === 'month') loadExpenses();
+  });
+
+  // Optionally, auto-load on custom range change
+  if (expenseFilterStart) expenseFilterStart.addEventListener('change', () => {
+    if (expenseFilterType.value === 'custom') loadExpenses();
+  });
+  if (expenseFilterEnd) expenseFilterEnd.addEventListener('change', () => {
+    if (expenseFilterType.value === 'custom') loadExpenses();
+  });
+
+  // --- Download as Excel ---
+  document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+    if (!lastExpensesData.length) {
+      alert('No data to download.');
+      return;
+    }
+    // Prepare data for Excel
+    const wsData = [
+      ['ID', 'Name', 'Amount', 'Date', 'Description', 'Transaction ID', 'Created By'],
+      ...lastExpensesData.map(e => [
+        e.id || '',
+        e.name || '',
+        Number(e.amount || 0),
+        e.date ? new Date(e.date).toLocaleDateString() : '',
+        e.description || '',
+        e.transaction_id || '',
+        e.created_by || ''
+      ])
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+    XLSX.writeFile(wb, 'expenses.xlsx');
+  });
+
+  // --- Download as PDF ---
+  document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+    if (!lastExpensesData.length) {
+      alert('No data to download.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'pt', 'a4');
+    const columns = [
+      { header: 'ID', dataKey: 'id' },
+      { header: 'Name', dataKey: 'name' },
+      { header: 'Amount', dataKey: 'amount' },
+      { header: 'Date', dataKey: 'date' },
+      { header: 'Description', dataKey: 'description' },
+      { header: 'Transaction ID', dataKey: 'transaction_id' },
+      { header: 'Created By', dataKey: 'created_by' }
+    ];
+    const rows = lastExpensesData.map(e => ({
+      id: e.id || '',
+      name: e.name || '',
+      amount: Number(e.amount || 0),
+      date: e.date ? new Date(e.date).toLocaleDateString() : '',
+      description: e.description || '',
+      transaction_id: e.transaction_id || '',
+      created_by: e.created_by || ''
+    }));
+    doc.text('Expenses Report', 40, 40);
+    doc.autoTable({
+      startY: 60,
+      head: [columns.map(c => c.header)],
+      body: rows.map(r => columns.map(c => r[c.dataKey])),
+      styles: { fontSize: 8 }
+    });
+    doc.save('expenses.pdf');
+  });
+
+  // Initial load
+  loadExpenses();
+});
+</script>

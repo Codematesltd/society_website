@@ -14,18 +14,18 @@
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="accountRequests">📝 Account Requests</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanApprovals">💰 Loan Approvals</button>
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="customerDetails">👤 Customer Details</button>
-  <button id="navAuditBtn" type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="audit">📊 Audit</button>
-  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactions">🕒 Recent Transactions</button>
+      <button id="navAuditBtn" type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="audit">📊 Audit</button>
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactions">🕒 Recent Transactions</button>
       <!-- New: View Expenses -->
-      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="expenses">📋 View Expenses</button>
-  <!-- NEW: Queries -->
-  <button type="button" id="navAdminQueries" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="adminQueries">📬 Queries</button>
-  <!-- NEW: Add Staff -->
-  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaff">👥 Add Staff</button>
-  <!-- NEW: Add Staff Salary -->
-  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaffSalary">� Add Staff Salary</button>
-  <!-- NEW: Loan Info Button -->
-  <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanInfo">📄 Loan Info</button>
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="viewExpenses" id="viewExpensesBtn">📋 View Expenses</button>
+      <!-- NEW: Queries -->
+      <button type="button" id="navAdminQueries" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="adminQueries">📬 Queries</button>
+      <!-- NEW: Add Staff -->
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaff">👥 Add Staff</button>
+      <!-- NEW: Add Staff Salary -->
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="addStaffSalary">� Add Staff Salary</button>
+      <!-- NEW: Loan Info Button -->
+      <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanInfo">📄 Loan Info</button>
     </nav>
     <hr class="my-6">
     <!-- Proper Sidebar Logout Button -->
@@ -45,7 +45,7 @@
         <p class="text-gray-600">Use the navigation menu to manage accounts and view requests.</p>
         
         <!-- Dashboard Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <!-- Account Requests Card -->
           <div class="bg-blue-50 p-6 rounded-xl shadow-md hover:shadow-lg transition">
             <div class="text-4xl text-blue-500 mb-2">📝</div>
@@ -67,7 +67,7 @@
             <div class="text-4xl text-purple-500 mb-2">📊</div>
             <h3 class="text-xl font-bold text-purple-700 mb-2">Society Stats</h3>
             <p class="text-gray-600 mb-4">View overall society statistics and metrics</p>
-      <button id="viewStatsBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition">View Stats</button>
+            <button id="viewStatsBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition">View Stats</button>
           </div>
         </div>
       </div>
@@ -278,7 +278,7 @@
           </div>
         </div>
 
-  <!-- Transactions (Monthly) Panel -->
+        <!-- Transactions (Monthly) Panel -->
         <div id="txnAuditPanel" class="hidden">
           <div class="flex items-center gap-3 mb-4">
             <label for="txnAuditYear" class="text-sm text-gray-600">Year</label>
@@ -370,65 +370,9 @@
       </div>
     </section>
     
-    <!-- Expenses Section -->
-    <section id="expenses" class="admin-section hidden">
-      <div class="bg-white p-6 rounded-xl shadow">
-        <h2 class="text-2xl font-bold text-indigo-700 mb-4">Expenses</h2>
-        <!-- Filters -->
-        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">Search ID / Name</label>
-            <input id="expenseSearch" type="search" placeholder="Enter ID or name" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-300" />
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">Date range</label>
-            <div class="flex gap-2">
-              <input id="expenseDateFrom" type="date" class="w-full px-3 py-2 border rounded-lg" />
-              <input id="expenseDateTo" type="date" class="w-full px-3 py-2 border rounded-lg" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">Month</label>
-            <select id="expenseMonth" class="w-full px-3 py-2 border rounded-lg">
-              <option value="">All months</option>
-            </select>
-          </div>
-        </div>
-        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label class="block text-sm text-gray-600 mb-1">Amount min / max</label>
-            <div class="flex gap-2">
-              <input id="amountMin" type="number" placeholder="Min" class="w-full px-3 py-2 border rounded-lg" />
-              <input id="amountMax" type="number" placeholder="Max" class="w-full px-3 py-2 border rounded-lg" />
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="applyFiltersBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Apply</button>
-            <button id="clearFiltersBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg">Clear</button>
-            <button id="refreshExpensesBtn" class="px-4 py-2 bg-white border text-gray-700 rounded-lg">Refresh</button>
-          </div>
-          <div class="text-right">
-            <div class="text-sm text-gray-500">Count: <span id="expensesCount">0</span></div>
-            <div class="text-sm text-yellow-600 font-semibold">Total: ₹<span id="expensesTotal">0</span></div>
-          </div>
-        </div>
-
-        <div id="expensesLoading" class="hidden text-center py-4">
-          <div class="inline-flex items-center">
-            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-2"></div>
-            <span class="text-indigo-600">Loading expenses...</span>
-          </div>
-        </div>
-        <div id="expensesError" class="hidden text-red-600 mb-4"></div>
-        <div id="expensesContainer" class="overflow-x-auto hidden">
-          <table class="w-full table-auto">
-            <thead id="expensesTableHead" class="bg-gray-100">
-              <!-- headers will be generated dynamically -->
-            </thead>
-            <tbody id="expensesTableBody" class="bg-white"></tbody>
-          </table>
-        </div>
-      </div>
+    <!-- View Expenses Section (renders new file) -->
+    <section id="viewExpenses" class="admin-section hidden">
+      {% include 'admin/view_expenses.html' %}
     </section>
 
     <!-- NEW: Add Staff Section -->
@@ -798,21 +742,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Sidebar navigation logic
+  // Show/hide sections logic for admin-nav-btn
   const navBtns = document.querySelectorAll('.admin-nav-btn');
   const sections = document.querySelectorAll('.admin-section');
   navBtns.forEach(btn => {
     btn.addEventListener('click', function() {
-      const target = btn.getAttribute('data-target');
+      const target = btn.dataset.target;
       sections.forEach(sec => sec.classList.add('hidden'));
-      // Defensive: only show if exists
-      const tgt = document.getElementById(target);
-      if (tgt) tgt.classList.remove('hidden');
-      if (target === 'audit') {
-        loadAudit();
-      }
-      if (target === 'recentTransactions') {
-        loadRecentTransactions();
+      const showSec = document.getElementById(target);
+      if (showSec) {
+        showSec.classList.remove('hidden');
+        // If viewExpenses, trigger a resize event to force table redraw (fixes some Tailwind/JS table issues)
+        if (target === 'viewExpenses') {
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+        }
       }
     });
   });
@@ -1210,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', function() {
           { label: 'Recovered', data: recovered, backgroundColor: 'rgba(16,185,129,0.5)', borderColor: '#10b981', borderWidth: 1 }
         ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } },
+          plugins: { legend, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } },
           scales: { y: { beginAtZero: true, ticks: { callback: (v) => `₹${Number(v).toLocaleString()}` } }, x: { title: { display: true, text: 'Month' } } }
         }
       });
@@ -1282,6 +1225,7 @@ document.addEventListener('DOMContentLoaded', function() {
       salaryAuditChartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels, datasets: [{ label: 'Salaries', data: totals, backgroundColor: 'rgba(245,158,11,0.5)', borderColor: '#f59e0b', borderWidth: 1 }]},
+
         options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => `₹${Number(v).toLocaleString()}` } } }, plugins: { legend: { display: false } } }
       });
     } catch (e) {
