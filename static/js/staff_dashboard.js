@@ -463,10 +463,14 @@
   /* ================= Add User (OTP Email Verification) ================= */
   document.addEventListener('DOMContentLoaded', ()=>{
     const verifyBtn = document.getElementById('verifyEmailBtn');
+    const verifyBtnText = document.getElementById('verifyEmailBtnText');
+    const verifyBtnSpinner = document.getElementById('verifyEmailBtnSpinner');
     const otpContainer = document.getElementById('otpContainer');
     const otpInput = document.getElementById('otpInput');
     const warning = document.getElementById('verifyWarning');
     const addUserBtn = document.getElementById('addUserBtn');
+    const addUserBtnText = document.getElementById('addUserBtnText');
+    const addUserBtnSpinner = document.getElementById('addUserBtnSpinner');
     const addUserForm = document.getElementById('addUserForm');
     const addUserMsg = document.getElementById('addUserMsg');
     const emailInput = document.getElementById('emailInput');
@@ -479,6 +483,8 @@
         return;
       }
       verifyBtn.disabled = true;
+      if (verifyBtnText) verifyBtnText.classList.add('hidden');
+      if (verifyBtnSpinner) verifyBtnSpinner.classList.remove('hidden');
       addUserMsg.textContent = "Sending OTP...";
       try{
         const formData = new FormData();
@@ -487,6 +493,8 @@
         let data; try{ data = await res.json(); }catch{
           addUserMsg.textContent="Server error. Please check backend logs.";
           verifyBtn.disabled=false;
+          if (verifyBtnText) verifyBtnText.classList.remove('hidden');
+          if (verifyBtnSpinner) verifyBtnSpinner.classList.add('hidden');
           return;
         }
         if (data.status==='success'){
@@ -502,6 +510,9 @@
         addUserMsg.textContent = "Network error.";
         verifyBtn.disabled = false;
       }
+      if (verifyBtnText) verifyBtnText.classList.remove('hidden');
+      if (verifyBtnSpinner) verifyBtnSpinner.classList.add('hidden');
+      verifyBtn.disabled = false;
     });
     if (otpInput){
       otpInput.addEventListener('input', ()=>{
@@ -528,6 +539,9 @@
       addUserMsg.textContent = "Submitting user...";
       addUserMsg.className = "mb-4 text-center bg-blue-100 text-blue-700 px-4 py-2 rounded shadow";
       addUserMsg.classList.remove('hidden');
+      if (addUserBtnText) addUserBtnText.classList.add('hidden');
+      if (addUserBtnSpinner) addUserBtnSpinner.classList.remove('hidden');
+      addUserBtn.disabled = true;
       const formData = new FormData(addUserForm);
       try{
         const res = await fetch('/staff/api/add-member',{ method:'POST', body: formData });
@@ -547,6 +561,9 @@
         addUserMsg.textContent = "Network error.";
         addUserMsg.className = "mb-4 text-center bg-red-100 text-red-700 px-4 py-2 rounded shadow";
       }
+      if (addUserBtnText) addUserBtnText.classList.remove('hidden');
+      if (addUserBtnSpinner) addUserBtnSpinner.classList.add('hidden');
+      addUserBtn.disabled = false;
     });
   });
 

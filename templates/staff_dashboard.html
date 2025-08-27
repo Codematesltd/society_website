@@ -263,8 +263,15 @@
                 <label class="block text-sm font-medium mb-1">Email</label>
                 <div class="flex gap-2">
                   <input type="email" name="email" id="emailInput" placeholder="Email" class="border p-2 rounded w-full" required />
-                  <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-800">
-                    Get otp
+                  <button type="button" id="verifyEmailBtn" class="bg-blue-500 text-white px-3 rounded hover:bg-blue-800 flex items-center gap-2">
+                    <span id="verifyEmailBtnText">Get otp</span>
+                    <span id="verifyEmailBtnSpinner" class="hidden">
+                      <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                      </svg>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -312,7 +319,16 @@
             </div>
             <!-- Warning Message -->
             <p id="verifyWarning" class="text-red-500 mt-2 hidden col-span-1 md:col-span-2">⚠ Please verify your email before proceeding.</p>
-            <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">Add User</button>
+            <button id="addUserBtn" type="submit" class="mt-4 px-4 py-2 bg-green-500 text-white rounded flex items-center gap-2">
+              <span id="addUserBtnText">Add User</span>
+              <span id="addUserBtnSpinner" class="hidden">
+                <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+              </span>
+            </button>
           </form>
         </div>
       </section>

@@ -135,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
                       <div>
                         <span class="px-2 py-1 rounded text-sm ${m.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : m.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${m.status || 'N/A'}</span>
                       </div>
-                    <div class="font-semibold">Balance:</div><div>₹${m.balance || '0'}</div>
                     <div class="font-semibold">Created:</div><div>${m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A'}</div>
                   </div>
                 </div>

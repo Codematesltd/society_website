@@ -206,30 +206,34 @@ def loan_yearly_summary():
         total_disbursed = 0.0
         total_recovered = 0.0
 
-        # Fetch loans created within the year (treat as disbursed). Filter client-side by common approved-like statuses if present.
+        # Fetch loans created within the year (treat as disbursed when approved)
         loan_resp = supabase.table('loans') \
             .select('loan_amount,created_at,status') \
             .gte('created_at', start_str) \
             .lt('created_at', end_str) \
             .execute()
         loans = loan_resp.data if hasattr(loan_resp, 'data') and loan_resp.data else []
+        
         for loan in loans:
             try:
                 amt = float(loan.get('loan_amount') or 0)
             except Exception:
                 amt = 0.0
+            if amt <= 0:
+                continue
+                
             created = str(loan.get('created_at') or '')[:10]
             try:
                 month_idx = int(created.split('-')[1]) - 1
             except Exception:
                 continue
-            # Only count clearly approved/disbursed loans
+                
+            # Only count approved loans as disbursed
             status = str(loan.get('status') or '').lower()
-            if status and status not in ('approved', 'disbursed', 'active'):
-                continue
-            if 0 <= month_idx < 12 and amt:
-                disbursed[month_idx] += amt
-                total_disbursed += amt
+            if status in ('approved', 'completed', 'active'):
+                if 0 <= month_idx < 12:
+                    disbursed[month_idx] += amt
+                    total_disbursed += amt
 
         # Fetch repayments within the year (from loan_records)
         rec_resp = supabase.table('loan_records') \
@@ -238,6 +242,7 @@ def loan_yearly_summary():
             .lt('repayment_date', end_str) \
             .execute()
         recs = rec_resp.data if hasattr(rec_resp, 'data') and rec_resp.data else []
+        
         for rec in recs:
             try:
                 amt = float(rec.get('repayment_amount') or 0)
@@ -468,7 +473,10 @@ def list_staff_salaries():
         offset = (page - 1) * page_size
         # Get total count
         total_resp = supabase.table("staff_salaries").select('id', count='exact').execute()
-        total = total_resp.count if hasattr(total_resp, 'count') else 0
+        total = getattr(total_resp, 'count', None)
+        if total is None:
+            # fallback for some supabase clients
+            total = len(total_resp.data) if hasattr(total_resp, 'data') and total_resp.data else 0
         # Get paginated data, order by date desc, id desc
         resp = supabase.table("staff_salaries") \
             .select("name,kgid,salary,to_account,from_account,transaction_id,date") \
@@ -476,7 +484,10 @@ def list_staff_salaries():
             .order("id", desc=True) \
             .range(offset, offset + page_size - 1) \
             .execute()
-        salaries = resp.data if hasattr(resp, 'data') else []
+        salaries = resp.data if hasattr(resp, 'data') and resp.data else []
+        # Always return a list, never None
+        if not isinstance(salaries, list):
+            salaries = []
         return jsonify({
             'status': 'success',
             'salaries': salaries,
@@ -905,5 +916,5 @@ def recent_transactions():
         }), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-       
+
 

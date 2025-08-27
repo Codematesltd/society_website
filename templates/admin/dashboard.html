@@ -28,8 +28,6 @@
       <button type="button" class="admin-nav-btn w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanInfo">📄 Loan Info</button>
     </nav>
     <hr class="my-6">
-    <!-- Proper Sidebar Logout Button -->
-    <button id="adminLogoutSidebar" type="button" class="w-full px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition">⏻ Logout</button>
   </aside>
 
   <!-- Main Content Area -->
@@ -500,7 +498,6 @@ function wireAdminLogout(btnId){
   });
 }
 wireAdminLogout('adminLogoutTop');
-wireAdminLogout('adminLogoutSidebar');
 // Wire View Stats button to open the Audit section
 document.addEventListener('DOMContentLoaded', function(){
   const viewStatsBtn = document.getElementById('viewStatsBtn');
@@ -748,6 +745,14 @@ document.addEventListener('DOMContentLoaded', function() {
   navBtns.forEach(btn => {
     btn.addEventListener('click', function() {
       const target = btn.dataset.target;
+      // Highlight active sidebar button
+      navBtns.forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('bg-blue-100', 'text-blue-700');
+      });
+      btn.classList.remove('bg-blue-100', 'text-blue-700');
+      btn.classList.add('bg-blue-600', 'text-white');
+      // Show section
       sections.forEach(sec => sec.classList.add('hidden'));
       const showSec = document.getElementById(target);
       if (showSec) {
@@ -759,9 +764,15 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  // Show welcome section by default
+  // Show welcome section by default and highlight its button
   sections.forEach(sec => sec.classList.add('hidden'));
   document.getElementById('welcome').classList.remove('hidden');
+  // Highlight the Home button by default
+  const defaultBtn = document.querySelector('.admin-nav-btn[data-target="welcome"]');
+  if (defaultBtn) {
+    defaultBtn.classList.remove('bg-blue-100', 'text-blue-700');
+    defaultBtn.classList.add('bg-blue-600', 'text-white');
+  }
 
   // Recent Transactions: selectors + loader
   const rtYearSel = document.getElementById('rtYear');
@@ -1148,13 +1159,51 @@ document.addEventListener('DOMContentLoaded', function() {
       if (loanAuditChartInstance) loanAuditChartInstance.destroy();
       loanAuditChartInstance = new Chart(ctx, {
         type: 'bar',
-        data: { labels, datasets: [
-          { label: 'Disbursed', data: disbursed, backgroundColor: 'rgba(79,70,229,0.5)', borderColor: '#4f46e5', borderWidth: 1 },
-          { label: 'Recovered', data: recovered, backgroundColor: 'rgba(16,185,129,0.5)', borderColor: '#10b981', borderWidth: 1 }
-        ] },
-        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend, tooltip: { callbacks: { label: (ctx) => `₹${Number(ctx.parsed.y).toLocaleString()}` } } },
-          scales: { y: { beginAtZero: true, ticks: { callback: (v) => `₹${Number(v).toLocaleString()}` } }, x: { title: { display: true, text: 'Month' } } }
+        data: { 
+          labels, 
+          datasets: [
+            { 
+              label: 'Disbursed', 
+              data: disbursed, 
+              backgroundColor: 'rgba(79,70,229,0.5)', 
+              borderColor: '#4f46e5', 
+              borderWidth: 1 
+            },
+            { 
+              label: 'Recovered', 
+              data: recovered, 
+              backgroundColor: 'rgba(16,185,129,0.5)', 
+              borderColor: '#10b981', 
+              borderWidth: 1 
+            }
+          ] 
+        },
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: false, 
+          interaction: { mode: 'index', intersect: false },
+          plugins: { 
+            legend: { position: 'top' }, 
+            tooltip: { 
+              callbacks: { 
+                label: (ctx) => `${ctx.dataset.label}: ₹${Number(ctx.parsed.y).toLocaleString()}` 
+              } 
+            } 
+          },
+          scales: { 
+            y: { 
+              beginAtZero: true, 
+              ticks: { 
+                callback: (v) => `₹${Number(v).toLocaleString()}` 
+              } 
+            }, 
+            x: { 
+              title: { 
+                display: true, 
+                text: 'Month' 
+              } 
+            } 
+          }
         }
       });
     } catch (e) {
@@ -1218,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
       totalEl.textContent = `₹${Number(data.total_year || 0).toLocaleString()}`;
       const months = 12; const avg = (Number(data.total_year || 0) / months) || 0;
       avgEl.textContent = `₹${avg.toFixed(2).toLocaleString()}`;
-      const labels = data.labels || []; const totals = data.totals || [];
+      const labels = data.labels || []; const totals = data.totals = data.totals || [];
       await ensureChartJs();
       const ctx = canvas.getContext('2d');
       if (salaryAuditChartInstance) salaryAuditChartInstance.destroy();
@@ -1271,11 +1320,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const loanYearSel = document.getElementById('loanAuditYear');
   const txnYearSel = document.getElementById('txnAuditYear');
   const txnMonthSel = document.getElementById('txnAuditMonth');
+  const salaryYearSel = document.getElementById('salaryAuditYear');
+  const expensesYearSel = document.getElementById('expensesAuditYear');
+  const expensesMonthSel = document.getElementById('expensesAuditMonth');
+  
   if (loanYearSel) loanYearSel.addEventListener('change', () => loadLoanAudit(loanYearSel.value));
   if (txnYearSel && txnMonthSel) {
     const refreshTxn = () => loadTxnAudit(txnYearSel.value, txnMonthSel.value);
     txnYearSel.addEventListener('change', refreshTxn);
     txnMonthSel.addEventListener('change', refreshTxn);
+  }
+  if (salaryYearSel) salaryYearSel.addEventListener('change', () => loadSalaryAudit(salaryYearSel.value));
+  if (expensesYearSel && expensesMonthSel) {
+    const refreshExpenses = () => loadExpensesAudit(expensesYearSel.value, expensesMonthSel.value);
+    expensesYearSel.addEventListener('change', refreshExpenses);
+    expensesMonthSel.addEventListener('change', refreshExpenses);
   }
   // Tabs toggle
   const tabLoans = document.getElementById('auditTabLoans');
@@ -1293,8 +1352,14 @@ document.addEventListener('DOMContentLoaded', function() {
     expensesPanel.classList.add('hidden');
     tabLoans.classList.remove('bg-gray-100','text-gray-700');
     tabLoans.classList.add('bg-blue-600','text-white');
-    [tabTxns, tabSalaries, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
-    loadLoanAudit(loanYearSel ? loanYearSel.value : undefined);
+    [tabTxns, tabSalaries, tabExpenses].forEach(b => { 
+      b.classList.remove('bg-blue-600','text-white'); 
+      b.classList.add('bg-gray-100','text-gray-700'); 
+    });
+    // Delay chart loading to ensure canvas is visible
+    setTimeout(() => {
+      loadLoanAudit(loanYearSel ? loanYearSel.value : new Date().getFullYear());
+    }, 100);
   }
   function showTxnTab() {
     txnPanel.classList.remove('hidden');
@@ -1311,8 +1376,13 @@ document.addEventListener('DOMContentLoaded', function() {
     txnPanel.classList.add('hidden');
     expensesPanel.classList.add('hidden');
     tabSalaries.classList.remove('bg-gray-100','text-gray-700'); tabSalaries.classList.add('bg-blue-600','text-white');
-    [tabLoans, tabTxns, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
-    loadSalaryAudit(loanYearSel ? loanYearSel.value : undefined);
+    [tabLoans, tabTxns, tabExpenses].forEach(b => { 
+      b.classList.remove('bg-blue-600','text-white'); 
+      b.classList.add('bg-gray-100','text-gray-700'); 
+    });
+    setTimeout(() => {
+      loadSalaryAudit(salaryYearSel ? salaryYearSel.value : new Date().getFullYear());
+    }, 100);
   }
   function showExpensesTab() {
     expensesPanel.classList.remove('hidden');
@@ -1320,13 +1390,23 @@ document.addEventListener('DOMContentLoaded', function() {
     txnPanel.classList.add('hidden');
     salaryPanel.classList.add('hidden');
     tabExpenses.classList.remove('bg-gray-100','text-gray-700'); tabExpenses.classList.add('bg-blue-600','text-white');
-    [tabLoans, tabTxns, tabSalaries].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
-    loadExpensesAudit(document.getElementById('expensesAuditYear')?.value, document.getElementById('expensesAuditMonth')?.value);
+    [tabLoans, tabTxns, tabSalaries].forEach(b => { 
+      b.classList.remove('bg-blue-600','text-white'); 
+      b.classList.add('bg-gray-100','text-gray-700'); 
+    });
+    setTimeout(() => {
+      loadExpensesAudit(expensesYearSel?.value, expensesMonthSel?.value);
+    }, 100);
   }
   if (tabLoans) tabLoans.addEventListener('click', showLoanTab);
   if (tabTxns) tabTxns.addEventListener('click', showTxnTab);
   if (tabSalaries) tabSalaries.addEventListener('click', showSalaryTab);
   if (tabExpenses) tabExpenses.addEventListener('click', showExpensesTab);
+
+  // Initialize with loans tab active and load initial data
+  setTimeout(() => {
+    showLoanTab();
+  }, 500);
 });
 </script>
 {% endblock %}
