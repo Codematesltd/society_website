@@ -558,6 +558,44 @@
     }
   });
 
+  // --- Add a reusable modal for showing messages if not present ---
+  function ensureMessageModal() {
+    if (!document.getElementById('dashboardMsgModal')) {
+      const modal = document.createElement('div');
+      modal.id = 'dashboardMsgModal';
+      modal.className = 'fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden';
+      modal.innerHTML = `
+        <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
+          <div id="dashboardMsgModalIcon" class="text-4xl mb-2"></div>
+          <div id="dashboardMsgModalText" class="mb-4 text-lg"></div>
+          <button id="dashboardMsgModalClose" class="px-6 py-2 bg-blue-600 text-white rounded shadow">OK</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    // Always re-bind the close button to hide the modal
+    const modal = document.getElementById('dashboardMsgModal');
+    const closeBtn = document.getElementById('dashboardMsgModalClose');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        modal.classList.add('hidden');
+      };
+    }
+  }
+  function showDashboardMsgModal(msg, type) {
+    ensureMessageModal();
+    const modal = document.getElementById('dashboardMsgModal');
+    const icon = document.getElementById('dashboardMsgModalIcon');
+    const text = document.getElementById('dashboardMsgModalText');
+    icon.innerHTML = type === 'success'
+      ? '<span class="text-green-600">✔</span>'
+      : type === 'error'
+        ? '<span class="text-red-600">✖</span>'
+        : '';
+    text.textContent = msg;
+    modal.classList.remove('hidden');
+  }
+
   /* ================= Deposit / Withdraw Transactions ================= */
   document.addEventListener('DOMContentLoaded', ()=>{
     const depositForm = document.getElementById('depositForm');
@@ -600,11 +638,17 @@
     if (depositBtn){
       depositBtn.addEventListener('click', async ()=>{
         const d = formValues('deposit');
-        if (Object.values(d).some(v => v==='' ) || !d.date){
-          alert("Please fill all Deposit fields.");
+        const requiredFields = Object.assign({}, d);
+        delete requiredFields.remarks;
+        if (Object.values(requiredFields).some(v => v==='' ) || !d.date){
+          showDashboardMsgModal("Please fill all Deposit fields.", "error");
           return;
         }
         d.type='deposit';
+        // --- Spinner animation ---
+        const origHTML = depositBtn.innerHTML;
+        depositBtn.disabled = true;
+        depositBtn.innerHTML = `<span class="inline-flex items-center gap-2"><svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>Processing...</span>`;
         try{
           const fd = new FormData();
           Object.entries(d).forEach(([k,v])=> fd.append(k,v));
@@ -612,22 +656,30 @@
           const data = await res.json();
           if (res.ok && data.status==='success' && data.transaction && data.transaction.stid){
             window.open(`/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`,'_blank');
-            alert("Deposit successful!");
+            showDashboardMsgModal("Deposit successful!", "success");
           } else {
-            alert(data.message || "Deposit failed.");
+            showDashboardMsgModal(data.message || "Deposit failed.", "error");
           }
-        }catch{ alert("Network error."); }
+        }catch{ showDashboardMsgModal("Network error.", "error"); }
+        depositBtn.disabled = false;
+        depositBtn.innerHTML = origHTML;
       });
     }
     const withdrawBtn = document.getElementById('withdrawBtn');
     if (withdrawBtn){
       withdrawBtn.addEventListener('click', async ()=>{
         const w = formValues('withdraw');
-        if (Object.values(w).some(v => v==='' ) || !w.date){
-          alert("Please fill all Withdraw fields.");
+        const requiredFields = Object.assign({}, w);
+        delete requiredFields.remarks;
+        if (Object.values(requiredFields).some(v => v==='' ) || !w.date){
+          showDashboardMsgModal("Please fill all Withdraw fields.", "error");
           return;
         }
         w.type='withdraw';
+        // --- Spinner animation ---
+        const origHTML = withdrawBtn.innerHTML;
+        withdrawBtn.disabled = true;
+        withdrawBtn.innerHTML = `<span class="inline-flex items-center gap-2"><svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>Processing...</span>`;
         try{
           const fd = new FormData();
           Object.entries(w).forEach(([k,v])=> fd.append(k,v));
@@ -635,11 +687,13 @@
           const data = await res.json();
           if (res.ok && data.status==='success' && data.transaction && data.transaction.stid){
             window.open(`/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`,'_blank');
-            alert("Withdrawal successful!");
+            showDashboardMsgModal("Withdrawal successful!", "success");
           } else {
-            alert(data.message || "Withdrawal failed.");
+            showDashboardMsgModal(data.message || "Withdrawal failed.", "error");
           }
-        }catch{ alert("Network error."); }
+        }catch{ showDashboardMsgModal("Network error.", "error"); }
+        withdrawBtn.disabled = false;
+        withdrawBtn.innerHTML = origHTML;
       });
     }
   });

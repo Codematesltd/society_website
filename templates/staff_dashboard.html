@@ -547,16 +547,16 @@
       }
     });
   </script>
+  <!-- Modal for dashboard messages (used by JS) -->
+  <div id="dashboardMsgModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
+      <div id="dashboardMsgModalIcon" class="text-4xl mb-2"></div>
+      <div id="dashboardMsgModalText" class="mb-4 text-lg"></div>
+      <button id="dashboardMsgModalClose" class="px-6 py-2 bg-blue-600 text-white rounded shadow">OK</button>
+    </div>
+  </div>
 </body>
 </html>
-    </div>
-
-  </div>
-</section>
-      <section id="loanRepayment" class="dynamic-section hidden bg-white p-6 rounded shadow">
-        <div class="loader hidden text-center text-blue-600">Loading...</div>
-        <div class="content">
-          <h2 class="text-xl font-bold text-blue-700 mb-4">Loan Repayment</h2>
           <!-- Search Type Selection -->
           <div class="mb-4">
             <label class="font-semibold mr-2">Search By:</label>
