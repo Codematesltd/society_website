@@ -110,16 +110,11 @@ def repayment_certificate(repayment_id):
     html = render_template("repayment_certificate.html", **cert_data)
 
     if action == "download":
-        try:
-            import pdfkit
-            pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
-            response = make_response(pdf)
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = f'attachment; filename=repayment_{repayment_id}.pdf'
-            return response
-        except Exception as e:
-            current_app.logger.error(f"PDF generation failed: {e}")
-            return html
+        # Return HTML attachment instead of PDF (no wkhtmltopdf dependency)
+        response = make_response(html)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=repayment_{repayment_id}.html'
+        return response
     elif action == "print":
         html += "<script>window.onload = function(){window.print();}</script>"
         return html
@@ -323,7 +318,12 @@ def apply_loan():
         loan_row = ins_resp.data[0]
         loan_uuid = loan_row.get('id')
 
-        # Insert sureties (array of IDs passed)
+
+        # Generate LNxxxx and update loan row immediately
+        unique_loan_id = generate_loan_id()
+        supabase.table("loans").update({"loan_id": unique_loan_id}).eq("id", loan_uuid).execute()
+
+        # Insert sureties (array of IDs passed) using loan UUID (loan_uuid)
         sureties = data.get('sureties') or []
         clean_sureties = []
         for s in sureties:
@@ -332,18 +332,37 @@ def apply_loan():
                 clean_sureties.append(sid)
         for s in clean_sureties:
             try:
-                supabase.table("sureties").insert({
-                    "loan_id": loan_uuid,          # reference UUID until approval assigns textual loan_id
-                    "surety_customer_id": s,
-                    "active": False
-                }).execute()
+                # Fetch surety member details for required fields
+                surety_member = supabase.table("members").select("name,phone,signature_url,photo_url").eq("customer_id", s).limit(1).execute()
+                if surety_member.data and len(surety_member.data) > 0:
+                    sm = surety_member.data[0]
+                    supabase.table("sureties").insert({
+                        "loan_id": loan_uuid,          # use UUID for sureties linkage
+                        "surety_customer_id": s,
+                        "surety_name": sm.get("name", ""),
+                        "surety_mobile": sm.get("phone", ""),
+                        "surety_signature_url": sm.get("signature_url"),
+                        "surety_photo_url": sm.get("photo_url"),
+                        "active": False
+                    }).execute()
+                else:
+                    # Insert with minimal info if member not found
+                    supabase.table("sureties").insert({
+                        "loan_id": loan_uuid,
+                        "surety_customer_id": s,
+                        "surety_name": "",
+                        "surety_mobile": "",
+                        "surety_signature_url": None,
+                        "surety_photo_url": None,
+                        "active": False
+                    }).execute()
             except Exception:
                 pass  # continue inserting others
 
-        # Notify admins (use UUID for now)
+        # Notify admins (use LNxxxx)
         try:
             notify_admin_loan_application(
-                loan_id=loan_uuid,
+                loan_id=unique_loan_id,
                 customer_id=customer_id,
                 loan_type=loan_type,
                 amount=loan_amount
@@ -358,7 +377,7 @@ def apply_loan():
                 send_loan_status_email(
                     member_email_resp.data[0]["email"],
                     member_email_resp.data[0].get("name") or "Member",
-                    loan_uuid,
+                    unique_loan_id,
                     "pending"
                 )
         except Exception as e:
@@ -367,8 +386,7 @@ def apply_loan():
         return jsonify({
             "status": "success",
             "message": "Loan application submitted and pending approval",
-            # Return UUID as loan_id for client (client already fetches /loan/<id>)
-            "loan_id": loan_uuid,
+            "loan_id": unique_loan_id,
             "certificate_url": None
         }), 200
     except Exception as e:
@@ -403,8 +421,14 @@ def get_loan(loan_id):
     loan_data = loan
     # Fetch customer details
     customer = supabase.table("members").select("customer_id,name,phone,photo_url,signature_url").eq("customer_id", loan_data["customer_id"]).execute()
-    # Fetch sureties
-    sureties = supabase.table("sureties").select("*").eq("loan_id", loan_data["id"]).execute()
+    # Fetch sureties for this loan by UUID only (since sureties.loan_id is uuid)
+    surety_filters = []
+    if loan_data.get('id'):
+        surety_filters.append(f"loan_id.eq.{loan_data['id']}")
+    if surety_filters:
+        sureties = supabase.table("sureties").select("*").or_(','.join(surety_filters)).execute()
+    else:
+        sureties = type('obj', (object,), {'data': []})()  # empty result
     # Fetch repayment records for both textual loan_id and UUID
     loan_id_text = loan_data.get("loan_id")
     rec_resp1 = supabase.table("loan_records").select("*").eq("loan_id", loan_id_text).execute() if loan_id_text else None
@@ -416,6 +440,7 @@ def get_loan(loan_id):
             all_records.append(r)
             seen.add(r["id"])
     # Sort by repayment_date (oldest first, nulls last)
+
     records = sorted(all_records, key=lambda r: (r["repayment_date"] or "9999-12-31"))
 
     # --- Interest calculation for each repayment record ---
@@ -470,52 +495,47 @@ def get_loan(loan_id):
 
 @finance_bp.route('/approve/<loan_id>', methods=['POST'])
 def approve_loan(loan_id):
-    # Generate unique loan_id (LNXXXX)
-    unique_loan_id = generate_loan_id()
-    # Update loan status and set loan_id
-    resp = supabase.table("loans").update({"status": "approved", "loan_id": unique_loan_id}).eq("id", loan_id).execute()
-    if not resp.data:
+    # Only update status, do not generate a new LNxxxx loan_id
+    # Fetch the loan to get the existing LNxxxx
+    loan_resp = supabase.table("loans").select("loan_id,loan_amount,interest_rate,loan_term_months,customer_id").eq("id", loan_id).execute()
+    if not loan_resp.data:
         return jsonify({"status": "error", "message": "Loan not found or update failed"}), 404
-
-    # Mark sureties as active for this loan
+    loan_row = loan_resp.data[0]
+    ln_loan_id = loan_row["loan_id"]
+    # Update status only
+    supabase.table("loans").update({"status": "approved"}).eq("id", loan_id).execute()
+    # Mark sureties as active for this loan (do NOT update loan_id to LNxxxx, keep UUID linkage)
     supabase.table("sureties").update({"active": True}).eq("loan_id", loan_id).execute()
-
     # --- Calculate principal, interest, outstanding, and EMI ---
-    loan_row = resp.data[0]
     principal = float(loan_row["loan_amount"])
     rate = float(loan_row["interest_rate"])
     months = int(loan_row["loan_term_months"])
-
-    # Calculate total interest for the full term (simple interest)
     total_interest = round(principal * rate * months / (12 * 100), 2)
     outstanding = round(principal + total_interest, 2)
-
-    # Calculate EMI (Equated Monthly Installment)
     monthly_rate = rate / (12 * 100)
     if monthly_rate > 0:
         emi = round(principal * monthly_rate * (1 + monthly_rate) ** months / ((1 + monthly_rate) ** months - 1), 2)
     else:
         emi = round(principal / months, 2) if months > 0 else principal
-
     # Store only a single summary row for the loan in loan_records
     supabase.table("loan_records").insert({
-        "loan_id": unique_loan_id,
+        "loan_id": ln_loan_id,
         "repayment_date": None,
         "repayment_amount": None,
         "outstanding_balance": outstanding,
         "status": "active",
-        "interest_amount": total_interest  # You must add this column to your DB if not present
+        "interest_amount": total_interest
     }).execute()
-
-    # Do NOT pre-create repayment schedule rows for each month
-
     # Send mail to user
-    member = get_member_by_customer_id(resp.data[0]["customer_id"])
+    member = get_member_by_customer_id(loan_row["customer_id"])
     if member and member.get("name"):
-        member_email_resp = supabase.table("members").select("email").eq("customer_id", resp.data[0]["customer_id"]).execute()
+        member_email_resp = supabase.table("members").select("email").eq("customer_id", loan_row["customer_id"]).execute()
         if member_email_resp.data and member_email_resp.data[0].get("email"):
-            send_loan_status_email(member_email_resp.data[0]["email"], member["name"], unique_loan_id, "approved")
-    return jsonify({"status": "success", "loan_id": unique_loan_id}), 200
+            send_loan_status_email(member_email_resp.data[0]["email"], member["name"], ln_loan_id, "approved")
+    # Return JSON with download URL for frontend to trigger download
+    from flask import url_for
+    cert_url = url_for('finance.loan_certificate', loan_id=ln_loan_id, action='download', _external=True)
+    return jsonify({"status": "success", "download_url": cert_url}), 200
 
 @finance_bp.route('/reject/<loan_id>', methods=['POST'])
 def reject_loan(loan_id):
@@ -589,6 +609,13 @@ def loan_certificate(loan_id):
     staff_resp = supabase.table("staff").select("name,phone").eq("email", loan["staff_email"]).execute()
     staff = staff_resp.data[0] if staff_resp.data else {}
 
+    # Fetch sureties for this loan (sureties.loan_id links to loan UUID)
+    try:
+        sureties_resp = supabase.table("sureties").select("*").eq("loan_id", loan.get("id")).execute()
+        loan["sureties"] = sureties_resp.data if sureties_resp.data else []
+    except Exception:
+        loan["sureties"] = []
+
     # Define society info variables
     society_name = "KSTHST Coof Society"
     taluk_name = "Taluk"
@@ -622,10 +649,10 @@ def loan_certificate(loan_id):
     html = render_template("loan_certificate.html", **template_data)
 
     if action == "download":
-        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename={loan_id}.pdf'
+        # Return HTML attachment instead of PDF (no wkhtmltopdf dependency)
+        response = make_response(html)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=loan_{loan_id}.html'
         return response
     elif action == "print":
         html += "<script>window.onload = function(){window.print();}</script>"

@@ -199,9 +199,17 @@
             fetch(approveForm.action, { method: 'POST' })
               .then(r => {
                 if (!r.ok) throw new Error('Approve failed');
-                return r.text();
+                return r.json();
               })
-              .then(() => location.reload())
+              .then(data => {
+                if (data && data.download_url) {
+                  window.location.href = data.download_url;
+                  // Optionally close modal after short delay
+                  setTimeout(closeModal, 1000);
+                } else {
+                  throw new Error('No download URL returned');
+                }
+              })
               .catch(err => showError(err.message))
               .finally(()=> setLoading(approveForm,false));
         });
@@ -344,7 +352,7 @@
                     <p class="font-medium">Loading loan details...</p>
                   </div>`;
                 actionBar.hidden = true;
-                approveForm.action = '/admin/approve-loan/' + loanId;
+                approveForm.action = '/loan/approve/' + loanId;
                 rejectForm.action = '/admin/reject-loan/' + loanId;
                 openModal();
                 fetch('/finance/' + loanId)

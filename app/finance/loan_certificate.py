@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, abort, make_response,json
 from supabase import create_client
 import os
 import inflect
-import pdfkit
 from datetime import datetime
 
 loan_cert_bp = Blueprint('loan_cert', __name__)
@@ -69,10 +68,10 @@ def loan_certificate(loan_id):
     )
 
     if action == "download":
-        pdf = pdfkit.from_string(html, False, options={'enable-local-file-access': None})
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename={loan_id}.pdf'
+        # Return HTML attachment instead of PDF to avoid wkhtmltopdf dependency
+        response = make_response(html)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=loan_{loan_id}.html'
         return response
     elif action == "print":
         # Add JS for print
