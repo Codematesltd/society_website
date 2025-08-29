@@ -860,7 +860,7 @@
             loanData = data.loan;
           } else throw new Error(data.message || 'Loan not found');
         } else {
-          const res = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchVal)}`);
+          const res = await fetch(`/loan/fetch_customer_details?customer_id=${encodeURIComponent(searchVal)}`);
           if (!res.ok) throw new Error('Customer not found');
           const data = await res.json();
             if (data && data.status==='success' && data.loans && data.loans.length>0){

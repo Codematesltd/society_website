@@ -176,7 +176,7 @@
                 
                 try {
                     // Call the fetch_customer_details API
-                    const response = await fetch(`/finance/api/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
+                    const response = await fetch(`/loan/fetch_customer_details?customer_id=${encodeURIComponent(searchValue)}`);
                     const data = await response.json();
                     
                     if (data.status === 'success') {
