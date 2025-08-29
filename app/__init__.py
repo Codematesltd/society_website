@@ -33,6 +33,12 @@ def create_app():
     except ImportError:
         print("Admin loan views not found, skipping")
     from .admin.api import admin_api_bp
+    # External API blueprint (expenses)
+    try:
+        from api.check_expenses import bp_expenses
+    except Exception as _e:
+        bp_expenses = None
+        print(f"check_expenses blueprint not available: {_e}")
 
     # Now register all blueprints
     app.register_blueprint(auth_bp)
@@ -45,6 +51,8 @@ def create_app():
     app.register_blueprint(staff_api_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_api_bp)
+    if bp_expenses is not None:
+        app.register_blueprint(bp_expenses)
 
     # Register CLI commands and init login manager for manager blueprint
     try:

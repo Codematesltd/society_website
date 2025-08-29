@@ -164,7 +164,7 @@ def send_status_email(email, status):
     except smtplib.SMTPException as e:
         raise RuntimeError(f"SMTP error: {e}")
 
-def generate_customer_id(prefix="ABCDE"):
+def generate_customer_id(prefix="KSTHST"):
     """Generate a unique customer ID like ABCDE1234."""
     return f"{prefix}{random.randint(1000, 9999)}"
 
@@ -813,17 +813,6 @@ def update_customer():
 
     return jsonify({'status': 'success', 'customer': customer_obj})
 
-    # Fetch updated record (retry)
-    try:
-        updated = supabase_retry(lambda: supabase.table("members").select(
-            "customer_id,name,kgid,phone,email,salary,aadhar_no,pan_no,organization_name,address,photo_url,signature_url,status,balance"
-        ).eq("customer_id", customer_id).limit(1).execute(), attempts=2)
-        customer_obj = updated.data[0] if updated and updated.data else {}
-    except Exception as e:
-        customer_obj = {}
-        print(f"Post-update fetch failed: {e}")
-
-    return jsonify({'status': 'success', 'customer': customer_obj})
 
 @staff_api_bp.route('/list-blocked-members', methods=['GET'])
 def list_blocked_members():
