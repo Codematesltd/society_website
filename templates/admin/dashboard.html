@@ -34,7 +34,8 @@
   <main class="flex-1 p-8 space-y-6">
     <!-- Top bar with Logout -->
     <div class="flex items-center justify-end mb-2">
-      <button id="adminLogoutTop" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow">Logout</button>
+  <span class="mr-4 text-gray-700 font-semibold">{{ session['name'] }}</span>
+  <button id="adminLogoutTop" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow">Logout</button>
     </div>
     <!-- Welcome Section -->
     <section id="welcome" class="admin-section">
