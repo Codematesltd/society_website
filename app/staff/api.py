@@ -34,8 +34,15 @@ def send_otp_email(email, otp):
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
-    msg = MIMEText(f"Your OTP for staff registration is: {otp}")
-    msg['Subject'] = "Staff Registration OTP"
+    subject = "Membership Registration OTP"
+    body = (
+        f"Your OTP for membership registration is: {otp}\n\n"
+        f"Please provide this OTP to the staff member assisting you with your registration.\n"
+        f"This OTP is valid for a limited time only.\n\n"
+        "Thank you.\n"
+    )
+    msg = MIMEText(body)
+    msg['Subject'] = subject
     msg['From'] = EMAIL_USER
     msg['To'] = email
     try:

@@ -32,7 +32,17 @@ def send_otp_email(email, otp):
     if not EMAIL_USER or not EMAIL_PASSWORD:
         raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
 
-    msg = MIMEText(f"Your OTP for staff registration is: {otp}")
+    # Staff should provide OTP to manager
+    msg = MIMEText(
+        "Dear Staff Member,\n\n"
+        f"Your one-time verification code for staff registration is: {otp}\n\n"
+        "Please provide this OTP to your manager so they can complete your staff registration in the system.\n"
+        "For security:\n"
+        " - Do not share this code with anyone except the manager who requested your registration.\n"
+        " - If you did not expect this email, you can ignore it.\n\n"
+        "Best regards,\n"
+        "KSTHST Coof Society Team"
+    )
     msg['Subject'] = "Staff Registration OTP"
     msg['From'] = EMAIL_USER
     msg['To'] = email
@@ -181,15 +191,39 @@ def send_status_email(email, status):
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
+    site_url = os.getenv("BASE_URL", "http://www.ksthstsociety.com")
+    login_url = f"{site_url}/auth/login"
+    first_time_url = f"{site_url}/auth/first-time-signin"
     if status == "approved":
-        subject = "Membership Approved"
-        body = "Congratulations! Your membership has been approved. You can now sign in."
+        subject = "Membership Approved – Welcome to KSTHST Coof Society"
+        body = (
+            "Dear Member,\n\n"
+            "Congratulations! Your membership application has been approved.\n\n"
+            "You can now access your account and services.\n"
+            f"Login: {login_url}\n"
+            "If you did not request this membership, please contact support immediately.\n\n"
+            "Best regards,\n"
+            "KSTHST Coof Society Team"
+        )
     elif status == "rejected":
-        subject = "Membership Rejected"
-        body = "Sorry, your membership request has been rejected."
+        subject = "Update on Your Membership Application"
+        body = (
+            "Dear Applicant,\n\n"
+            "We regret to inform you that your membership application was not approved at this time.\n\n"
+            "You may reply to this email if you would like clarification or wish to reapply later.\n\n"
+            "Thank you for your interest in KSTHST Coof Society.\n\n"
+            "Best regards,\n"
+            "KSTHST Coof Society Team"
+        )
     else:
         subject = "Membership Status Update"
-        body = f"Your membership status is now: {status}"
+        body = (
+            "Dear Member,\n\n"
+            f"Your membership status has been updated to: {status}.\n\n"
+            f"For more details or next steps, please log in: {login_url}\n\n"
+            "Best regards,\n"
+            "KSTHST Coof Society Team"
+        )
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = EMAIL_USER

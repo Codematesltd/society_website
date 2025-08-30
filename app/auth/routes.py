@@ -53,8 +53,16 @@ def send_reset_email(email, token):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     reset_link = f"https://ksthstsociety.com/auth/reset_password?token={token}"
-    msg = MIMEText(f"Click the following link to reset your password:\n{reset_link}")
-    msg['Subject'] = "Password Reset Link"
+    body = (
+        f"We received a request to reset your password for your cooperative society account.\n\n"
+        f"Click the following link to reset your password:\n"
+        f"{reset_link}\n\n"
+        f"This link will expire in 1 hour for security purposes.\n"
+        f"If you did not request this password reset, please ignore this email.\n\n"
+        "Thank you.\n"
+    )
+    msg = MIMEText(body)
+    msg['Subject'] = "Password Reset Request"
     msg['From'] = EMAIL_USER
     msg['To'] = email
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
@@ -65,8 +73,18 @@ def send_set_password_email(email, token):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     set_link = f"https://ksthstsociety.com/auth/set_password?token={token}"
-    msg = MIMEText(f"Click the following link to set your password:\n{set_link}")
-    msg['Subject'] = "Set Your Password"
+    body = ( 
+        f"ಕುಷ್ಟಗಿ ತಾಲೂಕು ಪ್ರೌಢ ಶಾಲಾ ನೌಕರರ ಪತ್ತಿನ ಸಹಕಾರ ಸಂಘ (ರಿ) ಕುಷ್ಟಗಿಗೆ ಸುಸ್ವಾಗತ!\n\n"
+        f"Welcome to Kushtagi High School Employees Cooperative Society!\n\n"
+        f"Your membership has been approved. Please set your password to complete your account setup.\n\n"
+        f"Click the following link to set your password:\n"
+        f"{set_link}\n\n"
+        f"This secure link will expire in 24 hours.\n"
+        f"After setting your password, you can sign in to access your account.\n\n"
+        "Thank you.\n"
+    )
+    msg = MIMEText(body)
+    msg['Subject'] = "Set Your Password - Account Setup"
     msg['From'] = EMAIL_USER
     msg['To'] = email
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:

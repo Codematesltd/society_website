@@ -199,27 +199,45 @@ def send_loan_status_email(email, name, loan_id, status):
     base_url = os.environ.get('BASE_URL', 'https://ksthstsociety.com')
     cert_url = f"{base_url}/loan/certificate/{loan_id}?action=view"
     if status == "pending":
-        subject = "Loan Application Submitted"
+        subject = f"Your Loan Application Has Been Received – Reference: {loan_id}"
         body = (
             f"Dear {name},\n\n"
-            f"Your loan application (ID: {loan_id}) has been submitted and is pending manager approval.\n\n"
-            f"You can view your loan certificate here:\n{cert_url}\n\n"
-            f"Thank you."
+            f"Thank you for choosing KSTHST Coof Society.\n\n"
+            f"We have received your loan application (Reference ID: {loan_id}) and it is now under review.\n\n"
+            f"You can track the status or view the application certificate here:\n{cert_url}\n\n"
+            f"If you have any questions, reply to this email or contact support.\n\n"
+            f"Best regards,\n"
+            f"KSTHST Coof Society Team"
         )
     elif status == "approved":
-        subject = "Loan Application Approved"
+        subject = f"Congratulations! Your Loan Application (ID: {loan_id}) is Approved"
         body = (
             f"Dear {name},\n\n"
-            f"Your loan application (ID: {loan_id}) has been approved.\n\n"
-            f"View your loan certificate online:\n{cert_url}\n\n"
-            f"Thank you."
+            f"Congratulations! Your loan application (Reference ID: {loan_id}) has been approved.\n\n"
+            f"You may view and download your official loan certificate here:\n{cert_url}\n\n"
+            f"If you need assistance, reply to this email.\n\n"
+            f"Best regards,\n"
+            f"KSTHST Coof Society Team"
         )
     elif status == "rejected":
-        subject = "Loan Application Rejected"
-        body = f"Dear {name},\n\nYour loan application (ID: {loan_id}) has been rejected.\n\nThank you."
+        subject = f"Update on Your Loan Application (ID: {loan_id})"
+        body = (
+            f"Dear {name},\n\n"
+            f"We regret to inform you that your loan application (Reference ID: {loan_id}) was not approved at this time.\n\n"
+            f"For clarification or to reapply in the future, please contact our support team.\n\n"
+            f"Best regards,\n"
+            f"KSTHST Coof Society Team"
+        )
     else:
-        subject = "Loan Status Update"
-        body = f"Dear {name},\n\nYour loan application (ID: {loan_id}) status: {status}\n\nThank you."
+        subject = f"Update Regarding Your Loan Application (ID: {loan_id})"
+        body = (
+            f"Dear {name},\n\n"
+            f"There is an update regarding your loan application (Reference ID: {loan_id}).\n"
+            f"Current status: {status}\n\n"
+            f"For more details, log in to your account or contact support.\n\n"
+            f"Best regards,\n"
+            f"KSTHST Coof Society Team"
+        )
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = EMAIL_USER
