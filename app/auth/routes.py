@@ -282,6 +282,11 @@ def forgot_password():
     role = find_role(email)
     if not email or not role:
         return jsonify({'status': 'error', 'message': 'Email not found'}), 404
+    
+    # Skip password reset for managers until reset_token column is added
+    if role == "manager":
+        return jsonify({'status': 'error', 'message': 'Password reset not available for managers. Please contact admin.'}), 400
+    
     # Generate a simple token (for demo, use uuid)
     token = str(uuid.uuid4())
     # Store token in table
@@ -292,9 +297,39 @@ def forgot_password():
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
     token = request.args.get('token') or request.form.get('token')
+    
+    if request.method == 'GET':
+        print(f"GET request received with token: {token}")  # Debug output
+        # Show the reset password form with the token
+        if not token:
+            print("No token provided")  # Debug output
+            return jsonify({'status': 'error', 'message': 'Missing token'}), 400
+        # Verify token exists in database - check staff and members tables only
+        token_valid = False
+        for role in ["staff", "members"]:  # Removed "manager" until reset_token column is added
+            try:
+                user = supabase.table(role).select("email").eq("reset_token", token).execute()
+                if user.data and len(user.data) > 0:
+                    print(f"Token found in {role} table")  # Debug output
+                    token_valid = True
+                    break
+            except Exception as e:
+                print(f"Error checking {role} table: {e}")  # Debug output
+                continue
+        if not token_valid:
+            print("Token not found in any table")  # Debug output
+            return render_template('reset_password.html', error='Invalid or expired reset link')
+        print("Rendering reset password template with valid token")  # Debug output
+        try:
+            return render_template('reset_password.html', token=token)
+        except Exception as e:
+            print(f"Template rendering error: {e}")  # Debug output
+            return f"<h1>Reset Password</h1><p>Token: {token}</p><p>Template error: {e}</p>"
+    
+    # POST method - process password reset
     password = request.form.get('password')
-    # Find user by token in both tables
-    for role in ["staff", "members"]:
+    # Find user by token in staff and members tables only
+    for role in ["staff", "members"]:  # Removed "manager" until reset_token column is added
         user = supabase.table(role).select("email").eq("reset_token", token).execute()
         if user.data and len(user.data) > 0:
             email = user.data[0]["email"]
