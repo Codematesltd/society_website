@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import io
 import pdfkit
 import shutil
+from math import floor  # optional for maturity calc
 
 @members_bp.route("/dashboard")
 @login_required
@@ -46,21 +47,23 @@ def api_check_balance():
 @members_bp.route("/api/account-overview", methods=["GET"])
 def api_account_overview():
     """
-    API to fetch member account overview.
-    Returns: { "status": "success", "data": { name, kgid, phone, email, address, customer_id, organization_name, photo_url } }
+    API to fetch member account overview with extended fields.
     """
     user_email = session.get("email")
     if not user_email:
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
     member_resp = supabase.table("members").select(
-        "name,kgid,phone,email,address,customer_id,organization_name,photo_url"
-    ).eq("email", user_email).execute()
+        "name,kgid,phone,email,address,customer_id,organization_name,photo_url,signature_url,aadhar_no,pan_no,balance,salary,created_at"
+    ).eq("email", user_email).limit(1).execute()
     if not member_resp.data:
         return jsonify({"status": "error", "message": "Member not found"}), 404
 
-    member = member_resp.data[0]
-    return jsonify({"status": "success", "data": member}), 200
+    m = member_resp.data[0]
+    # Optional: normalize key names for frontend consistency
+    m["aadhaar"] = m.get("aadhar_no")
+    m["pan"] = m.get("pan_no")
+    return jsonify({"status": "success", "data": m}), 200
 
 @members_bp.route("/api/statements", methods=["GET"])
 def api_statements():
@@ -434,3 +437,41 @@ def api_my_loans():
         })
 
     return jsonify({"status": "success", "loans": loans}), 200
+
+@members_bp.route("/api/my-fds", methods=["GET"])
+@login_required
+@role_required('members')
+def api_my_fds():
+    """
+    Return all fixed deposits for the logged-in member with simple maturity info.
+    """
+    user_email = session.get("email")
+    if not user_email:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+    # Get customer_id
+    member_resp = supabase.table("members").select("customer_id").eq("email", user_email).limit(1).execute()
+    if not member_resp.data:
+        return jsonify({"status": "error", "message": "Member not found"}), 404
+    customer_id = member_resp.data[0]["customer_id"]
+
+    fd_resp = supabase.table("fixed_deposits").select(
+        "fdid,amount,deposit_date,tenure,interest_rate,status,approved_at"
+    ).eq("customer_id", customer_id).order("deposit_date", desc=True).execute()
+    fds = fd_resp.data or []
+
+    # Add quick maturity amount calc (simple interest)
+    enriched = []
+    for fd in fds:
+        try:
+            principal = float(fd.get("amount") or 0)
+            rate = float(fd.get("interest_rate") or 0)
+            tenure_m = int(fd.get("tenure") or 0)
+            interest = round(principal * rate * tenure_m / (12 * 100), 2)
+            maturity_amount = round(principal + interest, 2)
+        except Exception:
+            interest = 0.0
+            maturity_amount = fd.get("amount")
+        fd["maturity_amount"] = maturity_amount
+        enriched.append(fd)
+
+    return jsonify({"status": "success", "fds": enriched}), 200

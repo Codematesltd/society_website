@@ -18,7 +18,7 @@
       <div class="mb-8">
         <label for="accountNumber" class="block text-gray-700 font-semibold mb-2">Enter Customer ID:</label>
         <div class="flex shadow rounded-lg overflow-hidden">
-          <input type="text" id="accountNumber" placeholder="e.g. KSTHST7705" 
+          <input type="text" id="accountNumber" placeholder="e.g. KSTHST7934" 
                  class="flex-1 border border-gray-300 px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
           <button onclick="searchCustomer()" 
                   class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 transition">
@@ -60,40 +60,33 @@
             <h2 class="text-lg font-bold text-green-700 mb-4">💰 Fixed Deposit Details</h2>
             <!-- Deposit Amount -->
             <div class="mb-4">
-              <label for="depositAmount" class="block text-gray-700 font-semibold mb-2">Deposit Amount:</label>
-              <input type="number" id="depositAmount" placeholder="Enter amount" 
+              <label for="fdAmount" class="block text-gray-700 font-semibold mb-2">Deposit Amount:</label>
+              <input type="number" id="fdAmount" placeholder="Enter amount" required
                      class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
             </div>
             <!-- Deposit Date -->
             <div class="mb-4">
-              <label for="depositDate" class="block text-gray-700 font-semibold mb-2">Deposit Date:</label>
-    <input type="date" id="depositDate" 
-      class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+              <label for="fdDate" class="block text-gray-700 font-semibold mb-2">Deposit Date:</label>
+              <input type="date" id="fdDate" required
+                class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
             <!-- Tenure -->
             <div class="mb-4">
-              <label for="tenure" class="block text-gray-700 font-semibold mb-2">Tenure (in months):</label>
-              <input type="number" id="tenure" placeholder="Enter tenure" 
+              <label for="fdTenure" class="block text-gray-700 font-semibold mb-2">Tenure (in months):</label>
+              <input type="number" id="fdTenure" placeholder="Enter tenure" required
                      class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
             </div>
             <!-- Interest Rate (editable) -->
             <div class="mb-4">
-              <label for="interestRate" class="block text-gray-700 font-semibold mb-2">Interest Rate (%):</label>
-              <input type="number" id="interestRate" step="0.01"
+              <label for="fdInterestRate" class="block text-gray-700 font-semibold mb-2">Interest Rate (%):</label>
+              <input type="number" id="fdInterestRate" step="0.01" required
                      class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Enter interest rate">
             </div>
             <!-- Customer ID -->
             <div class="mb-4">
-              <label for="fdAccountNumber" class="block text-gray-700 font-semibold mb-2">Customer ID:</label>
-              <input type="text" id="fdAccountNumber" readonly
+              <label for="fdCustomerId" class="block text-gray-700 font-semibold mb-2">Customer ID:</label>
+              <input type="text" id="fdCustomerId" readonly
                      class="w-full border border-gray-300 rounded px-4 py-3 bg-gray-100 text-gray-700">
-            </div>
-            <!-- Declaration -->
-            <div class="mb-4 flex items-start bg-yellow-50 p-3 rounded-lg">
-              <input type="checkbox" id="declaration" class="mt-1 accent-green-600">
-              <label for="declaration" class="ml-2 text-gray-700 text-sm">
-                I have read and understood the <strong>Terms & Conditions</strong> of the Fixed Deposit with 
-                <strong>KSTHST Co-Operative Society (R), Kushtagi</strong>, and I agree to abide by them.
-              </label>
             </div>
             <!-- Submit Button -->
             <button onclick="submitFD()" 
@@ -165,7 +158,7 @@
             document.getElementById("custAadhaar").textContent = data.customer.aadhar_no || "-";
             document.getElementById("custPan").textContent = data.customer.pan_no || "-";
             document.getElementById("custAccount").textContent = data.customer.customer_id || "-";
-            document.getElementById("fdAccountNumber").value = data.customer.customer_id || "";
+            document.getElementById("fdCustomerId").value = data.customer.customer_id || "";
             
             tabsContainer.classList.remove("hidden");
             showTab("details");
@@ -206,6 +199,7 @@
                     <th class="px-3 py-2 text-left">Tenure</th>
                     <th class="px-3 py-2 text-left">Rate</th>
                     <th class="px-3 py-2 text-left">Status</th>
+                    <th class="px-3 py-2 text-left">Certificate</th> <!-- NEW -->
                   </tr>
                 </thead>
                 <tbody>`;
@@ -217,6 +211,14 @@
                 <td class="px-3 py-2">${fd.tenure} mo</td>
                 <td class="px-3 py-2">${fd.interest_rate}%</td>
                 <td class="px-3 py-2">${fd.status}</td>
+                <td class="px-3 py-2">
+                  ${
+                    fd.status === 'approved'
+                      ? `<a href="/fd/certificate/${fd.fdid}?action=view" target="_blank" class="text-blue-600 underline mr-2">View</a>
+                         <a href="/fd/certificate/${fd.fdid}?action=download" class="text-green-600 underline">Download</a>`
+                      : `<span class="text-gray-400 text-sm">Pending</span>`
+                  }
+                </td>
               </tr>`;
             });
             html += "</tbody></table></div>";
@@ -238,173 +240,197 @@
       errorDiv.classList.add("hidden");
       messageDiv.classList.add("hidden");
 
-      // Get form values with more robust element selection
-      let amountEl, dateEl, tenureEl, interestRateEl, declarationEl, fdAccountNumberEl;
-      
-      try {
-        amountEl = document.getElementById("depositAmount");
-        dateEl = document.getElementById("depositDate"); 
-        tenureEl = document.getElementById("tenure");
-        interestRateEl = document.getElementById("interestRate");
-        declarationEl = document.getElementById("declaration");
-        fdAccountNumberEl = document.getElementById("fdAccountNumber");
-      } catch (e) {
-        console.error('Error getting form elements:', e);
-      }
+      // Get form values directly
+      const amountEl = document.getElementById("fdAmount");
+      const dateEl = document.getElementById("fdDate");
+      const tenureEl = document.getElementById("fdTenure");
+      const interestRateEl = document.getElementById("fdInterestRate");
+      const fdAccountNumberEl = document.getElementById("fdCustomerId");
 
-      // Debug: Log elements found
-      console.log('Elements found:', {
-        amountEl: !!amountEl,
-        dateEl: !!dateEl,
-        tenureEl: !!tenureEl,
-        interestRateEl: !!interestRateEl,
-        declarationEl: !!declarationEl,
-        fdAccountNumberEl: !!fdAccountNumberEl
-      });
-
-      // Check if elements exist
-      if (!amountEl || !dateEl || !tenureEl || !interestRateEl || !declarationEl || !fdAccountNumberEl) {
+      // Basic validation - Fix: check if elements exist first
+      if (!amountEl || !dateEl || !tenureEl || !interestRateEl || !fdAccountNumberEl) {
         errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <strong>❌ Form elements not found!</strong>
+          <strong>❌ Form elements not found</strong>
         </div>`;
         errorDiv.classList.remove("hidden");
         return;
       }
 
-      // Get values directly without conditional checking
-      const amount = (amountEl.value || "").trim();
-      const date = (dateEl.value || "").trim();
-      const tenure = (tenureEl.value || "").trim();
-      const interestRate = (interestRateEl.value || "").trim();
-      const declaration = declarationEl.checked || false;
-      const fdAccountNumber = (fdAccountNumberEl.value || "").trim();
+      // Get values - Handle date input properly
+      const amount = amountEl.value?.trim();
+      let date = dateEl.value?.trim();
+      const tenure = tenureEl.value?.trim();
+      const interestRate = interestRateEl.value?.trim();
+      const customerId = fdAccountNumberEl.value?.trim();
 
-      // Debug: Log raw values
-      console.log('Raw form values:', { 
-        amount: `"${amount}"`, 
-        date: `"${date}"`, 
-        tenure: `"${tenure}"`, 
-        interestRate: `"${interestRate}"`, 
-        declaration, 
-        fdAccountNumber: `"${fdAccountNumber}"` 
-      });
-
-      // Additional debug - log actual element values
-      console.log('Direct element values:', {
-        amountValue: amountEl.value,
-        dateValue: dateEl.value,
-        tenureValue: tenureEl.value,
-        interestRateValue: interestRateEl.value
-      });
-
-      // Validate required fields with detailed checking
-      const missing = [];
-      
-      if (!amount || amount.length === 0) {
-        missing.push("Deposit Amount");
-      } else if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        missing.push("Valid Deposit Amount");
-      }
-      
-      // Date validation: must not be empty and must not be in the future
-      if (!date || date.length === 0) {
-        console.log('Date validation failed:', date);
-        missing.push("Deposit Date");
-      } else {
-        const selectedDate = new Date(date);
-        const todayDate = new Date();
-        todayDate.setHours(0,0,0,0);
-        selectedDate.setHours(0,0,0,0);
-        if (selectedDate > todayDate) {
-          console.log('Date is in the future:', date);
-          missing.push("Valid Deposit Date (not in future)");
+      // If date is empty but the input shows a visual date, try to get it differently
+      if (!date || date === '') {
+        // Check if there's a visual value in the input (some browsers show formatted date)
+        const dateInputValue = dateEl.getAttribute('value') || dateEl.defaultValue;
+        if (dateInputValue) {
+          date = dateInputValue;
+        } else {
+          // Try to get current date as fallback and format it properly
+          const today = new Date();
+          date = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+          dateEl.value = date; // Set it back to the input
         }
       }
-      
-      if (!tenure || tenure.length === 0) {
-        missing.push("Tenure");
-      } else if (isNaN(parseInt(tenure)) || parseInt(tenure) <= 0) {
-        missing.push("Valid Tenure");
-      }
-      
-      if (!interestRate || interestRate.length === 0) {
-        missing.push("Interest Rate");
-      } else if (isNaN(parseFloat(interestRate)) || parseFloat(interestRate) <= 0) {
-        missing.push("Valid Interest Rate");
+
+      // Convert date from DD-MM-YYYY to YYYY-MM-DD if needed
+      if (date && date.includes('-') && date.length === 10) {
+        const dateParts = date.split('-');
+        if (dateParts.length === 3 && dateParts[0].length === 2) {
+          // Convert from DD-MM-YYYY to YYYY-MM-DD
+          date = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        }
       }
 
-      if (!fdAccountNumber || fdAccountNumber.length === 0) {
-        missing.push("Customer ID");
-      }
+      console.log('Form values after processing:', { amount, date, tenure, interestRate, customerId });
+      console.log('Raw element values:', {
+        amount: amountEl.value,
+        date: dateEl.value,
+        dateAttribute: dateEl.getAttribute('value'),
+        tenure: tenureEl.value,
+        interestRate: interestRateEl.value,
+        customerId: fdAccountNumberEl.value
+      });
 
-      if (missing.length > 0) {
-        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center gap-2">
-          <svg class="h-5 w-5 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-          <span><strong>Please fill: ${missing.join(", ")}</strong></span>
+      // Enhanced validation with better error messages
+      if (!customerId) {
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Customer ID is required. Please search for a customer first.</strong>
         </div>`;
         errorDiv.classList.remove("hidden");
         return;
       }
 
-      if (!declaration) {
-        errorDiv.innerHTML = `<div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded relative flex items-center gap-2">
-          <svg class="h-5 w-5 text-yellow-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01"/>
-          </svg>
-          <span><strong>You must agree to the Terms & Conditions.</strong></span>
+      // Fix: Check for actual empty/null values, not just falsy
+      if (!amount || amount === '' || amount === null || amount === undefined) {
+        console.log('Amount validation failed:', amount, typeof amount);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Deposit Amount is required</strong>
         </div>`;
         errorDiv.classList.remove("hidden");
+        amountEl.focus();
         return;
       }
 
-      // Get submit button
-      const submitBtn = document.querySelector("#fdForm button[onclick='submitFD()']");
-      if (!submitBtn) {
-        console.error('Submit button not found');
+      if (!date || date === '' || date === null || date === undefined) {
+        console.log('Date validation failed:', date, typeof date);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Deposit Date is required. Please select a valid date.</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        dateEl.focus();
         return;
       }
 
-      // Disable submit button to prevent multiple clicks
+      if (!tenure || tenure === '' || tenure === null || tenure === undefined) {
+        console.log('Tenure validation failed:', tenure, typeof tenure);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Tenure is required</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        tenureEl.focus();
+        return;
+      }
+
+      if (!interestRate || interestRate === '' || interestRate === null || interestRate === undefined) {
+        console.log('Interest rate validation failed:', interestRate, typeof interestRate);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Interest Rate is required</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        interestRateEl.focus();
+        return;
+      }
+
+      // Validate numeric values
+      const numAmount = parseFloat(amount);
+      const numTenure = parseInt(tenure);
+      const numInterestRate = parseFloat(interestRate);
+
+      console.log('Parsed numeric values:', { numAmount, numTenure, numInterestRate });
+
+      if (isNaN(numAmount) || numAmount <= 0) {
+        console.log('Numeric amount validation failed:', numAmount, isNaN(numAmount), numAmount <= 0);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Please enter a valid amount greater than 0</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        amountEl.focus();
+        return;
+      }
+
+      if (isNaN(numTenure) || numTenure <= 0) {
+        console.log('Numeric tenure validation failed:', numTenure, isNaN(numTenure), numTenure <= 0);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Please enter a valid tenure greater than 0</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        tenureEl.focus();
+        return;
+      }
+
+      if (isNaN(numInterestRate) || numInterestRate < 0) {
+        console.log('Numeric interest rate validation failed:', numInterestRate, isNaN(numInterestRate), numInterestRate < 0);
+        errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong>❌ Please enter a valid interest rate</strong>
+        </div>`;
+        errorDiv.classList.remove("hidden");
+        interestRateEl.focus();
+        return;
+      }
+
+      console.log('All validation passed, proceeding with submission...');
+
+      // Get submit button and show loading
+      const submitBtn = document.querySelector("button[onclick='submitFD()']");
+      const originalText = submitBtn.innerHTML;
       submitBtn.disabled = true;
-      const origBtnHTML = submitBtn.innerHTML;;
-      submitBtn.innerHTML = `<span class="flex items-center justify-center gap-2">
-        <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-        </svg>
-        Submitting...
-      </span>`; // Show loading spinner
+      submitBtn.innerHTML = "🔄 Submitting...";
+      
+      // Submit to API
       fetch("/staff/api/create-fd", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
-          customer_id: fdAccountNumber,
-          amount: parseFloat(amount),
+          customer_id: customerId,
+          amount: numAmount,
           deposit_date: date,
-          tenure: parseInt(tenure),
-          interest_rate: parseFloat(interestRate)
+          tenure: numTenure,
+          interest_rate: numInterestRate
         })
       })
-      .then(resp => resp.json())
+      .then(resp => {
+        console.log('Response status:', resp.status);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        return resp.json();
+      })
       .then(data => {
+        console.log('Response data:', data);
         if (data.status === "success") {
           messageDiv.innerHTML = `<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-            <strong>✅ Fixed Deposit created! FDID: ${data.fdid}. Awaiting admin approval.</strong>
+            <strong>✅ Fixed Deposit created successfully! FDID: ${data.fdid}</strong>
           </div>`;
           messageDiv.classList.remove("hidden");
+          
           // Clear form
           amountEl.value = "";
           dateEl.value = "";
           tenureEl.value = "";
           interestRateEl.value = "";
-          declarationEl.checked = false;
-          fdAccountNumberEl.value = "";
-          // Refresh customer data and switch to details tab
+          
+          // Switch to details tab after 2 seconds and refresh the list
           setTimeout(() => {
-            searchCustomer();
             showTab("details");
+            loadFDList(customerId);
           }, 2000);
         } else {
           errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
@@ -416,13 +442,13 @@
       .catch(err => {
         console.error('Submit error:', err);
         errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <strong>❌ Network Error: Unable to submit FD</strong>
+          <strong>❌ Network Error: ${err.message}</strong>
         </div>`;
         errorDiv.classList.remove("hidden");
       })
       .finally(() => {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = origBtnHTML;
+        submitBtn.innerHTML = originalText;
       });
     }
 

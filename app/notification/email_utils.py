@@ -68,3 +68,38 @@ def send_approval_email_with_certificate(customer_email, loan_data, pdf_bytes):
         html_body,
         attachments=[(f"{loan_id_display}.pdf", pdf_bytes)] if pdf_bytes else None
     )
+
+def _normalized_base():
+    base = os.getenv("BASE_URL", "http://127.0.0.1:5000")
+    return base.rstrip('/')
+
+def _build_fd_certificate_url(fd_data):
+    base = _normalized_base()
+    if not fd_data:
+        return None
+    fdid = fd_data.get("fdid") or fd_data.get("id")
+    if not fdid:
+        return None
+    return f"{base}/fd/certificate/{fdid}?action=view"
+
+def send_fd_approval_email(customer_email, customer_name, fd_data):
+    if not customer_email:
+        return
+    cert_url = _build_fd_certificate_url(fd_data)
+    fdid = (fd_data or {}).get('fdid', 'FD')
+    amount = (fd_data or {}).get('amount')
+    tenure = (fd_data or {}).get('tenure')
+    rate = (fd_data or {}).get('interest_rate')
+    html_body = f"""
+        <p>Dear {customer_name},</p>
+        <p>Your Fixed Deposit (FDID: <strong>{fdid}</strong>) has been approved.</p>
+        <ul>
+          <li>Amount: ₹{amount}</li>
+          <li>Tenure: {tenure} months</li>
+          <li>Interest Rate: {rate}%</li>
+        </ul>
+        <p>You can view / download your FD certificate here:<br>
+        <a href="{cert_url}">{cert_url}</a></p>
+        <p>Thank you.</p>
+    """
+    send_email(customer_email, f"FD Approved - {fdid}", html_body)

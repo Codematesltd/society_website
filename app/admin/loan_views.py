@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, request, redirect, url_for
+from flask import render_template, jsonify, request, redirect, url_for, session
 from . import admin_bp
 from app.auth.routes import supabase
 from datetime import datetime, date
@@ -289,3 +289,144 @@ def reject_loan_with_reason(loan_id, reason):
         print(f"Error sending notification: {e}")
         
     return {"status": "success"}, 200
+
+@admin_bp.route('/fd-approvals')
+def fd_approvals():
+    """Page: list pending fixed deposits as cards (with basic member info)."""
+    try:
+        fd_resp = sb_exec(
+            supabase.table("fixed_deposits")
+            .select("fdid,customer_id,amount,deposit_date,tenure,interest_rate,status")
+            .eq("status", "pending")
+            .order("deposit_date", desc=True)
+        )
+        fds = fd_resp.data or []
+        # Collect customer_ids
+        cust_ids = list({fd["customer_id"] for fd in fds if fd.get("customer_id")})
+        members_map = {}
+        if cust_ids:
+            # Chunk IN query if large
+            CHUNK = 50
+            for i in range(0, len(cust_ids), CHUNK):
+                subset = cust_ids[i:i+CHUNK]
+                m_resp = sb_exec(
+                    supabase.table("members")
+                    .select("customer_id,name,kgid,phone,email,photo_url")
+                    .in_("customer_id", subset)
+                )
+                for m in (m_resp.data or []):
+                    members_map[m["customer_id"]] = m
+        # Attach member basics
+        for fd in fds:
+            fd["_member"] = members_map.get(fd.get("customer_id"), {})
+    except Exception:
+        fds = []
+    return render_template('admin/fd_approvals.html', fds=fds)
+
+@admin_bp.route('/fd-details/<fdid>', methods=['GET'])
+def admin_fd_details(fdid):
+    """Return single FD + member detail (JSON) for modal."""
+    try:
+        fd_resp = sb_exec(
+            supabase.table("fixed_deposits")
+            .select("*")
+            .eq("fdid", fdid)
+            .limit(1)
+        )
+        if not fd_resp.data:
+            return jsonify({"status": "error", "message": "FD not found"}), 404
+        fd = fd_resp.data[0]
+        member = None
+        if fd.get("customer_id"):
+            m_resp = sb_exec(
+                supabase.table("members")
+                .select("customer_id,name,kgid,phone,email,photo_url,pan_no,aadhar_no")
+                .eq("customer_id", fd["customer_id"])
+                .limit(1)
+            )
+            if m_resp.data:
+                member = m_resp.data[0]
+        return jsonify({"status": "success", "fd": fd, "member": member}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@admin_bp.route('/approve-fd/<fdid>', methods=['POST'])
+def admin_approve_fd(fdid):
+    """Approve a pending FD by fdid."""
+    try:
+        fd_resp = sb_exec(
+            supabase.table("fixed_deposits")
+            .select("*")
+            .eq("fdid", fdid)
+            .limit(1)
+        )
+        if not fd_resp.data:
+            return jsonify({"status": "error", "message": "FD not found"}), 404
+        fd = fd_resp.data[0]
+        if str(fd.get("status")).lower() != "pending":
+            return jsonify({"status": "error", "message": "FD not in pending state"}), 400
+
+        # Update status
+        sb_exec(
+            supabase.table("fixed_deposits")
+            .update({
+                "status": "approved",
+                "approved_by": session.get('email'),
+                "approved_at": datetime.utcnow().isoformat()
+            })
+            .eq("fdid", fdid)
+            .eq("status", "pending")
+        )
+
+        # Refresh FD data
+        fd['status'] = 'approved'
+        fd['approved_by'] = session.get('email')
+        fd['approved_at'] = datetime.utcnow().isoformat()
+
+        # Send email to customer with certificate link
+        try:
+            member_resp = supabase.table("members").select("email,name,customer_id").eq("customer_id", fd.get("customer_id")).limit(1).execute()
+            if member_resp.data:
+                member = member_resp.data[0]
+                from app.notification.email_utils import send_fd_approval_email
+                send_fd_approval_email(
+                    member.get("email"),
+                    member.get("name") or "Member",
+                    fd
+                )
+        except Exception as e:
+            print(f"[FD EMAIL WARN] {e}")
+
+        return jsonify({"status": "success", "fdid": fdid}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"{e}"}), 500
+
+@admin_bp.route('/reject-fd/<fdid>', methods=['POST'])
+def admin_reject_fd(fdid):
+    """Reject a pending FD by fdid."""
+    try:
+        fd_resp = sb_exec(
+            supabase.table("fixed_deposits")
+            .select("id,fdid,status")
+            .eq("fdid", fdid)
+            .limit(1)
+        )
+        if not fd_resp.data:
+            return jsonify({"status": "error", "message": "FD not found"}), 404
+        fd = fd_resp.data[0]
+        if str(fd.get("status")).lower() != "pending":
+            return jsonify({"status": "error", "message": "FD not in pending state"}), 400
+
+        sb_exec(
+            supabase.table("fixed_deposits")
+            .update({
+                "status": "rejected",
+                "approved_by": session.get('email'),
+                "approved_at": datetime.utcnow().isoformat()
+            })
+            .eq("fdid", fdid)
+            .eq("status", "pending")
+        )
+        return jsonify({"status": "success", "fdid": fdid}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"{e}"}), 500

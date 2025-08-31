@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>FD Certificate - {{ fd.fdid }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:40px; color:#222; }
+    .header { text-align:center; margin-bottom:25px; }
+    .header img { height:80px; }
+    h1 { font-size:22px; margin:10px 0 5px; }
+    h2 { font-size:16px; margin:4px 0; font-weight:600; }
+    table { width:100%; border-collapse:collapse; margin-top:15px; }
+    td { padding:6px 8px; vertical-align:top; }
+    .section { margin-top:22px; }
+    .bold { font-weight:bold; }
+    .box { border:1px solid #ccc; padding:14px; border-radius:8px; }
+    .muted { color:#555; }
+    .status { display:inline-block; padding:4px 10px; border-radius:16px; font-size:12px; font-weight:600; background:#eef; color:#234; }
+    .status.approved { background:#d1fae5; color:#065f46; }
+    .status.pending { background:#fef3c7; color:#92400e; }
+    .status.rejected { background:#fee2e2; color:#991b1b; }
+    @media print { .no-print { display:none; } body { margin:10mm; } }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="text-align:right; margin-bottom:10px;">
+    <button onclick="window.print()" style="padding:6px 14px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;">Print</button>
+  </div>
+  <div class="header">
+    <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Logo">
+    <h1>{{ society_name }}</h1>
+    <h2>{{ taluk_name }}, {{ district_name }}</h2>
+    <div style="margin-top:8px;font-size:20px;font-weight:bold;">Fixed Deposit Certificate</div>
+  </div>
+
+  <div class="box">
+    <table>
+      <tr>
+        <td class="bold">FD ID:</td><td>{{ fd.fdid }}</td>
+        <td class="bold">Status:</td>
+        <td><span class="status {{ fd.status }}">{{ fd.status|title }}</span></td>
+      </tr>
+      <tr>
+        <td class="bold">Customer ID:</td><td>{{ fd.customer_id }}</td>
+        <td class="bold">Customer Name:</td><td>{{ member.name or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="bold">Amount (Principal):</td><td>₹ {{ principal }}</td>
+        <td class="bold">Interest Rate:</td><td>{{ rate }} %</td>
+      </tr>
+      <tr>
+        <td class="bold">Tenure:</td><td>{{ tenure_months }} months</td>
+        <td class="bold">Deposit Date:</td><td>{{ fd.deposit_date }}</td>
+      </tr>
+      <tr>
+        <td class="bold">Maturity Date:</td><td>{{ maturity_date or '-' }}</td>
+        <td class="bold">Accrued Interest:</td><td>₹ {{ interest }}</td>
+      </tr>
+      <tr>
+        <td class="bold">Maturity Amount:</td><td colspan="3">₹ {{ maturity_amount }}</td>
+      </tr>
+    </table>
+    <div class="section">
+      <div class="bold">Amount in Words:</div>
+      <div class="muted" style="margin-top:4px;">{{ amount_words }}</div>
+    </div>
+    {% if fd.approved_at %}
+    <div class="section">
+      <div class="bold">Approved At:</div>
+      <div class="muted">{{ fd.approved_at }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:40px; display:flex; justify-content:space-between;">
+    <div>
+      <div class="bold">Member Signature</div>
+      <div style="width:220px;height:80px;border:1px dashed #ccc;margin-top:6px;"></div>
+    </div>
+    <div>
+      <div class="bold">Authorized Signatory</div>
+      <div style="width:220px;height:80px;border:1px dashed #ccc;margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:30px;font-size:12px;color:#666;">
+    System generated document. Valid without signature.
+  </div>
+</body>
+</html>

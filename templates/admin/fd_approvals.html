@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white">
+  {% if not fds %}
+    <div class="p-10 text-center text-gray-500">
+      <div class="text-5xl mb-4">🏦</div>
+      No pending Fixed Deposits.
+    </div>
+  {% else %}
+  <!-- Simplified heading (removed nested count brackets that could leave stray chars) -->
+  <h2 class="text-xl font-bold text-indigo-700 mb-1">Pending Fixed Deposits</h2>
+  <p class="text-sm font-medium text-indigo-800 mb-4">
+    Total: {{ (fds|length)|default(0) }}
+  </p>
+  <div id="fdCardGrid" class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    {% for fd in fds %}
+    <div class="bg-white border rounded-xl shadow p-5 flex flex-col justify-between" data-fdid="{{ fd.fdid }}">
+      <!-- ...existing card content... -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-indigo-700 text-lg">{{ fd.fdid }}</h3>
+          <span class="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+        </div>
+        <div class="text-sm space-y-1">
+          <p><span class="font-medium">Customer:</span> {{ fd.customer_id }}</p>
+          <p><span class="font-medium">Name:</span> {{ fd._member.name or '—' }}</p>
+          <p><span class="font-medium">Amount:</span> ₹{{ fd.amount }}</p>
+          <p><span class="font-medium">Tenure:</span> {{ fd.tenure }} mo @ {{ fd.interest_rate }}%</p>
+          <p><span class="font-medium">Date:</span> {{ fd.deposit_date }}</p>
+        </div>
+      </div>
+      <button class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded view-fd-btn text-sm">View</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Modal (unchanged structure) -->
+  <div id="fdModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+    <!-- ...existing modal markup... -->
+    <div class="bg-white w-full max-w-3xl rounded-xl shadow-2xl p-6 relative">
+      <button id="fdModalClose" class="absolute top-2 right-3 text-2xl text-gray-400 hover:text-gray-600">&times;</button>
+      <div id="fdModalContent"></div>
+      <div id="fdModalActions" class="mt-6 flex gap-4 justify-end hidden">
+        <form id="fdApproveForm" method="post">
+          <button type="submit" class="approveAction bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded text-sm font-medium">Approve</button>
+        </form>
+        <form id="fdRejectForm" method="post">
+          <input type="hidden" name="reason" value="Rejected by admin">
+          <button type="submit" class="rejectAction bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded text-sm font-medium">Reject</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // --- Cleanup: remove stray standalone "}}" text nodes (visual bracket issue) ---
+  (function removeStrayBraces(){
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const toRemove = [];
+    while (walker.nextNode()) {
+      const v = walker.currentNode.nodeValue;
+      if (v && v.trim() === '}}') toRemove.push(walker.currentNode);
+    }
+    toRemove.forEach(n => n.parentNode && n.parentNode.removeChild(n));
+  })();
+  document.addEventListener('DOMContentLoaded', () => {
+    const ADMIN_BASE = '/admin'; // NEW: blueprint prefix
+    const modal = document.getElementById('fdModal');
+    const modalContent = document.getElementById('fdModalContent');
+    const closeBtn = document.getElementById('fdModalClose');
+    const approveForm = document.getElementById('fdApproveForm');
+    const rejectForm  = document.getElementById('fdRejectForm');
+    const actionsBar  = document.getElementById('fdModalActions');
+    let currentFdid = null;
+
+    function openModal(){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    function closeModal(){
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modalContent.innerHTML='';
+      currentFdid = null;
+      actionsBar.classList.add('hidden');
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if(e.target === modal) closeModal(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+    function spinner(){
+      return `<div class="py-16 text-center text-indigo-600">
+        <svg class="h-10 w-10 animate-spin mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"></circle>
+          <path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"></path>
+        </svg>
+        <p class="font-medium">Loading...</p>
+      </div>`;
+    }
+
+    function fmt(n){ return '₹'+Number(n||0).toLocaleString(); }
+
+    async function loadDetails(fdid){
+      modalContent.innerHTML = spinner();
+      try{
+        const res = await fetch(`${ADMIN_BASE}/fd-details/${encodeURIComponent(fdid)}`);
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          const txt = await res.text();
+          throw new Error('Unexpected response (HTML received)');
+        }
+        const data = await res.json();
+        if(!res.ok || data.status!=='success') throw new Error(data.message || 'Failed');
+        const fd = data.fd || {};
+        const m  = data.member || {};
+        modalContent.innerHTML = `
+          <h2 class="text-2xl font-bold text-indigo-700 mb-4">Fixed Deposit - ${fd.fdid}</h2>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+              <div>
+                <h3 class="font-semibold text-gray-700 mb-2">FD Details</h3>
+                <div class="text-sm grid grid-cols-2 gap-y-1 gap-x-4">
+                  <div class="font-medium">Customer ID:</div><div>${fd.customer_id||'—'}</div>
+                  <div class="font-medium">Amount:</div><div>${fmt(fd.amount)}</div>
+                  <div class="font-medium">Deposit Date:</div><div>${fd.deposit_date||'—'}</div>
+                  <div class="font-medium">Tenure:</div><div>${fd.tenure||'0'} months</div>
+                  <div class="font-medium">Interest Rate:</div><div>${fd.interest_rate||0}%</div>
+                  <div class="font-medium">Status:</div><div><span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">Pending</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-4">
+              <h3 class="font-semibold text-gray-700 mb-2">Customer</h3>
+              <div class="flex items-center gap-4">
+                <div class="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border">
+                  ${m.photo_url ? `<img src="${m.photo_url}" class="w-full h-full object-cover" onerror="this.style.display='none'">` : ''}
+                </div>
+                <div class="text-sm">
+                  <p><span class="font-medium">Name:</span> ${m.name||'—'}</p>
+                  <p><span class="font-medium">KGID:</span> ${m.kgid||'—'}</p>
+                  <p><span class="font-medium">Phone:</span> ${m.phone||'—'}</p>
+                  <p><span class="font-medium">Email:</span> ${m.email||'—'}</p>
+                  <p><span class="font-medium">Aadhaar:</span> ${m.aadhar_no||'—'}</p>
+                  <p><span class="font-medium">PAN:</span> ${m.pan_no||'—'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        actionsBar.classList.remove('hidden');
+      }catch(e){
+        modalContent.innerHTML = `<div class="p-8 text-center text-red-600">Error: ${e.message}</div>`;
+      }
+    }
+
+    function setBtnLoading(form, state){
+      const btn = form.querySelector('button');
+      if(!btn) return;
+      if(state){
+        btn.dataset.old = btn.innerHTML;
+        btn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+        btn.disabled = true;
+        btn.classList.add('opacity-70','cursor-not-allowed');
+      } else {
+        btn.innerHTML = btn.dataset.old;
+        btn.disabled = false;
+        btn.classList.remove('opacity-70','cursor-not-allowed');
+      }
+    }
+
+    approveForm.addEventListener('submit', async e=>{
+      e.preventDefault();
+      if(!currentFdid) return;
+      setBtnLoading(approveForm, true);
+      try{
+        const res = await fetch(`${ADMIN_BASE}/approve-fd/${encodeURIComponent(currentFdid)}`, {method:'POST'});
+        let data = {};
+        try { data = await res.json(); } catch(_e){}
+        if(!res.ok || data.status!=='success') throw new Error(data.message||`HTTP ${res.status}`);
+        const card = document.querySelector(`[data-fdid="${currentFdid}"]`);
+        if(card) card.remove();
+        modalContent.insertAdjacentHTML('beforeend', `<div class="mt-4 text-green-600 font-medium">Approved successfully.</div>`);
+        setTimeout(closeModal, 700);
+        if(!document.querySelector('#fdCardGrid [data-fdid]')) {
+          document.getElementById('fdCardGrid').innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">All fixed deposits processed.</div>';
+        }
+      }catch(err){
+        modalContent.insertAdjacentHTML('beforeend', `<div class="mt-4 text-red-600 font-medium">Approve failed: ${err.message}</div>`);
+      }finally{
+        setBtnLoading(approveForm, false);
+      }
+    });
+
+    rejectForm.addEventListener('submit', async e=>{
+      e.preventDefault();
+      if(!currentFdid) return;
+      setBtnLoading(rejectForm, true);
+      try{
+        const res = await fetch(`${ADMIN_BASE}/reject-fd/${encodeURIComponent(currentFdid)}`, {method:'POST'});
+        let data = {};
+        try { data = await res.json(); } catch(_e){}
+        if(!res.ok || data.status!=='success') throw new Error(data.message||`HTTP ${res.status}`);
+        const card = document.querySelector(`[data-fdid="${currentFdid}"]`);
+        if(card) card.remove();
+        modalContent.insertAdjacentHTML('beforeend', `<div class="mt-4 text-red-600 font-medium">Rejected.</div>`);
+        setTimeout(closeModal, 700);
+        if(!document.querySelector('#fdCardGrid [data-fdid]')) {
+          document.getElementById('fdCardGrid').innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">All fixed deposits processed.</div>';
+        }
+      }catch(err){
+        modalContent.insertAdjacentHTML('beforeend', `<div class="mt-4 text-red-600 font-medium">Reject failed: ${err.message}</div>`);
+      }finally{
+        setBtnLoading(rejectForm, false);
+      }
+    });
+
+    document.querySelectorAll('.view-fd-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const fdid = btn.closest('[data-fdid]').dataset.fdid;
+        currentFdid = fdid;
+        openModal();
+        loadDetails(fdid);
+      });
+    });
+  });
+  </script>
+</body>
+</html>

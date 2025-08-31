@@ -11,6 +11,7 @@ import inflect
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
+import pdfkit
 import smtplib
 from email.mime.application import MIMEApplication
 
@@ -1196,3 +1197,71 @@ def check_civil_score():
         "message": msg,
         "details": civil_results
     })
+@finance_bp.route('/fd/certificate/<fdid>')
+def fd_certificate(fdid):
+    """
+    View / print / download / json FD certificate.
+    action=view|download|print|json
+    """
+    action = request.args.get('action', 'view')
+    fd_resp = supabase.table("fixed_deposits").select("*").eq("fdid", fdid).limit(1).execute()
+    if not fd_resp.data:
+        return jsonify({"status": "error", "message": "FD not found"}), 404
+    fd = fd_resp.data[0]
+
+    # Member
+    member_resp = supabase.table("members").select("customer_id,name,kgid,phone,email,aadhar_no,pan_no").eq("customer_id", fd.get("customer_id")).limit(1).execute()
+    member = member_resp.data[0] if member_resp.data else {}
+
+    # Interest / maturity calculations
+    try:
+        principal = float(fd.get("amount") or 0)
+        rate = float(fd.get("interest_rate") or 0)
+        tenure_m = int(fd.get("tenure") or 0)
+    except Exception:
+        principal, rate, tenure_m = 0.0, 0.0, 0
+    interest = round(principal * rate * tenure_m / (12 * 100), 2)
+    maturity_amount = round(principal + interest, 2)
+
+    # Maturity date
+    maturity_date = None
+    from datetime import datetime
+    if fd.get("deposit_date"):
+        try:
+            d = datetime.strptime(fd["deposit_date"], "%Y-%m-%d")
+            year = d.year + (d.month - 1 + tenure_m) // 12
+            month = (d.month - 1 + tenure_m) % 12 + 1
+            day = min(d.day, 28)
+            maturity_date = f"{year:04d}-{month:02d}-{day:02d}"
+        except Exception:
+            maturity_date = None
+
+    cert_ctx = dict(
+        fd=fd,
+        member=member,
+        principal=principal,
+        rate=rate,
+        tenure_months=tenure_m,
+        interest=interest,
+        maturity_amount=maturity_amount,
+        maturity_date=maturity_date,
+        amount_words=amount_to_words(maturity_amount),
+        society_name="KSTHST Coof Society",
+        taluk_name="Taluk",
+        district_name="District"
+    )
+
+    if action == "json":
+        return jsonify({"status": "success", **cert_ctx}), 200
+
+    html = render_template("fd_certificate.html", **cert_ctx)
+
+    if action == "download":
+        resp = make_response(html)
+        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+        resp.headers['Content-Disposition'] = f'attachment; filename=fd_{fdid}.html'
+        return resp
+    if action == "print":
+        html += "<script>window.onload=function(){window.print();}</script>"
+        return html
+    return html

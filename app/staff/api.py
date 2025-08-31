@@ -903,30 +903,78 @@ def create_fd():
     Expects: customer_id, amount, deposit_date, tenure, interest_rate
     Returns: {status, fdid, fd}
     """
-    data = request.get_json(silent=True) or request.form
-    customer_id = data.get("customer_id")
-    amount = data.get("amount")
-    deposit_date = data.get("deposit_date")
-    tenure = data.get("tenure")
-    interest_rate = data.get("interest_rate")
-    if not all([customer_id, amount, deposit_date, tenure, interest_rate]):
-        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
-
-    fdid = generate_fdid()
-    fd_data = {
-        "fdid": fdid,
-        "customer_id": customer_id,
-        "amount": float(amount),
-        "deposit_date": deposit_date,
-        "tenure": int(tenure),
-        "interest_rate": float(interest_rate),
-        "status": "pending"
-    }
-    resp = supabase.table("fixed_deposits").insert(fd_data).execute()
-    if resp.data:
-        return jsonify({'status': 'success', 'fdid': fdid, 'fd': resp.data[0]}), 201
-    else:
-        return jsonify({'status': 'error', 'message': 'Failed to create FD'}), 500
+    try:
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        # Required fields (only what's shown in the form)
+        required_fields = ['customer_id', 'amount', 'deposit_date', 'tenure', 'interest_rate']
+        missing_fields = []
+        
+        for field in required_fields:
+            if field not in data or not data[field]:
+                missing_fields.append(field)
+        
+        if missing_fields:
+            return jsonify({
+                'status': 'error', 
+                'message': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Validate customer exists
+        customer_check = supabase.table("members").select("customer_id").eq("customer_id", data['customer_id']).execute()
+        if not customer_check.data:
+            return jsonify({'status': 'error', 'message': 'Customer not found'}), 404
+        
+        # Validate numeric fields
+        try:
+            amount = float(data['amount'])
+            tenure = int(data['tenure'])
+            interest_rate = float(data['interest_rate'])
+            
+            if amount <= 0:
+                return jsonify({'status': 'error', 'message': 'Amount must be greater than 0'}), 400
+            if tenure <= 0:
+                return jsonify({'status': 'error', 'message': 'Tenure must be greater than 0'}), 400
+            if interest_rate < 0:
+                return jsonify({'status': 'error', 'message': 'Interest rate cannot be negative'}), 400
+                
+        except (ValueError, TypeError):
+            return jsonify({'status': 'error', 'message': 'Invalid numeric values provided'}), 400
+        
+        # Generate unique FDID
+        fdid = generate_fdid()
+        
+        # Prepare FD data - ONLY the fields from the form
+        fd_data = {
+            "fdid": fdid,
+            "customer_id": data['customer_id'],
+            "amount": amount,
+            "deposit_date": data['deposit_date'],
+            "tenure": tenure,
+            "interest_rate": interest_rate,
+            "status": "pending"  # Default status
+        }
+        
+        # Insert into fixed_deposits table
+        resp = supabase.table("fixed_deposits").insert(fd_data).execute()
+        
+        if resp.data and len(resp.data) > 0:
+            return jsonify({
+                'status': 'success', 
+                'fdid': fdid, 
+                'fd': resp.data[0],
+                'message': 'Fixed Deposit created successfully'
+            }), 201
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to create Fixed Deposit'}), 500
+            
+    except Exception as e:
+        print(f"Error in create_fd: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
 
 
 

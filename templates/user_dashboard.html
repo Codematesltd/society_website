@@ -95,8 +95,9 @@
         <button onclick="fetchData('statement')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
           <span>📁</span> <span>Get Statement</span>
         </button>
-    <button onclick="fetchData('balance')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
-          <span>💳</span> <span>Check Balance</span>
+        <!-- NEW: Member FDs -->
+        <button onclick="fetchData('fd')" class="w-full px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2">
+          <span>🏦</span> <span>My Fixed Deposits</span>
         </button>
   <a href="{{ url_for('auth.logout') }}" class="logout-link w-full block px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition flex items-center gap-2">
           <span>🧾</span> <span>Logout</span>
@@ -108,35 +109,90 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-      <div id="welcomeSection" class="flex flex-col items-center justify-center h-full">
-        <div class="bg-white rounded-xl shadow p-6 w-full max-w-md text-center mb-8">
-          <h2 class="text-2xl font-bold text-blue-700 mb-2">
-            Welcome{% if session.get('name') %}, {{ session.get('name') }}{% endif %}!
-          </h2>
-          <p class="text-gray-600 mb-6">Select an option below to get started:</p>
-          <div class="flex flex-col gap-4">
-            <button onclick="fetchData('account')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
-              <span>👤</span> <span>Account Overview</span>
-            </button>
-            <button onclick="fetchData('loan')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
-              <span>📄</span> <span>Loan Status</span>
-            </button>
-            <button onclick="fetchData('statement')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
-              <span>📁</span> <span>Get Statement</span>
-            </button>
-            <button onclick="fetchData('balance')" class="w-full px-4 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-left transition flex items-center gap-2 text-lg font-medium">
-              <span>💳</span> <span>Check Balance</span>
-            </button>
-            <a href="{{ url_for('auth.logout') }}" class="logout-link w-full block px-4 py-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-left transition flex items-center gap-2 text-lg font-medium">
-              <span>🧾</span> <span>Logout</span>
-            </a>
-          </div>
+      <!-- New Account Overview Section (default visible) -->
+      <div id="accountSection" class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">Account Overview</h2>
+        <div id="accountOverviewContent" class="text-sm text-gray-700">
+          Loading account details...
         </div>
       </div>
-      <section id="account" class="hidden animate-fade-in"></section>
-      <section id="loan" class="hidden animate-fade-in"></section>
-      <section id="statement" class="hidden animate-fade-in"></section>
-      <section id="balance" class="hidden animate-fade-in"></section>
+
+      <!-- Loan Status Section (ensure has container) -->
+      <div id="loanSection" class="hidden">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">Loan Status</h2>
+        <div id="loanList" class="space-y-4">
+          <div class="bg-white rounded shadow p-4 text-sm text-gray-600">Loading loans...</div>
+        </div>
+      </div>
+
+      <!-- Statement Section -->
+      <div id="statementSection" class="hidden">
+        <!-- NEW: Statement controls + table -->
+        <div id="statementControls" class="bg-white rounded-lg shadow p-4 mb-4">
+          <div class="flex flex-wrap gap-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Range</label>
+              <select id="stmRange" class="border px-3 py-2 rounded w-44">
+                <option value="last10">Last 10</option>
+                <option value="1m">Last 1 Month</option>
+                <option value="3m">Last 3 Months</option>
+                <option value="6m">Last 6 Months</option>
+                <option value="1y">Last 1 Year</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div id="stmFromWrap" class="hidden">
+              <label class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+              <input type="date" id="stmFrom" class="border px-3 py-2 rounded">
+            </div>
+            <div id="stmToWrap" class="hidden">
+              <label class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+              <input type="date" id="stmTo" class="border px-3 py-2 rounded">
+            </div>
+            <button id="stmFetchBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition mt-5">Generate</button>
+            <button id="stmDownloadBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition mt-5" disabled>Download PDF</button>
+          </div>
+          <div id="stmMsg" class="text-sm mt-2 text-red-600 hidden"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-blue-100">
+              <tr>
+                <th class="px-4 py-2 text-left">Date</th>
+                <th class="px-4 py-2 text-left">Details</th>
+                <th class="px-4 py-2 text-right">Debit</th>
+                <th class="px-4 py-2 text-right">Credit</th>
+                <th class="px-4 py-2 text-right">Balance After</th>
+              </tr>
+            </thead>
+            <tbody id="stmTbody">
+              <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Select a range to load statements.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Check Balance Section -->
+      <div id="balanceSection" class="hidden">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">Check Balance</h2>
+        <form id="balanceForm" class="max-w-sm space-y-3">
+          <input type="password" id="balancePassword" placeholder="Enter password"
+                 class="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+          <button type="submit"
+                  class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            Verify & Show Balance
+          </button>
+        </form>
+        <div id="balanceResult" class="mt-4 text-sm font-medium"></div>
+      </div>
+
+      <!-- FD Section (already added previously) -->
+      <div id="fdSection" class="hidden">
+        <h2 class="text-2xl font-bold text-blue-700 mb-4">My Fixed Deposits</h2>
+        <div id="fdContainer" class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500">Loading...</div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -238,335 +294,416 @@
       <p id="balanceResult" class="mt-4 font-medium"></p>
     `;
 
-    // Define fetchData as a function expression and assign to window to ensure global scope
-    window.fetchData = async function(tabId) {
-      document.getElementById("welcomeSection").style.display = "none";
-      document.querySelectorAll("main section").forEach(s => {
-        s.classList.add("hidden");
-        s.innerHTML = "";
-      });
-      const section = document.getElementById(tabId);
-      section.innerHTML = loader;
-      section.classList.remove("hidden");
-      setTimeout(() => {
-        const contentMap = {
-          account: accountData,
-          loan: loanData,
-          statement: statementData,
-          balance: balanceData
-        };
-        section.innerHTML = contentMap[tabId];
-        section.classList.add("fade-enter");
-        requestAnimationFrame(() => section.classList.add("fade-enter-active"));
-
-        // Account Overview API integration
-        if (tabId === "account") {
-          fetch("{{ url_for('members.api_account_overview') }}", {
-            method: "GET",
-            credentials: "include"
-          })
-          .then(res => res.json())
-          .then(data => {
-            const contentDiv = document.getElementById("accountOverviewContent");
-            if (data.status === "success" && data.data) {
-              const d = data.data;
-              contentDiv.innerHTML = `
-                <div id="accountCard" class="w-full flex flex-col items-center bg-white" style="background: #f0f6ff;">
-                  <div class="mb-4 flex items-center justify-center" style="width:120px;height:120px;">
-                    ${
-                      d.photo_url
-                        ? `<img src="${d.photo_url}" crossOrigin="anonymous" alt="User Photo" style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:2px solid #3b82f6;background:#fff;" />`
-                        : `<div style="width:100px;height:100px;border-radius:50%;background:#e0e7ef;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#2563eb;border:2px solid #3b82f6;">?</div>`
-                    }
-                  </div>
-                  <div class="mb-2 text-xl font-semibold text-blue-800" style="font-size:1.4rem;font-weight:700;color:#2563eb;">${d.name || "-"}</div>
-                  <div class="grid grid-cols-1 gap-3 text-gray-700 w-full max-w-xs mt-4" style="width:100%;max-width:340px;">
-                    <div class="flex justify-between"><span class="font-semibold">KGID:</span> <span>${d.kgid || "-"}</span></div>
-                    <div class="flex justify-between"><span class="font-semibold">Customer ID:</span> <span>${d.customer_id || "-"}</span></div>
-                    <div class="flex justify-between"><span class="font-semibold">Organization:</span> <span>${d.organization_name || "-"}</span></div>
-                    <div class="flex justify-between"><span class="font-semibold">Phone:</span> <span>${d.phone || "-"}</span></div>
-                    <div class="flex justify-between"><span class="font-semibold">Email:</span> <span>${d.email || "-"}</span></div>
-                    <div class="flex justify-between"><span class="font-semibold">Address:</span> <span class="text-right">${d.address || "-"}</span></div>
-                  </div>
-                  <button id="downloadAccountCardBtn" class="mt-6 px-5 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 transition">⬇ Download Card</button>
-                </div>
-              `;
-              // Download logic
-              setTimeout(() => {
-                const btn = document.getElementById("downloadAccountCardBtn");
-                if (btn) {
-                  btn.onclick = async function() {
-                    const card = document.getElementById("accountCard");
-                    // load html2canvas if missing
-                    if (typeof html2canvas !== 'function') {
-                      btn.textContent = "Loading...";
-                      const s = document.createElement("script");
-                      s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-                      s.onload = () => btn.onclick();
-                      document.head.appendChild(s);
-                      return;
-                    }
-                    btn.textContent = "Preparing...";
-                    btn.disabled = true;
-                    try {
-                      const canvas = await html2canvas(card, {
-                        useCORS: true,
-                        backgroundColor: "#f0f6ff",
-                        scale: 2
-                      });
-                      const link = document.createElement("a");
-                      link.download = "account_card.png";
-                      link.href = canvas.toDataURL("image/png");
-                      link.click();
-                    } catch (e) {
-                      alert("Failed to generate image.");
-                    }
-                    btn.textContent = "⬇ Download Card";
-                    btn.disabled = false;
-                  };
-                }
-              }, 100);
-            } else {
-              contentDiv.innerHTML = `<div class="text-red-600 font-medium">${data.message || "Unable to fetch account details."}</div>`;
-            }
-          })
-          .catch(() => {
-            const contentDiv = document.getElementById("accountOverviewContent");
-            contentDiv.innerHTML = `<div class="text-red-600 font-medium">Network error</div>`;
-          });
+    // --- NEW: FD fetch/render ---
+    async function loadFDs() {
+      const wrap = document.getElementById('fdContainer');
+      if(!wrap){ return; }
+      wrap.innerHTML = '<div class="text-gray-500">Loading...</div>';
+      try{
+        const res = await fetch('/members/api/my-fds');
+        const data = await res.json();
+        if(!res.ok || data.status!=='success'){
+          throw new Error(data.message || 'Failed to load FDs');
         }
-
-        if (tabId === "balance") {
-          const btn = document.getElementById("checkBalanceBtn");
-          btn.onclick = async function() {
-            const pw = document.getElementById("balancePassword").value;
-            section.innerHTML = loader;
-            try {
-              const res = await fetch("{{ url_for('members.api_check_balance') }}", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password: pw })
-              });
-              const data = await res.json();
-              if (res.ok && data.status === "success") {
-                section.innerHTML = `
-                  <div class="flex flex-col items-center justify-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-16 h-16 text-green-500 mb-4"
-                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                            d="M7 13l3 3 7-7"/>
-                    </svg>
-                    <h2 class="mt-4 text-xl font-bold text-green-600 text-center">KSTHST A/C Balance Fetched Successfully</h2>
-                    <div class="mt-4 text-4xl font-bold text-green-700">₹${Number(data.balance).toLocaleString()}</div>
-                  </div>
-                `;
-              } else {
-                section.innerHTML = `<p class="mt-4 text-red-600 font-medium">${data.message}</p>`;
-              }
-            } catch {
-              section.innerHTML = `<p class="mt-4 text-red-600 font-medium">Network error</p>`;
-            }
-          };
+        const fds = data.fds || [];
+        if(!fds.length){
+          wrap.innerHTML = '<div class="text-gray-500">No Fixed Deposits found.</div>';
+          return;
         }
-
-        // Loan Status: fetch loans automatically for logged-in user
-        if (tabId === "loan") {
-          const detailsSection = document.getElementById("loanDetailsSection");
-          detailsSection.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div></div>`;
-
-          // Fetch all loans for the logged-in user
-          const fetchLoans = async () => {
-            try {
-              const res = await fetch("/members/api/my-loans");
-              const data = await res.json();
-              if (res.ok && data.status === "success") {
-                const loans = data.loans;
-                if (!loans.length) {
-                  detailsSection.innerHTML = `<div class="text-gray-600 font-medium mb-4">No loans found for your account.</div>`;
-                  return;
-                }
-                detailsSection.innerHTML = loans.map(loan => `
-                  <div class="bg-white rounded-xl shadow p-6 mb-6">
-                    <h3 class="text-xl font-bold text-blue-700 mb-2">Loan Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700 mb-4">
-                      <div><span class="font-semibold">Loan ID:</span> ${loan.loan_id || '-'}</div>
-                      <div><span class="font-semibold">Customer ID:</span> ${loan.customer_id || '-'}</div>
-                      <div><span class="font-semibold">Loan Type:</span> ${loan.loan_type || '-'}</div>
-                      <div><span class="font-semibold">Loan Amount:</span> ₹${loan.loan_amount ? Number(loan.loan_amount).toLocaleString() : '-'}</div>
-                      <div><span class="font-semibold">Interest Rate:</span> ${loan.interest_rate || '-'}%</div>
-                      <div><span class="font-semibold">Loan Term:</span> ${loan.loan_term_months || '-'} months</div>
-                      <div><span class="font-semibold">Purpose:</span> ${loan.purpose || '-'}</div>
-                      <div><span class="font-semibold">Status:</span> ${loan.status || '-'}</div>
-                      ${
-                        loan.status === "rejected" && loan.rejection_reason
-                          ? `<div class="md:col-span-2 text-red-600 font-semibold"><span class="font-semibold">Rejection Reason:</span> ${loan.rejection_reason}</div>`
-                          : ""
-                      }
-                    </div>
-                    ${
-                      loan.status !== "rejected"
-                        ? `<div class="flex flex-wrap items-center gap-3">
-                             <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" onclick="fetchLoanRecords('${loan.loan_id}', this)">Show Repayment Records</button>
-                             <a href="/loan/certificate/${loan.loan_id}?action=view" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition">
-                               View Certificate
-                             </a>
-                             <a href="/loan/certificate/${loan.loan_id}?action=download" class="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">
-                               Download Certificate
-                             </a>
-                             <div class="w-full mt-4 repayment-records"></div>
-                           </div>`
-                        : ""
-                    }
-                  </div>
-                `).join("");
-              } else {
-                detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "Loan not found."}</div>`;
-              }
-            } catch (e) {
-              detailsSection.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
-            }
-          };
-          fetchLoans();
-        }
-
-        // Statement API integration
-        if (tabId === "statement") {
-          const rangeSelect = document.getElementById("statementRange");
-          const fromDate = document.getElementById("fromDate");
-          const toDate = document.getElementById("toDate");
-          const genBtn = document.getElementById("generateStatementBtn");
-          const tableBody = document.getElementById("statementTableBody");
-          const successMsg = document.getElementById("statementSuccess");
-
-          // Update table header for new columns (STID + date merged)
-          document.getElementById("statementTableWrapper").querySelector("thead tr").innerHTML = `
-            <th class="py-3 px-2 border whitespace-nowrap">Date<br><span class="text-xs font-normal">STID</span></th>
-            <th class="py-3 px-2 border">Description</th>
-            <th class="py-3 px-2 border">Type</th>
-            <th class="py-3 px-2 border">Amount</th>
-            <th class="py-3 px-2 border">Balance</th>
-          `;
-
-          function toggleDateInputs() {
-            if (rangeSelect.value === "custom") {
-              fromDate.classList.remove("hidden");
-              toDate.classList.remove("hidden");
-            } else {
-              fromDate.classList.add("hidden");
-              toDate.classList.add("hidden");
-            }
-          }
-          rangeSelect.onchange = toggleDateInputs;
-          toggleDateInputs();
-
-          async function fetchStatement() {
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading...</td></tr>`;
-            successMsg.classList.add("hidden");
-            let url = "{{ url_for('members.api_statements') }}?range=" + encodeURIComponent(rangeSelect.value);
-            if (rangeSelect.value === "custom") {
-              if (!fromDate.value || !toDate.value) {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Please select both dates.</td></tr>`;
-                return;
-              }
-              url += "&from_date=" + encodeURIComponent(fromDate.value) + "&to_date=" + encodeURIComponent(toDate.value);
-            }
-            try {
-              const res = await fetch(url, { credentials: "include" });
-              const data = await res.json();
-              if (res.ok && data.status === "success") {
-                if (data.transactions && data.transactions.length > 0) {
-                  tableBody.innerHTML = data.transactions.map(tr => `
-                    <tr>
-                      <td class="py-2 px-2 border text-xs md:text-base">
-                        <div>${tr.date ? tr.date.split('T')[0] : '-'}</div>
-                        <div class="text-gray-400 text-[10px] md:text-xs break-all">${tr.stid || '-'}</div>
-                      </td>
-                      <td class="py-2 px-2 border">${tr.remarks && tr.remarks !== 'null' ? tr.remarks : '-'}</td>
-                      <td class="py-2 px-2 border">
-                        <span class="${tr.type === "deposit" ? "text-green-600 font-semibold" : tr.type === "withdraw" ? "text-red-600 font-semibold" : ""}">
-                          ${tr.type === "deposit" ? "Deposit" : tr.type === "withdraw" ? "Withdrawal" : "-"}
-                        </span>
-                      </td>
-                      <td class="py-2 px-2 border ${tr.type === "deposit" ? "text-green-600 font-semibold" : tr.type === "withdraw" ? "text-red-600 font-semibold" : ""}">
-                        ₹${Number(tr.amount).toLocaleString()}
-                      </td>
-                      <td class="py-2 px-2 border">${tr.balance_after !== undefined && tr.balance_after !== null ? "₹" + Number(tr.balance_after).toLocaleString() : "-"}</td>
-                    </tr>
-                  `).join("");
-                  successMsg.classList.remove("hidden");
-                } else {
-                  tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">No transactions found.</td></tr>`;
-                }
-              } else {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">${data.message || "Error fetching statement."}</td></tr>`;
-              }
-            } catch {
-              tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Network error</td></tr>`;
-            }
-          }
-
-          // Initial fetch for last 10 transactions from transaction table
-          fetchStatement();
-          genBtn.onclick = fetchStatement;
-
-          // Add download button
-          if (!document.getElementById("downloadStatementBtn")) {
-            const downloadBtn = document.createElement("button");
-            downloadBtn.id = "downloadStatementBtn";
-            downloadBtn.className = "bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition mb-4";
-            downloadBtn.innerHTML = "⬇ Download PDF";
-            downloadBtn.onclick = function() {
-              // Get current range and dates
-              const range = rangeSelect.value;
-              let url = "{{ url_for('members.download_statement') }}?range=" + encodeURIComponent(range);
-              if (range === "custom") {
-                if (!fromDate.value || !toDate.value) {
-                  alert("Please select both dates for custom range.");
-                  return;
-                }
-                url += "&from_date=" + encodeURIComponent(fromDate.value) + "&to_date=" + encodeURIComponent(toDate.value);
-              }
-              
-              // Force download instead of opening in new tab
-              const downloadLink = document.createElement('a');
-              downloadLink.href = url;
-              downloadLink.download = 'statement.pdf';
-              document.body.appendChild(downloadLink);
-              downloadLink.click();
-              setTimeout(() => {
-                document.body.removeChild(downloadLink);
-              }, 100);
-            };
-            section.insertBefore(downloadBtn, section.querySelector("#statementTableWrapper"));
-          }
-        }
-      }, 600);
+        const rows = fds.map(fd=>{
+          const certLinks = fd.status==='approved'
+            ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid}?action=view">View</a>
+               <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid}?action=download">Download</a>`
+            : '<span class="text-gray-400 text-sm">Pending</span>';
+          return `<tr class="border-t">
+            <td class="px-3 py-2 font-medium text-gray-700">${fd.fdid}</td>
+            <td class="px-3 py-2">₹${fd.amount}</td>
+            <td class="px-3 py-2">${fd.deposit_date||'-'}</td>
+            <td class="px-3 py-2">${fd.tenure} mo</td>
+            <td class="px-3 py-2">${fd.interest_rate}%</td>
+            <td class="px-3 py-2 capitalize">${fd.status}</td>
+            <td class="px-3 py-2">${certLinks}</td>
+          </tr>`;
+        }).join('');
+        wrap.innerHTML = `<div class="overflow-x-auto">
+          <table class="min-w-full text-sm border rounded">
+            <thead>
+              <tr class="bg-blue-100">
+                <th class="px-3 py-2 text-left">FDID</th>
+                <th class="px-3 py-2 text-left">Amount</th>
+                <th class="px-3 py-2 text-left">Date</th>
+                <th class="px-3 py-2 text-left">Tenure</th>
+                <th class="px-3 py-2 text-left">Rate</th>
+                <th class="px-3 py-2 text-left">Status</th>
+                <th class="px-3 py-2 text-left">Certificate</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      }catch(e){
+        wrap.innerHTML = `<div class="text-red-600">Error: ${e.message}</div>`;
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      // Initialize floating boxes functionality
-      const queryBtn = document.getElementById('queryBtn');
-      const queryBox = document.getElementById('queryBox');
-      const closeQuery = document.getElementById('closeQuery');
-      const civilBtn = document.getElementById('civilBtn');
-      const civilBox = document.getElementById('civilBox');
-      const closeCivil = document.getElementById('closeCivil');
+    // Utility: hide all content sections
+    function hideAllSections() {
+      ['accountSection','loanSection','statementSection','fdSection','balanceSection']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+    }
 
-      function toggleBox(box) {
-        box.classList.toggle('hidden');
-        if (!box.classList.contains('hidden')) {
-          setTimeout(() => box.classList.add('show'), 10);
-        } else {
-          box.classList.remove('show');
+    // Highlight active sidebar button (expects buttons call fetchData with a data-view attr or parameter)
+    function setActiveButton(view){
+      document.querySelectorAll('[onclick^="fetchData"]').forEach(btn=>{
+        btn.classList.remove('bg-blue-600','text-white');
+        btn.classList.add('bg-blue-100','text-blue-700');
+        const txt = (btn.textContent||'').toLowerCase();
+        if(
+          (view==='account' && /account overview/i.test(txt)) ||
+          (view==='loan' && /loan status/i.test(txt)) ||
+          (view==='statement' && /statement/i.test(txt)) ||
+          (view==='fd' && /fixed deposits/i.test(txt)) ||
+          (view==='balance' && /check balance/i.test(txt))
+        ){
+          btn.classList.add('bg-blue-600','text-white');
+          btn.classList.remove('bg-blue-100','text-blue-700');
         }
-      }
+      });
+    }
 
-      if (queryBtn && queryBox) {
-        queryBtn.addEventListener('click', () => toggleBox(queryBox));
+    async function loadAccountOverview(){
+      const box = document.getElementById('accountOverviewContent');
+      if(!box) return;
+      box.textContent = 'Loading account details...';
+      try{
+        const res = await fetch('/members/api/account-overview');
+        const data = await res.json();
+        if(!res.ok || data.status!=='success') throw new Error(data.message||'Failed');
+        const m = data.data || {};
+        const fmtMoney = v => (v===null||v===undefined||v==='') ? '-' : '₹'+Number(v||0).toLocaleString();
+        const joined = (m.created_at||'').split('T')[0] || '-';
+        box.innerHTML = `
+          <div class="grid lg:grid-cols-3 gap-6">
+            <div class="space-y-4 lg:col-span-2">
+              <div class="grid md:grid-cols-2 gap-4">
+                <div><span class="font-semibold">Name:</span> ${m.name||'-'}</div>
+                <div><span class="font-semibold">Customer ID:</span> ${m.customer_id||'-'}</div>
+                <div><span class="font-semibold">KGID:</span> ${m.kgid||'-'}</div>
+                <div><span class="font-semibold">Aadhaar:</span> ${m.aadhaar||m.aadhar_no||'-'}</div>
+                <div><span class="font-semibold">PAN:</span> ${m.pan||m.pan_no||'-'}</div>
+                <div><span class="font-semibold">Phone:</span> ${m.phone||'-'}</div>
+                <div><span class="font-semibold">Email:</span> ${m.email||'-'}</div>
+                <div><span class="font-semibold">Organization:</span> ${m.organization_name||'-'}</div>
+                <div><span class="font-semibold">Address:</span> ${m.address||'-'}</div>
+                <div><span class="font-semibold">Balance:</span> ${fmtMoney(m.balance)}</div>
+                <div><span class="font-semibold">Salary:</span> ${fmtMoney(m.salary)}</div>
+                <div><span class="font-semibold">Joined:</span> ${joined}</div>
+              </div>
+            </div>
+            <div class="flex flex-col sm:flex-row lg:flex-col gap-6">
+              <div class="text-center">
+                <div class="font-semibold mb-2">Photo</div>
+                ${
+                  m.photo_url
+                    ? `<img src="${m.photo_url}" alt="Photo" class="w-36 h-36 object-cover rounded-lg border shadow-sm mx-auto" onerror="this.style.display='none'">`
+                    : `<div class="w-36 h-36 flex items-center justify-center bg-gray-200 rounded-lg text-gray-500 text-xs mx-auto">No Photo</div>`
+                }
+              </div>
+              <div class="text-center">
+                <div class="font-semibold mb-2">Signature</div>
+                ${
+                  m.signature_url
+                    ? `<img src="${m.signature_url}" alt="Signature" class="w-36 h-20 object-contain rounded border shadow-sm bg-white mx-auto" onerror="this.style.display='none'">`
+                    : `<div class="w-36 h-20 flex items-center justify-center bg-gray-200 rounded text-gray-500 text-xs mx-auto">No Signature</div>`
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      }catch(e){
+        box.innerHTML = `<span class="text-red-600">Error: ${e.message}</span>`;
       }
+    }
+
+    // Loan loader placeholder (prevent errors if button clicked)
+    async function loadLoans(){
+      const list = document.getElementById('loanList');
+      if(!list){ return; }
+      list.innerHTML = `<div class="bg-white rounded shadow p-4 text-sm text-gray-600">Loading loans...</div>`;
+      try{
+        const res = await fetch('/members/api/my-loans');
+        const data = await res.json();
+        if(!res.ok || data.status!=='success') throw new Error(data.message||'Failed to load loans');
+        const loans = data.loans || [];
+        if(!loans.length){
+          list.innerHTML = `<div class="bg-white rounded shadow p-6 text-center text-gray-500">No loans found.</div>`;
+          return;
+        }
+        const badge = (st)=>{
+          const s = (st||'').toLowerCase();
+          const map = {
+            'approved':'bg-green-100 text-green-700',
+            'pending_approval':'bg-yellow-100 text-yellow-700',
+            'rejected':'bg-red-100 text-red-700',
+            'completed':'bg-emerald-100 text-emerald-700'
+          };
+          return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${map[s]||'bg-gray-200 text-gray-600'}">${s.replace('_',' ')||'-'}</span>`;
+        };
+        list.innerHTML = loans.map(l=>{
+          const cert = ['approved','completed'].includes((l.status||'').toLowerCase())
+            ? `<div class="mt-2 text-sm">
+                 <a class="text-blue-600 underline mr-3" target="_blank" href="/loan/certificate/${l.loan_id}?action=view">View Certificate</a>
+                 <a class="text-green-600 underline" href="/loan/certificate/${l.loan_id}?action=download">Download</a>
+               </div>`
+            : '';
+          return `<div class="bg-white rounded-lg shadow p-5" data-loan="${l.loan_id}">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h3 class="font-semibold text-lg text-blue-700">${l.loan_id}</h3>
+              ${badge(l.status)}
+            </div>
+            <div class="grid md:grid-cols-3 gap-y-1 text-sm mt-3">
+              <div><span class="font-medium">Type:</span> ${l.loan_type||'-'}</div>
+              <div><span class="font-medium">Amount:</span> ₹${Number(l.loan_amount||0).toLocaleString()}</div>
+              <div><span class="font-medium">Interest:</span> ${l.interest_rate}%</div>
+              <div><span class="font-medium">Term:</span> ${l.loan_term_months||'-'} mo</div>
+              <div class="md:col-span-2"><span class="font-medium">Purpose:</span> ${l.purpose||'-'}</div>
+              ${l.rejection_reason? `<div class="md:col-span-3 text-red-600"><span class="font-medium">Reason:</span> ${l.rejection_reason}</div>`:''}
+            </div>
+            ${cert}
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button class="repay-toggle bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition"
+                      data-loan="${l.loan_id}">Show Repayment Records</button>
+            </div>
+            <div class="repayment-records mt-4 hidden"></div>
+          </div>`;
+        }).join('');
+      }catch(e){
+        list.innerHTML = `<div class="bg-white rounded shadow p-4 text-sm text-red-600">Error: ${e.message}</div>`;
+      }
+    }
+
+    // Delegate repayment record toggle
+    document.addEventListener('click', async e=>{
+      const btn = e.target.closest('.repay-toggle');
+      if(!btn) return;
+      const loanId = btn.dataset.loan;
+      const card = btn.closest('[data-loan]');
+      const box = card.querySelector('.repayment-records');
+      const showing = !box.classList.contains('hidden');
+      if(showing){
+        box.classList.add('hidden');
+        btn.textContent = 'Show Repayment Records';
+        return;
+      }
+      box.classList.remove('hidden');
+      box.innerHTML = `<div class="text-gray-500 text-sm">Loading records...</div>`;
+      btn.textContent = 'Hide Repayment Records';
+      try{
+        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
+        const data = await res.json();
+        if(!res.ok || data.status!=='success') throw new Error(data.message||'Failed');
+        const records = data.records||[];
+        if(!records.length){
+          box.innerHTML = `<div class="text-gray-500 text-sm">No repayment records yet.</div>`;
+          return;
+        }
+        box.innerHTML = `<div class="overflow-x-auto">
+          <table class="min-w-full text-xs border rounded">
+            <thead class="bg-blue-50">
+              <tr>
+                <th class="px-2 py-1 text-left">Date</th>
+                <th class="px-2 py-1 text-right">Amount</th>
+                <th class="px-2 py-1 text-right">Outstanding</th>
+                <th class="px-2 py-1 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map(r=>`
+                <tr class="border-t">
+                  <td class="px-2 py-1">${r.repayment_date||'-'}</td>
+                  <td class="px-2 py-1 text-right">${r.repayment_amount!=null? '₹'+Number(r.repayment_amount).toLocaleString():'-'}</td>
+                  <td class="px-2 py-1 text-right">${r.outstanding_balance!=null? '₹'+Number(r.outstanding_balance).toLocaleString():'-'}</td>
+                  <td class="px-2 py-1">${r.status||'-'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }catch(err){
+        box.innerHTML = `<div class="text-red-600 text-xs">Error: ${err.message}</div>`;
+      }
+    });
+
+    // FD loader (already defined earlier maybe) - ensure available
+    async function loadFDs(){
+      const wrap = document.getElementById('fdContainer');
+      if(!wrap){ return; }
+      wrap.innerHTML = '<div class="text-gray-500">Loading...</div>';
+      try{
+        const res = await fetch('/members/api/my-fds');
+        const data = await res.json();
+        if(!res.ok || data.status!=='success'){ throw new Error(data.message||'Failed to load FDs'); }
+        const fds = data.fds || [];
+        if(!fds.length){ wrap.innerHTML='<div class="text-gray-500">No Fixed Deposits found.</div>'; return; }
+        const rows = fds.map(fd=>{
+          const cert = fd.status==='approved'
+            ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid}?action=view">View</a>
+               <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid}?action=download">Download</a>`
+            : '<span class="text-gray-400 text-xs">Pending</span>';
+          return `<tr class="border-t">
+            <td class="px-3 py-2 font-medium">${fd.fdid}</td>
+            <td class="px-3 py-2">₹${fd.amount}</td>
+            <td class="px-3 py-2">${fd.deposit_date||'-'}</td>
+            <td class="px-3 py-2">${fd.tenure} mo</td>
+            <td class="px-3 py-2">${fd.interest_rate}%</td>
+            <td class="px-3 py-2 capitalize">${fd.status}</td>
+            <td class="px-3 py-2">${cert}</td>
+          </tr>`;
+        }).join('');
+        wrap.innerHTML = `<div class="overflow-x-auto">
+          <table class="min-w-full text-sm border rounded">
+            <thead>
+              <tr class="bg-blue-100">
+                <th class="px-3 py-2 text-left">FDID</th>
+                <th class="px-3 py-2 text-left">Amount</th>
+                <th class="px-3 py-2 text-left">Date</th>
+                <th class="px-3 py-2 text-left">Tenure</th>
+                <th class="px-3 py-2 text-left">Rate</th>
+                <th class="px-3 py-2 text-left">Status</th>
+                <th class="px-3 py-2 text-left">Certificate</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      }catch(e){
+        wrap.innerHTML = `<div class="text-red-600">Error: ${e.message}</div>`;
+      }
+    }
+
+    // Unified fetchData
+    window.fetchData = async function(view){
+      hideAllSections();
+      setActiveButton(view);
+      switch(view){
+        case 'account':
+          document.getElementById('accountSection').classList.remove('hidden');
+          loadAccountOverview();
+          break;
+        case 'loan':
+          document.getElementById('loanSection').classList.remove('hidden');
+          loadLoans();
+          break;
+        case 'statement':
+          document.getElementById('statementSection').classList.remove('hidden');
+          loadStatements();
+          break;
+        case 'fd':
+          document.getElementById('fdSection').classList.remove('hidden');
+          loadFDs();
+          break;
+        case 'balance':
+          document.getElementById('balanceSection').classList.remove('hidden');
+          break;
+        default:
+          document.getElementById('accountSection').classList.remove('hidden');
+          loadAccountOverview();
+      }
+    };
+
+    // Default load: Account Overview
+    document.addEventListener('DOMContentLoaded', ()=> {
+      fetchData('account');
+    });
+  </script>
+</body>
+</html>
+  <script>
+    // Wire the query form submission on user dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      const sendQuery = document.getElementById('sendQuery');
+      const queryMsg = document.getElementById('queryMsg');
+      if (sendQuery) {
+        sendQuery.addEventListener('click', async () => {
+          const name = (document.getElementById('queryName')||{}).value.trim();
+          const id = (document.getElementById('queryId')||{}).value.trim();
+          const phone = (document.getElementById('queryPhone')||{}).value.trim();
+          const email = (document.getElementById('queryEmail')||{}).value.trim();
+          const description = (document.getElementById('queryDescription')||{}).value.trim();
+          queryMsg.textContent = '';
+          if (!name || !description) {
+            queryMsg.textContent = 'Please provide name and description.';
+            queryMsg.className = 'text-center text-red-600';
+            return;
+          }
+          queryMsg.textContent = 'Sending...';
+          queryMsg.className = 'text-center text-blue-700';
+          try {
+            const payload = { name, customer_id: id, kgid: id, phone, email, description, source: 'user_dashboard' };
+            const res = await fetch('/api/submit-query', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(()=>null);
+            if (res.ok && data && data.status === 'success') {
+              queryMsg.textContent = 'Query submitted. Thank you.';
+              queryMsg.className = 'text-center text-green-600';
+              setTimeout(()=>{ document.getElementById('queryBox').classList.remove('show'); setTimeout(()=>document.getElementById('queryBox').classList.add('hidden'),400); }, 1200);
+            } else {
+              queryMsg.textContent = (data && (data.message || data.error)) || 'Submission failed.';
+              queryMsg.className = 'text-center text-red-600';
+            }
+          } catch (e) {
+            queryMsg.textContent = 'Network error.';
+            queryMsg.className = 'text-center text-red-600';
+          }
+        });
+      }
+    });
+  </script>
+
+  <!-- Responsive table styles -->
+  <style>
+    @media (max-width: 640px) {
+      #statementTableWrapper table, #statementTableWrapper thead, #statementTableWrapper tbody, #statementTableWrapper th, #statementTableWrapper td, #statementTableWrapper tr {
+        display: block;
+        width: 100%;
+      }
+      #statementTableWrapper thead tr {
+        display: none;
+      }
+      #statementTableWrapper tbody tr {
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        background: #fff;
+        padding: 0.5rem 0;
+      }
+      #statementTableWrapper td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        min-height: 32px;
+        text-align: left;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:before {
+        position: absolute;
+        left: 0.75rem;
+        top: 0.5rem;
+        width: 45%;
+        white-space: nowrap;
+        font-weight: 600;
+        color: #2563eb;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
+      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
+      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
+      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
+      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
+    }
+  </style>
+</body>
+</html>
       if (closeQuery && queryBox) {
         closeQuery.addEventListener('click', () => toggleBox(queryBox));
       }
@@ -757,6 +894,38 @@
       }
       #statementTableWrapper tbody tr {
         margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        background: #fff;
+        padding: 0.5rem 0;
+      }
+      #statementTableWrapper td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        min-height: 32px;
+        text-align: left;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:before {
+        position: absolute;
+        left: 0.75rem;
+        top: 0.5rem;
+        width: 45%;
+        white-space: nowrap;
+        font-weight: 600;
+        color: #2563eb;
+        font-size: 0.95em;
+      }
+      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
+      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
+      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
+      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
+      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
+    }
+  </style>
+</body>
+</html>
         border-radius: 0.5rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         background: #fff;
