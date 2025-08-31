@@ -197,6 +197,23 @@ def generate_stid():
         seq = 1
     return f"STID{seq:04d}"
 
+def generate_fdid():
+    """
+    Generate a unique FDID like FD0001, FD0002, etc.
+    """
+    resp = supabase.table("fixed_deposits").select("fdid").order("id", desc=True).limit(1).execute()
+    last_fdid = None
+    if resp.data and resp.data[0].get("fdid"):
+        last_fdid = resp.data[0]["fdid"]
+    if last_fdid and last_fdid.startswith("FD"):
+        try:
+            seq = int(last_fdid[2:]) + 1
+        except Exception:
+            seq = 1
+    else:
+        seq = 1
+    return f"FD{seq:04d}"
+
 @staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
     # Use old working logic, kgid optional
@@ -832,6 +849,84 @@ def list_blocked_members():
         return jsonify({'status': 'success', 'members': members}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@staff_api_bp.route('/fd-customer-info', methods=['GET'])
+def fd_customer_info():
+    """
+    Fetch basic customer info for FD by customer_id.
+    Returns: {status, customer: {name, kgid, aadhar_no, pan_no, customer_id}}
+    """
+    customer_id = request.args.get('customer_id')
+    if not customer_id:
+        return jsonify({'status': 'error', 'message': 'Missing customer_id'}), 400
+    resp = (
+        supabase.table("members")
+        .select("name,kgid,aadhar_no,pan_no,customer_id")
+        .eq("customer_id", customer_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        return jsonify({'status': 'error', 'message': 'Account not found'}), 404
+    m = resp.data[0]
+    return jsonify({
+        'status': 'success',
+        'customer': {
+            'name': m.get('name'),
+            'kgid': m.get('kgid'),
+            'aadhar_no': m.get('aadhar_no'),
+            'pan_no': m.get('pan_no'),
+            'customer_id': m.get('customer_id')
+        }
+    }), 200
+
+@staff_api_bp.route('/fd-list', methods=['GET'])
+def fd_list():
+    """
+    Get all fixed deposits for a member by customer_id.
+    Returns: {status, fds: [ ... ]}
+    """
+    customer_id = request.args.get('customer_id')
+    if not customer_id:
+        return jsonify({'status': 'error', 'message': 'Missing customer_id'}), 400
+    # Query fixed_deposits table for all FDs of this member
+    resp = supabase.table("fixed_deposits").select(
+        "id,fdid,amount,deposit_date,tenure,interest_rate,status,approved_by,approved_at"
+    ).eq("customer_id", customer_id).order("deposit_date", desc=True).execute()
+    fds = resp.data if resp.data else []
+    return jsonify({'status': 'success', 'fds': fds}), 200
+
+@staff_api_bp.route('/create-fd', methods=['POST'])
+def create_fd():
+    """
+    Create a new fixed deposit for a member.
+    Expects: customer_id, amount, deposit_date, tenure, interest_rate
+    Returns: {status, fdid, fd}
+    """
+    data = request.get_json(silent=True) or request.form
+    customer_id = data.get("customer_id")
+    amount = data.get("amount")
+    deposit_date = data.get("deposit_date")
+    tenure = data.get("tenure")
+    interest_rate = data.get("interest_rate")
+    if not all([customer_id, amount, deposit_date, tenure, interest_rate]):
+        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+
+    fdid = generate_fdid()
+    fd_data = {
+        "fdid": fdid,
+        "customer_id": customer_id,
+        "amount": float(amount),
+        "deposit_date": deposit_date,
+        "tenure": int(tenure),
+        "interest_rate": float(interest_rate),
+        "status": "pending"
+    }
+    resp = supabase.table("fixed_deposits").insert(fd_data).execute()
+    if resp.data:
+        return jsonify({'status': 'success', 'fdid': fdid, 'fd': resp.data[0]}), 201
+    else:
+        return jsonify({'status': 'error', 'message': 'Failed to create FD'}), 500
 
 
 
