@@ -29,7 +29,7 @@ try:
     from app.main import main_bp
     if 'main' not in app.blueprints:
         app.register_blueprint(main_bp)
-    print("Main blueprint registered successfully")
+        print("Main blueprint registered successfully")
 except ImportError as e:
     print(f"Failed to import main blueprint: {e}")
 
@@ -104,9 +104,8 @@ try:
         if header_email:
             try:
                 flask_session['staff_email'] = header_email
-            except Exception:
-                # session may not be available in some contexts; ignore if cannot set
-                pass
+            except Exception as e:
+                app.logger.warning(f"Failed to set staff_email from header: {e}")
         else:
             # 2) json body fallback
             try:
@@ -115,16 +114,17 @@ try:
                 if body_email:
                     try:
                         flask_session['staff_email'] = body_email
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                    except Exception as e:
+                        app.logger.warning(f"Failed to set staff_email from body: {e}")
+            except Exception as e:
+                app.logger.warning(f"Failed to parse JSON body for staff_email: {e}")
 
         return apply_loan()
 
 except Exception as _e:
     print(f"❌ [ERROR] Failed to register finance API proxies: {_e}")
     # if finance.api isn't available yet, skip proxy registration
+
 # Register standalone api handlers in the project root (e.g. api/check_expenses.py)
 try:
     from api.check_expenses import bp_expenses
@@ -155,19 +155,19 @@ def first_time_signin_root():
 # Add alias endpoint so url_for('manager.manager_login') resolves.
 # Redirects to the actual manager endpoint suggested by the BuildError.
 try:
-	# avoid overriding if already present
-	if 'manager.manager_login' not in app.view_functions:
-		@app.route('/manager/login', endpoint='manager.manager_login')
-		def _manager_login_alias():
-			# Redirect to the real manager view if available, otherwise 404.
-			try:
-				return redirect(url_for('manager.approve_loan_application'))
-			except Exception:
-				from flask import abort
-				abort(404)
-except Exception:
-	# If app isn't fully initialized, skip creating the alias
-	pass
+    # avoid overriding if already present
+    if 'manager.manager_login' not in app.view_functions:
+        @app.route('/manager/login', endpoint='manager.manager_login')
+        def _manager_login_alias():
+            # Redirect to the real manager view if available, otherwise 404.
+            try:
+                return redirect(url_for('manager.approve_loan_application'))
+            except Exception as e:
+                from flask import abort
+                app.logger.warning(f"Manager login alias redirect failed: {e}")
+                abort(404)
+except Exception as e:
+    app.logger.warning(f"Failed to create manager login alias: {e}")
 
 # Ensure a root-level /logout works for frontend links by forwarding to the auth blueprint logout.
 try:
@@ -177,14 +177,15 @@ try:
         def _root_logout_redirect():
             try:
                 return redirect(url_for('auth.logout'))
-            except Exception:
+            except Exception as e:
+                app.logger.warning(f"Logout redirect failed: {e}")
                 # fallback: redirect directly to login path
                 return redirect('/login')
-except Exception:
-    pass
+except Exception as e:
+    app.logger.warning(f"Failed to create logout alias: {e}")
 
+# --- Secure run configuration ---
 if __name__ == "__main__":
-    app.run(debug=True)
-if __name__ == "__main__":
-    app.run(debug=True)
-    app.run(debug=True)
+    # use environment variable to control debug mode
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
