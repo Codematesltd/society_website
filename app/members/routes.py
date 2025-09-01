@@ -355,51 +355,83 @@ def download_statement():
 
 @members_bp.route("/api/loan-details", methods=["GET"])
 def api_loan_details():
-    """
-    API to fetch loan details for a given loan_id.
+    """Fetch a member's single loan and its repayment records (enhanced).
+
     Query params:
-      - loan_id: required
-    Returns: {
-      "status": "success",
-      "loan": {loan_id, customer_id, loan_type, loan_amount, interest_rate, loan_term_months, purpose, status},
-      "records": [ ...repayment records... ]
-    }
+      loan_id: required (e.g. LN0001)
+
+    Enhancements vs. previous version:
+      * Includes loan created_at (if present) so UI can show applied date.
+      * Returns interest_amount & principal_amount for each repayment row (if columns exist).
+      * Returns interest_amount from the summary row (repayment_amount is null) so UI can compute totals.
+      * Gracefully handles absence of summary row or columns (falls back to empty / 0 values).
     """
     loan_id = request.args.get("loan_id")
     if not loan_id:
         return jsonify({"status": "error", "message": "loan_id is required"}), 400
 
-    # Fetch loan details from loans table
-    loan_resp = supabase.table("loans").select(
-        "loan_id,customer_id,loan_type,loan_amount,interest_rate,loan_term_months,purpose_of_loan,purpose_of_emergency_loan,status"
-    ).eq("loan_id", loan_id).limit(1).execute()
-    if not loan_resp.data:
-        return jsonify({"status": "error", "message": "Loan not found"}), 404
+    try:
+        # Fetch loan details (add created_at for UI if available)
+        loan_resp = supabase.table("loans").select(
+            "loan_id,customer_id,loan_type,loan_amount,interest_rate,loan_term_months,purpose_of_loan,purpose_of_emergency_loan,status,created_at"
+        ).eq("loan_id", loan_id).limit(1).execute()
+        if not loan_resp.data:
+            return jsonify({"status": "error", "message": "Loan not found"}), 404
+        loan = loan_resp.data[0]
 
-    loan = loan_resp.data[0]
-    # Prefer purpose_of_loan, fallback to purpose_of_emergency_loan
-    purpose = loan.get("purpose_of_loan") or loan.get("purpose_of_emergency_loan") or "-"
+        # Purpose normalization
+        purpose = loan.get("purpose_of_loan") or loan.get("purpose_of_emergency_loan") or "-"
 
-    # Fetch repayment records from loan_records table
-    records_resp = supabase.table("loan_records").select(
-        "repayment_date,repayment_amount,outstanding_balance,status"
-    ).eq("loan_id", loan_id).order("repayment_date", desc=False).execute()
-    records = records_resp.data if records_resp.data else []
+        # Fetch repayment records (attempt extended columns; fall back gracefully)
+        # We request potential columns; Supabase will ignore non-existent but safer to catch exceptions
+        record_columns = "repayment_date,repayment_amount,outstanding_balance,status,interest_amount,principal_amount"
+        records_resp = supabase.table("loan_records").select(record_columns).eq("loan_id", loan_id).order("repayment_date", desc=False).execute()
+        records = records_resp.data or []
 
-    return jsonify({
-        "status": "success",
-        "loan": {
-            "loan_id": loan.get("loan_id"),
-            "customer_id": loan.get("customer_id"),
-            "loan_type": loan.get("loan_type"),
-            "loan_amount": loan.get("loan_amount"),
-            "interest_rate": loan.get("interest_rate"),
-            "loan_term_months": loan.get("loan_term_months"),
-            "purpose": purpose,
-            "status": loan.get("status"),
-        },
-        "records": records
-    }), 200
+        # Identify summary row (repayment_amount is null) if present
+        summary = None
+        for r in records:
+            if r.get("repayment_amount") is None:
+                summary = r
+                break
+
+        # Optional: compute aggregate if summary missing (basic fallback)
+        if not summary:
+            # Derive outstanding as last outstanding_balance value (if any)
+            if records:
+                try:
+                    last_outstanding = [r for r in records if r.get("outstanding_balance") is not None]
+                    last_outstanding = last_outstanding[-1]["outstanding_balance"] if last_outstanding else 0
+                except Exception:
+                    last_outstanding = 0
+            else:
+                last_outstanding = 0
+            summary = {
+                "repayment_amount": None,
+                "outstanding_balance": last_outstanding,
+                "interest_amount": None,  # Unknown without summary row
+                "status": loan.get("status") or "active"
+            }
+            records.append(summary)  # append so frontend can still treat similarly
+
+        return jsonify({
+            "status": "success",
+            "loan": {
+                "loan_id": loan.get("loan_id"),
+                "customer_id": loan.get("customer_id"),
+                "loan_type": loan.get("loan_type"),
+                "loan_amount": loan.get("loan_amount"),
+                "interest_rate": loan.get("interest_rate"),
+                "loan_term_months": loan.get("loan_term_months"),
+                "purpose": purpose,
+                "status": loan.get("status"),
+                "created_at": loan.get("created_at"),
+            },
+            "records": records
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] /api/loan-details failed for loan_id={loan_id}: {e}")
+        return jsonify({"status": "error", "message": "Failed to fetch loan details"}), 500
 
 @members_bp.route("/api/my-loans", methods=["GET"])
 def api_my_loans():

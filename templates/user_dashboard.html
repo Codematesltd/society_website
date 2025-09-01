@@ -349,7 +349,7 @@
     // Utility: hide all content sections
     function hideAllSections() {
       ['accountSection','loanSection','statementSection','fdSection','balanceSection']
-        .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+        .forEach(id => { const el = document.getElementById(id); if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); } });
     }
 
     // Highlight active sidebar button (expects buttons call fetchData with a data-view attr or parameter)
@@ -482,55 +482,220 @@
       }
     }
 
-    // Delegate repayment record toggle
+    // Enhanced loan details functionality - comprehensive view like staff dashboard
+    async function fetchLoanDeepDetails(loanId, targetContainer) {
+      targetContainer.innerHTML = `<div class="flex items-center py-4 justify-center text-blue-600">
+        <svg class="animate-spin h-5 w-5 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+        </svg>
+        <span class="text-sm">Loading comprehensive loan details...</span>
+      </div>`;
+      
+      try {
+        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
+        const data = await res.json();
+        if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed');
+  console.log('Loan details response (user dashboard):', data); // debug
+        
+        renderComprehensiveLoanDetails(data, targetContainer);
+      } catch (err) {
+        targetContainer.innerHTML = `<div class="text-red-600 text-sm p-3 bg-red-50 rounded border">
+          <strong>Error loading loan details:</strong> ${err.message}
+        </div>`;
+      }
+    }
+
+    function renderComprehensiveLoanDetails(data, container) {
+      const loan = data.loan || {};
+      const records = data.records || [];
+      const summaryRow = records.find(r => r.repayment_amount == null);
+  const normalRecords = records.filter(r => r.repayment_amount != null);
+      
+      // Calculate totals
+      const principal = Number(loan.loan_amount || 0);
+  const totalInterest = summaryRow && summaryRow.interest_amount != null ? Number(summaryRow.interest_amount || 0) : 0;
+  const outstanding = summaryRow && summaryRow.outstanding_balance != null ? Number(summaryRow.outstanding_balance || 0) : 0;
+      let totalRepaid = 0;
+  normalRecords.forEach(r => { 
+        if (r.repayment_amount != null) totalRepaid += Number(r.repayment_amount || 0); 
+      });
+      
+      let nextInstallment = '—';
+      if (loan.next_installment != null && !isNaN(Number(loan.next_installment))) {
+        nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
+      } else if (summaryRow && summaryRow.next_installment != null && !isNaN(Number(summaryRow.next_installment))) {
+        nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
+      }
+
+      container.innerHTML = `
+        <div class="bg-gray-50 border rounded-lg p-4 mt-3">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-gray-800">Comprehensive Loan Details</h4>
+            <span class="text-xs text-gray-500">Loan ID: ${loan.loan_id || 'N/A'}</span>
+          </div>
+          
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            <div class="p-3 bg-blue-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Principal</p>
+              <p class="font-bold text-blue-700">₹${principal.toLocaleString()}</p>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Total Interest</p>
+              <p class="font-bold text-purple-700">₹${Math.round(totalInterest * 100) / 100}</p>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Total Repaid</p>
+              <p class="font-bold text-green-700">₹${Math.round(totalRepaid * 100) / 100}</p>
+            </div>
+            <div class="p-3 bg-yellow-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Outstanding</p>
+              <p class="font-bold text-yellow-700">₹${Math.round(outstanding * 100) / 100}</p>
+            </div>
+            <div class="p-3 bg-indigo-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Interest Rate</p>
+              <p class="font-bold text-indigo-700">${Number(loan.interest_rate || 0)}%</p>
+            </div>
+            <div class="p-3 bg-pink-50 rounded-lg text-center">
+              <p class="text-xs text-gray-600 uppercase tracking-wide">Next Installment</p>
+              <p class="font-bold text-pink-700">${nextInstallment}</p>
+            </div>
+          </div>
+
+          <!-- Loan Information Grid -->
+          <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-lg border">
+              <h5 class="font-semibold text-gray-800 mb-3">Loan Information</h5>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Loan Type:</span>
+                  <span class="font-medium capitalize">${loan.loan_type || 'N/A'}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Term:</span>
+                  <span class="font-medium">${loan.loan_term_months || 'N/A'} months</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Applied Date:</span>
+                  <span class="font-medium">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Status:</span>
+                  <span class="font-medium capitalize px-2 py-1 rounded text-xs ${
+                    loan.status === 'approved' ? 'bg-green-100 text-green-800' :
+                    loan.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }">${loan.status || 'Pending'}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-lg border">
+              <h5 class="font-semibold text-gray-800 mb-3">Financial Summary</h5>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Principal + Interest:</span>
+                  <span class="font-medium">₹${(principal + totalInterest).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Amount Paid:</span>
+                  <span class="font-medium text-green-600">₹${totalRepaid.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Remaining Balance:</span>
+                  <span class="font-medium text-red-600">₹${outstanding.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between pt-2 border-t">
+                  <span class="text-gray-600">Completion:</span>
+                  <span class="font-medium">${outstanding <= 0 ? '100%' : Math.round((totalRepaid / (principal + totalInterest)) * 100) + '%'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Repayment History -->
+          <div class="bg-white border rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-3 border-b">
+              <h5 class="font-semibold text-gray-800">Repayment History</h5>
+            </div>
+            <div class="p-4">
+              ${
+                normalRecords.length === 0
+                ? '<p class="text-sm text-gray-500 text-center py-4">No repayment records yet.</p>'
+                : `<div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                      <thead class="bg-gray-100">
+                        <tr>
+                          <th class="px-3 py-2 text-left font-medium text-gray-700">#</th>
+                          <th class="px-3 py-2 text-left font-medium text-gray-700">Payment Date</th>
+                          <th class="px-3 py-2 text-right font-medium text-gray-700">Repayment Amount</th>
+                          <th class="px-3 py-2 text-right font-medium text-gray-700">Interest Paid</th>
+                          <th class="px-3 py-2 text-right font-medium text-gray-700">Outstanding After</th>
+                          <th class="px-3 py-2 text-center font-medium text-gray-700">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-200">
+                        ${
+                          normalRecords.map((r, i) => `
+                            <tr class="hover:bg-gray-50">
+                              <td class="px-3 py-2 text-gray-900">${i + 1}</td>
+                              <td class="px-3 py-2 text-gray-900">${r.repayment_date || '—'}</td>
+                              <td class="px-3 py-2 text-right font-medium text-green-600">₹${Number(r.repayment_amount || 0).toLocaleString()}</td>
+                              <td class="px-3 py-2 text-right text-purple-600">
+                                ₹${
+                                  typeof r.interest_amount !== 'undefined'
+                                  ? Number(r.interest_amount).toLocaleString()
+                                  : (typeof r.calculated_interest !== 'undefined'
+                                      ? Number(r.calculated_interest).toLocaleString()
+                                      : '—')
+                                }
+                              </td>
+                              <td class="px-3 py-2 text-right font-medium">₹${Number(r.outstanding_balance || 0).toLocaleString()}</td>
+                              <td class="px-3 py-2 text-center">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                  r.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  r.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                }">${(r.status || 'active').toUpperCase()}</span>
+                              </td>
+                            </tr>`).join('')
+                        }
+                      </tbody>
+                    </table>
+                  </div>`
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Delegate repayment record toggle - Enhanced
     document.addEventListener('click', async e=>{
       const btn = e.target.closest('.repay-toggle');
       if(!btn) return;
       const loanId = btn.dataset.loan;
       const card = btn.closest('[data-loan]');
-      const box = card.querySelector('.repayment-records');
+      let box = card.querySelector('.repayment-records');
+      if(!box){
+        // Fallback: create container if missing to avoid null.classList error
+        box = document.createElement('div');
+        box.className = 'repayment-records mt-4 hidden';
+        card.appendChild(box);
+      }
       const showing = !box.classList.contains('hidden');
+      
       if(showing){
         box.classList.add('hidden');
         btn.textContent = 'Show Repayment Records';
         return;
       }
+      
       box.classList.remove('hidden');
-      box.innerHTML = `<div class="text-gray-500 text-sm">Loading records...</div>`;
       btn.textContent = 'Hide Repayment Records';
-      try{
-        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
-        const data = await res.json();
-        if(!res.ok || data.status!=='success') throw new Error(data.message||'Failed');
-        const records = data.records||[];
-        if(!records.length){
-          box.innerHTML = `<div class="text-gray-500 text-sm">No repayment records yet.</div>`;
-          return;
-        }
-        box.innerHTML = `<div class="overflow-x-auto">
-          <table class="min-w-full text-xs border rounded">
-            <thead class="bg-blue-50">
-              <tr>
-                <th class="px-2 py-1 text-left">Date</th>
-                <th class="px-2 py-1 text-right">Amount</th>
-                <th class="px-2 py-1 text-right">Outstanding</th>
-                <th class="px-2 py-1 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${records.map(r=>`
-                <tr class="border-t">
-                  <td class="px-2 py-1">${r.repayment_date||'-'}</td>
-                  <td class="px-2 py-1 text-right">${r.repayment_amount!=null? '₹'+Number(r.repayment_amount).toLocaleString():'-'}</td>
-                  <td class="px-2 py-1 text-right">${r.outstanding_balance!=null? '₹'+Number(r.outstanding_balance).toLocaleString():'-'}</td>
-                  <td class="px-2 py-1">${r.status||'-'}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-      }catch(err){
-        box.innerHTML = `<div class="text-red-600 text-xs">Error: ${err.message}</div>`;
-      }
+      
+      // Use the enhanced comprehensive details function
+      await fetchLoanDeepDetails(loanId, box);
     });
 
     // FD loader (already defined earlier maybe) - ensure available
@@ -614,163 +779,105 @@
     document.addEventListener('DOMContentLoaded', ()=> {
       fetchData('account');
     });
-  </script>
-</body>
-</html>
-  <script>
-    // Wire the query form submission on user dashboard
-    document.addEventListener('DOMContentLoaded', () => {
+
+    // Missing: loadStatements implementation referenced in fetchData('statement')
+    async function loadStatements(){
+      const tbody = document.getElementById('stmTbody');
+      const rangeSel = document.getElementById('stmRange');
+      const fromEl = document.getElementById('stmFrom');
+      const toEl = document.getElementById('stmTo');
+      const msg = document.getElementById('stmMsg');
+      if(!tbody){ return; }
+      tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Loading...</td></tr>';
+      msg?.classList.add('hidden');
+      try {
+        let params = new URLSearchParams();
+        const range = rangeSel ? rangeSel.value : 'last10';
+        params.set('range', range);
+        if(range === 'custom' && fromEl && toEl && fromEl.value && toEl.value){
+          params.set('from', fromEl.value);
+          params.set('to', toEl.value);
+        }
+        const res = await fetch(`/members/api/statements?${params.toString()}`);
+        const data = await res.json();
+        if(!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed');
+        const rows = data.transactions || [];
+        if(!rows.length){
+          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No transactions found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(t => `
+          <tr class="border-t">
+            <td class="px-4 py-2">${t.date||'-'}</td>
+            <td class="px-4 py-2">${t.description||'-'}</td>
+            <td class="px-4 py-2 text-right">${t.debit!=null? '₹'+Number(t.debit).toLocaleString():''}</td>
+            <td class="px-4 py-2 text-right">${t.credit!=null? '₹'+Number(t.credit).toLocaleString():''}</td>
+            <td class="px-4 py-2 text-right">${t.balance_after!=null? '₹'+Number(t.balance_after).toLocaleString():''}</td>
+          </tr>`).join('');
+      } catch(err){
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-600">Error loading statement</td></tr>';
+        if(msg){ msg.textContent = err.message; msg.classList.remove('hidden'); }
+      }
+    }
+    // Floating Query Button + Box (deduplicated)
+    const queryBtn = document.getElementById('queryBtn');
+    const queryBox = document.getElementById('queryBox');
+    const closeQuery = document.getElementById('closeQuery');
+    function toggleQueryBox(){
+      if(!queryBox) return;
+      const hidden = queryBox.classList.contains('hidden');
+      if(hidden){
+        queryBox.classList.remove('hidden');
+        setTimeout(()=>queryBox.classList.add('show'),10);
+      } else {
+        queryBox.classList.remove('show');
+        setTimeout(()=>queryBox.classList.add('hidden'),350);
+      }
+    }
+    if(queryBtn) queryBtn.addEventListener('click', toggleQueryBox);
+    if(closeQuery) closeQuery.addEventListener('click', toggleQueryBox);
+
+    // Query form submission (deduplicated)
+    (function(){
       const sendQuery = document.getElementById('sendQuery');
       const queryMsg = document.getElementById('queryMsg');
-      if (sendQuery) {
-        sendQuery.addEventListener('click', async () => {
-          const name = (document.getElementById('queryName')||{}).value.trim();
-          const id = (document.getElementById('queryId')||{}).value.trim();
-          const phone = (document.getElementById('queryPhone')||{}).value.trim();
-          const email = (document.getElementById('queryEmail')||{}).value.trim();
-          const description = (document.getElementById('queryDescription')||{}).value.trim();
-          queryMsg.textContent = '';
-          if (!name || !description) {
-            queryMsg.textContent = 'Please provide name and description.';
-            queryMsg.className = 'text-center text-red-600';
-            return;
-          }
-          queryMsg.textContent = 'Sending...';
-          queryMsg.className = 'text-center text-blue-700';
-          try {
-            const payload = { name, customer_id: id, kgid: id, phone, email, description, source: 'user_dashboard' };
-            const res = await fetch('/api/submit-query', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            const data = await res.json().catch(()=>null);
-            if (res.ok && data && data.status === 'success') {
-              queryMsg.textContent = 'Query submitted. Thank you.';
-              queryMsg.className = 'text-center text-green-600';
-              setTimeout(()=>{ document.getElementById('queryBox').classList.remove('show'); setTimeout(()=>document.getElementById('queryBox').classList.add('hidden'),400); }, 1200);
-            } else {
-              queryMsg.textContent = (data && (data.message || data.error)) || 'Submission failed.';
-              queryMsg.className = 'text-center text-red-600';
-            }
-          } catch (e) {
-            queryMsg.textContent = 'Network error.';
-            queryMsg.className = 'text-center text-red-600';
-          }
-        });
-      }
-    });
-  </script>
-
-  <!-- Responsive table styles -->
-  <style>
-    @media (max-width: 640px) {
-      #statementTableWrapper table, #statementTableWrapper thead, #statementTableWrapper tbody, #statementTableWrapper th, #statementTableWrapper td, #statementTableWrapper tr {
-        display: block;
-        width: 100%;
-      }
-      #statementTableWrapper thead tr {
-        display: none;
-      }
-      #statementTableWrapper tbody tr {
-        margin-bottom: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        background: #fff;
-        padding: 0.5rem 0;
-      }
-      #statementTableWrapper td {
-        border: none;
-        position: relative;
-        padding-left: 50%;
-        min-height: 32px;
-        text-align: left;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:before {
-        position: absolute;
-        left: 0.75rem;
-        top: 0.5rem;
-        width: 45%;
-        white-space: nowrap;
-        font-weight: 600;
-        color: #2563eb;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
-      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
-      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
-      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
-      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
-    }
-  </style>
-</body>
-</html>
-      if (closeQuery && queryBox) {
-        closeQuery.addEventListener('click', () => toggleBox(queryBox));
-      }
-      if (civilBtn && civilBox) {
-        civilBtn.addEventListener('click', () => toggleBox(civilBox));
-      }
-      if (closeCivil && civilBox) {
-        closeCivil.addEventListener('click', () => toggleBox(civilBox));
-      }
-    });
-
-    // Make fetchData globally accessible
-    window.fetchData = fetchData;
-
-    // Helper function to fetch and show repayment records for a loan
-    window.fetchLoanRecords = async function(loanId, btn) {
-      const container = btn.parentElement.querySelector('.repayment-records');
-      container.innerHTML = `<div class='flex items-center justify-center'><div class='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600'></div></div>`;
-      try {
-        const res = await fetch(`/members/api/loan-details?loan_id=${encodeURIComponent(loanId)}`);
-        const data = await res.json();
-        if (res.ok && data.status === "success") {
-          const records = data.records;
-          container.innerHTML = `
-            <h4 class="text-lg font-semibold text-blue-600 mt-2 mb-2">Repayment Records</h4>
-            <div class="overflow-x-auto">
-              <table class="min-w-full bg-white rounded shadow">
-                <thead class="bg-blue-100">
-                  <tr>
-                    <th class="py-2 px-4 border">Repayment Date</th>
-                    <th class="py-2 px-4 border">Repayment Amount</th>
-                    <th class="py-2 px-4 border">Outstanding Balance</th>
-                    <th class="py-2 px-4 border">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${
-                    records.length > 0
-                    ? records.map(r => `
-                      <tr>
-                        <td class="py-2 px-4 border">${r.repayment_date || "-"}</td>
-                        <td class="py-2 px-4 border">${r.repayment_amount !== null ? "₹" + Number(r.repayment_amount).toLocaleString() : "-"}</td>
-                        <td class="py-2 px-4 border">${r.outstanding_balance !== null ? "₹" + Number(r.outstanding_balance).toLocaleString() : "-"}</td>
-                        <td class="py-2 px-4 border">${r.status || "-"}</td>
-                      </tr>
-                    `).join("")
-                    : `<tr><td colspan="4" class="text-center py-4 text-gray-500">No repayment records found.</td></tr>`
-                  }
-                </tbody>
-              </table>
-            </div>
-          `;
-        } else {
-          container.innerHTML = `<div class="text-red-600 font-medium mb-4">${data.message || "No records found."}</div>`;
+      if(!sendQuery) return;
+      sendQuery.addEventListener('click', async ()=>{
+        const name = (document.getElementById('queryName')||{}).value?.trim();
+        const id = (document.getElementById('queryId')||{}).value?.trim();
+        const phone = (document.getElementById('queryPhone')||{}).value?.trim();
+        const email = (document.getElementById('queryEmail')||{}).value?.trim();
+        const description = (document.getElementById('queryDescription')||{}).value?.trim();
+        queryMsg.textContent='';
+        if(!name || !description){
+          queryMsg.textContent='Please provide name and description.';
+          queryMsg.className='text-center text-red-600';
+          return;
         }
-      } catch (e) {
-        container.innerHTML = `<div class="text-red-600 font-medium mb-4">Network error</div>`;
-      }
-    };
+        queryMsg.textContent='Sending...';
+        queryMsg.className='text-center text-blue-700';
+        try{
+          const payload={ name, customer_id:id, kgid:id, phone, email, description, source:'user_dashboard'};
+            const res=await fetch('/api/submit-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            const data=await res.json().catch(()=>null);
+            if(res.ok && data && data.status==='success'){
+              queryMsg.textContent='Query submitted. Thank you.';
+              queryMsg.className='text-center text-green-600';
+              setTimeout(()=>toggleQueryBox(),1200);
+            } else {
+              queryMsg.textContent=(data && (data.message||data.error))||'Submission failed.';
+              queryMsg.className='text-center text-red-600';
+            }
+        }catch(e){
+          queryMsg.textContent='Network error.';
+          queryMsg.className='text-center text-red-600';
+        }
+      });
+    })();
   </script>
-    <!-- Add before closing body tag -->
-  <!-- Floating Query Button -->
-  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">
-    📩 Query
-  </button>
 
-  <!-- Floating Query Box -->
+  <!-- Floating Query UI Markup (kept once) -->
+  <button id="queryBtn" class="fixed bottom-6 right-6 bg-blue-600 text-white px-5 py-3 rounded-full shadow-lg hover:bg-blue-700">📩 Query</button>
   <div id="queryBox" class="floating-box hidden fixed bottom-20 right-6 w-96 bg-white rounded-xl shadow-2xl p-4 z-50">
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-lg font-bold">Send Us a Query</h3>
@@ -785,175 +892,19 @@
     <div id="queryMsg" class="mt-2 text-sm text-center"></div>
   </div>
 
-  
-  <script src="{{ url_for('static', filename='shared.js') }}"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeFloatingBoxes();
-    });
-  </script>
-
-  <script>
-    // JWT heartbeat for user dashboard: validate every 10s and refresh token periodically
-    document.addEventListener('DOMContentLoaded', () => {
-  const LOGIN_URL = "{{ url_for('auth.login') }}";
-      function redirectToLogin() {
-        try { sessionStorage.removeItem('authToken'); } catch(e) {}
-        window.location.replace(LOGIN_URL);
-      }
-      async function validateToken() {
-        let token = null;
-        try { token = sessionStorage.getItem('authToken'); } catch(e) { token = null; }
-        if (!token) { redirectToLogin(); return; }
-        try {
-          const res = await fetch('/auth/validate-token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            credentials: 'include',
-            body: JSON.stringify({ token })
-          });
-          if (res.status === 401) { redirectToLogin(); return; }
-        } catch (e) { /* network issue, retry on next tick */ }
-      }
-      async function refreshToken() {
-        try {
-          const res = await fetch('/auth/refresh-token', { method: 'POST', credentials: 'include' });
-          if (res.status === 401) { redirectToLogin(); return; }
-          const data = await res.json().catch(()=>null);
-          if (data && data.status === 'success' && data.token) {
-            try { sessionStorage.setItem('authToken', data.token); } catch(e) {}
-          }
-        } catch (e) {}
-      }
-      // Kick off validators
-      validateToken();
-      const vInt = setInterval(validateToken, 10000);
-      const rInt = setInterval(refreshToken, 4 * 60 * 1000);
-      // Clear token on any logout link click
-      document.querySelectorAll('a.logout-link').forEach(a => {
-        a.addEventListener('click', () => { try { sessionStorage.removeItem('authToken'); } catch(e) {} });
-      });
-    });
-  </script>
-
-  <script>
-    // Wire the query form submission on user dashboard
-    document.addEventListener('DOMContentLoaded', () => {
-      const sendQuery = document.getElementById('sendQuery');
-      const queryMsg = document.getElementById('queryMsg');
-      if (sendQuery) {
-        sendQuery.addEventListener('click', async () => {
-          const name = (document.getElementById('queryName')||{}).value.trim();
-          const id = (document.getElementById('queryId')||{}).value.trim();
-          const phone = (document.getElementById('queryPhone')||{}).value.trim();
-          const email = (document.getElementById('queryEmail')||{}).value.trim();
-          const description = (document.getElementById('queryDescription')||{}).value.trim();
-          queryMsg.textContent = '';
-          if (!name || !description) {
-            queryMsg.textContent = 'Please provide name and description.';
-            queryMsg.className = 'text-center text-red-600';
-            return;
-          }
-          queryMsg.textContent = 'Sending...';
-          queryMsg.className = 'text-center text-blue-700';
-          try {
-            const payload = { name, customer_id: id, kgid: id, phone, email, description, source: 'user_dashboard' };
-            const res = await fetch('/api/submit-query', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            const data = await res.json().catch(()=>null);
-            if (res.ok && data && data.status === 'success') {
-              queryMsg.textContent = 'Query submitted. Thank you.';
-              queryMsg.className = 'text-center text-green-600';
-              setTimeout(()=>{ document.getElementById('queryBox').classList.remove('show'); setTimeout(()=>document.getElementById('queryBox').classList.add('hidden'),400); }, 1200);
-            } else {
-              queryMsg.textContent = (data && (data.message || data.error)) || 'Submission failed.';
-              queryMsg.className = 'text-center text-red-600';
-            }
-          } catch (e) {
-            queryMsg.textContent = 'Network error.';
-            queryMsg.className = 'text-center text-red-600';
-          }
-        });
-      }
-    });
-  </script>
-
   <!-- Responsive table styles -->
   <style>
     @media (max-width: 640px) {
-      #statementTableWrapper table, #statementTableWrapper thead, #statementTableWrapper tbody, #statementTableWrapper th, #statementTableWrapper td, #statementTableWrapper tr {
-        display: block;
-        width: 100%;
-      }
-      #statementTableWrapper thead tr {
-        display: none;
-      }
-      #statementTableWrapper tbody tr {
-        margin-bottom: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        background: #fff;
-        padding: 0.5rem 0;
-      }
-      #statementTableWrapper td {
-        border: none;
-        position: relative;
-        padding-left: 50%;
-        min-height: 32px;
-        text-align: left;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:before {
-        position: absolute;
-        left: 0.75rem;
-        top: 0.5rem;
-        width: 45%;
-        white-space: nowrap;
-        font-weight: 600;
-        color: #2563eb;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
-      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
-      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
-      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
-      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
-    }
-  </style>
-</body>
-</html>
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        background: #fff;
-        padding: 0.5rem 0;
-      }
-      #statementTableWrapper td {
-        border: none;
-        position: relative;
-        padding-left: 50%;
-        min-height: 32px;
-        text-align: left;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:before {
-        position: absolute;
-        left: 0.75rem;
-        top: 0.5rem;
-        width: 45%;
-        white-space: nowrap;
-        font-weight: 600;
-        color: #2563eb;
-        font-size: 0.95em;
-      }
-      #statementTableWrapper td:nth-child(1):before { content: "Date / Txn ID"; }
-      #statementTableWrapper td:nth-child(2):before { content: "Description"; }
-      #statementTableWrapper td:nth-child(3):before { content: "Type"; }
-      #statementTableWrapper td:nth-child(4):before { content: "Amount"; }
-      #statementTableWrapper td:nth-child(5):before { content: "Balance"; }
+      #statementTableWrapper table, #statementTableWrapper thead, #statementTableWrapper tbody, #statementTableWrapper th, #statementTableWrapper td, #statementTableWrapper tr { display:block; width:100%; }
+      #statementTableWrapper thead tr { display:none; }
+      #statementTableWrapper tbody tr { margin-bottom:1rem; border-radius:0.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.04); background:#fff; padding:0.5rem 0; }
+      #statementTableWrapper td { border:none; position:relative; padding-left:50%; min-height:32px; text-align:left; font-size:0.95em; }
+      #statementTableWrapper td:before { position:absolute; left:0.75rem; top:0.5rem; width:45%; white-space:nowrap; font-weight:600; color:#2563eb; font-size:0.95em; }
+      #statementTableWrapper td:nth-child(1):before { content:"Date / Txn ID"; }
+      #statementTableWrapper td:nth-child(2):before { content:"Description"; }
+      #statementTableWrapper td:nth-child(3):before { content:"Debit"; }
+      #statementTableWrapper td:nth-child(4):before { content:"Credit"; }
+      #statementTableWrapper td:nth-child(5):before { content:"Balance"; }
     }
   </style>
 </body>

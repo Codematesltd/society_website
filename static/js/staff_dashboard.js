@@ -42,6 +42,16 @@
 
   /* ================= Navigation / Section Loader ================= */
   document.addEventListener('DOMContentLoaded', () => {
+    // Hide all dynamic sections at start
+    document.querySelectorAll('.dynamic-section').forEach(sec => {
+      sec.classList.add('hidden');
+    });
+    // Explicitly hide Recent Transactions section if present
+    const recentTransSection = document.getElementById('recentTransactionsSection');
+    if (recentTransSection) recentTransSection.classList.add('hidden');
+    // Show only dashboardSummary section
+    const dashboardSection = document.getElementById('dashboardSummary');
+    if (dashboardSection) dashboardSection.classList.remove('hidden');
     const sections = document.querySelectorAll('.dynamic-section');
     const buttons = document.querySelectorAll('.nav-button');
     const homeBtn = document.getElementById('homeBtn');
@@ -71,7 +81,6 @@
         showSection('dashboardSummary');
       });
     }
-    showSection('dashboardSummary');
   });
 
   /* ================= Dashboard Stats ================= */
@@ -192,7 +201,7 @@
             }
             if (res.ok && data && data.status==='success' && data.name){
               document.getElementById('loanName').value = data.name;
-              document.getElementById('loanKGID').value = data.kgid || '';
+              document.getElementById('loanKGID').value = data.kgid || data.customer_id || '';
               document.getElementById('loanAccount').value = data.customer_id || raw;
               loanAccountNumberInput.value = data.customer_id || raw;
               accountFetchMsg.textContent = "";
@@ -258,6 +267,13 @@
                 checkBtn.disabled = true;
                 kgidInput.disabled = true;
                 if (removeBtn) removeBtn.classList.remove('hidden');
+                // NEW: trigger readiness re-check
+                try{ 
+                  kgidInput.dispatchEvent(new Event('input',{bubbles:true})); 
+                  // Also trigger form readiness check
+                  const checkFormReadyEvent = new CustomEvent('checkFormReady');
+                  document.dispatchEvent(checkFormReadyEvent);
+                }catch(e){}
               }
             } else {
               msgDiv.textContent = "Error checking surety.";
@@ -278,6 +294,13 @@
             checkBtnId === 'checkSurety1Btn' ? 'surety1Fields' : 'surety2Fields'
           );
           if (fieldsDiv) fieldsDiv.innerHTML = '';
+          // NEW: trigger readiness re-check after removal
+          try{ 
+            kgidInput.dispatchEvent(new Event('input',{bubbles:true})); 
+            // Also trigger form readiness check
+            const checkFormReadyEvent = new CustomEvent('checkFormReady');
+            document.dispatchEvent(checkFormReadyEvent);
+          }catch(e){}
         });
       }
     }
@@ -292,25 +315,80 @@
       termsCheckbox.required = true;
       function checkFormReady(){
         const requiredIds = ['loanName','loanAccount','loanKGID','loanAmount','loanInterest','loanTenure','loanPurpose','surety1KGID','surety2KGID'];
-        let allFilled = requiredIds.every(id=>{
+        const allFilled = requiredIds.every(id=>{
           const el = document.getElementById(id);
-            return el && el.value.trim() !== '';
+          return el && el.value.trim() !== '';
         });
-        applyLoanBtn.disabled = !(allFilled && termsCheckbox.checked);
+        
+        // Check if surety fields are populated (meaning sureties are validated)
+        const surety1Fields = document.getElementById('surety1Fields');
+        const surety2Fields = document.getElementById('surety2Fields');
+        const suretyFieldsValid = surety1Fields && surety1Fields.innerHTML.trim() !== '' && 
+                                 surety2Fields && surety2Fields.innerHTML.trim() !== '';
+        
+        const termsChecked = termsCheckbox.checked;
+        
+        // Enable button if all conditions are met
+        applyLoanBtn.disabled = !(allFilled && termsChecked && suretyFieldsValid);
+        
+        console.log('Form check:', { 
+          allFilled, 
+          termsChecked, 
+          suretyFieldsValid, 
+          surety1Content: surety1Fields ? surety1Fields.innerHTML : 'not found',
+          surety2Content: surety2Fields ? surety2Fields.innerHTML : 'not found',
+          disabled: applyLoanBtn.disabled 
+        });
+        
+        // Update button appearance based on state
+        if (applyLoanBtn.disabled) {
+          applyLoanBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          applyLoanBtn.classList.remove('hover:bg-blue-700');
+        } else {
+          applyLoanBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          applyLoanBtn.classList.add('hover:bg-blue-700');
+        }
       }
-      const reqIds = ['loanName','loanAccount','loanKGID','loanAmount','loanInterest','loanTenure','loanPurpose','surety1KGID','surety2KGID'];
-      reqIds.forEach(id=>{
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', checkFormReady);
-      });
+      ['loanName','loanAccount','loanKGID','loanAmount','loanInterest','loanTenure','loanPurpose','surety1KGID','surety2KGID']
+        .forEach(id=>{
+          const el = document.getElementById(id);
+          if (el){
+            el.addEventListener('input', checkFormReady);
+            el.addEventListener('change', checkFormReady);
+          }
+        });
       termsCheckbox.addEventListener('change', checkFormReady);
+      
+      // Listen for custom checkFormReady events
+      document.addEventListener('checkFormReady', checkFormReady);
+      
       checkFormReady();
+    }
+    
+    // Add direct click handler for Apply button as fallback
+    const applyLoanBtnDirect = document.getElementById('applyLoanBtn');
+    if (applyLoanBtnDirect) {
+      applyLoanBtnDirect.addEventListener('click', function(e) {
+        console.log('Apply button clicked directly!');
+        if (applyLoanBtnDirect.disabled) {
+          console.log('Button is disabled, preventing submission');
+          e.preventDefault();
+          return false;
+        }
+        // If button is enabled, trigger form submission
+        const form = document.getElementById('loanStepForm');
+        if (form) {
+          console.log('Triggering form submission');
+          form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+      });
     }
     /* Loan submission */
     const loanStepForm = document.getElementById('loanStepForm');
     if (loanStepForm){
       loanStepForm.addEventListener('submit', async e=>{
         e.preventDefault();
+        console.log('Form submitted!');
         const errorDiv = document.getElementById('loanFormError');
         errorDiv.textContent = '';
         const loanTypeEl = document.querySelector('input[name="loanType"]:checked');
@@ -326,8 +404,12 @@
         const s2 = document.getElementById('surety2KGID')?.value;
         if (s1 && s1.trim()) sureties.push(s1.trim());
         if (s2 && s2.trim()) sureties.push(s2.trim());
-        if (!loan_type || !customerId || !loan_amount || !interest_rate || !loan_term_months || sureties.length===0){
-          errorDiv.textContent = "Please fill all required fields and add at least one surety.";
+        
+        console.log('Form data:', { loan_type, customerId, loan_amount, interest_rate, loan_term_months, sureties });
+        
+        if (!loan_type || !customerId || !loan_amount || !interest_rate || !loan_term_months || sureties.length < 2){
+          errorDiv.textContent = "Please fill all fields and add two valid sureties.";
+          console.log('Validation failed');
           return;
         }
 

@@ -348,6 +348,10 @@ def apply_loan():
             sid = str(s).strip()
             if sid and len(clean_sureties) < 2:
                 clean_sureties.append(sid)
+
+        # NEW: enforce exactly two sureties
+        if len(clean_sureties) != 2:
+            return jsonify({"status": "error", "message": "Exactly two sureties are required."}), 400
         for s in clean_sureties:
             try:
                 # Fetch surety member details for required fields
