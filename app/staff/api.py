@@ -379,28 +379,50 @@ def add_transaction():
     # Remove all staff_name, staff_email, staff_signature logic
     # Do not set data["staff_name"] or data["staff_email"]
 
-    # Get current balance from members table using customer_id
+    # Get current balance and share_amount from members table using customer_id
     customer_id = data["customer_id"]
-    member_row = supabase.table("members").select("balance").eq("customer_id", customer_id).execute()
-    if not member_row.data or "balance" not in member_row.data[0]:
-        return jsonify({"status": "error", "message": "Member not found or missing balance column. Please add 'balance' column to members table."}), 404
-    current_balance = member_row.data[0]["balance"] or 0
+    member_row = supabase.table("members").select("balance,share_amount,name,email").eq("customer_id", customer_id).execute()
+    if not member_row.data:
+        return jsonify({"status": "error", "message": "Member not found"}), 404
+    
+    member = member_row.data[0]
+    current_balance = float(member.get("balance") or 0)
+    current_share_amount = float(member.get("share_amount") or 0)
+    max_share = 30000.0
 
-    # Calculate new balance
+    # Calculate new balance and share_amount
     try:
         amount = float(data["amount"])
     except Exception:
         return jsonify({"status": "error", "message": "Invalid amount"}), 400
 
     if data["type"] == "deposit":
-        new_balance = current_balance + amount
+        # Fill share_amount first up to 30,000, then excess to balance
+        if current_share_amount < max_share:
+            to_share = min(amount, max_share - current_share_amount)
+            to_balance = amount - to_share
+            new_share_amount = current_share_amount + to_share
+            new_balance = current_balance + (to_balance if to_balance > 0 else 0)
+            print(f"DEBUG DEPOSIT: amount={amount}, current_share={current_share_amount}, to_share={to_share}, to_balance={to_balance}, new_share={new_share_amount}, new_balance={new_balance}")
+        else:
+            to_share = 0
+            to_balance = amount
+            new_share_amount = current_share_amount
+            new_balance = current_balance + amount
+            print(f"DEBUG DEPOSIT (share full): amount={amount}, all to balance, new_balance={new_balance}")
     elif data["type"] == "withdraw":
+        # Only withdraw from balance
+        if amount > current_balance:
+            return jsonify({"status": "error", "message": "Insufficient balance"}), 400
         new_balance = current_balance - amount
+        new_share_amount = current_share_amount
+        print(f"DEBUG WITHDRAW: amount={amount}, current_balance={current_balance}, new_balance={new_balance}, share_amount unchanged={new_share_amount}")
     else:
         return jsonify({"status": "error", "message": "Invalid transaction type"}), 400
 
-    # Add balance_after to transaction data
+    # Add balance_after to transaction data (remove share_amount_after for now)
     data["balance_after"] = new_balance
+    # Note: share_amount_after not added to transaction record as column may not exist
 
     # Generate unique stid for this transaction
     try:
@@ -411,16 +433,23 @@ def add_transaction():
     # Insert transaction
     try:
         resp = supabase.table("transactions").insert(data).execute()
-        # Update member's balance using customer_id
-        supabase.table("members").update({"balance": new_balance}).eq("customer_id", customer_id).execute()
+        # Update member's balance and share_amount using customer_id with explicit numeric conversion
+        update_data = {
+            "balance": float(new_balance),
+            "share_amount": float(new_share_amount)
+        }
+        member_update = supabase.table("members").update(update_data).eq("customer_id", customer_id).execute()
+        
+        # Check if member update was successful
+        if not member_update.data:
+            return jsonify({"status": "error", "message": "Failed to update member balance"}), 500
         # Generate receipt URL
         stid = data["stid"]
         receipt_url = f"{os.environ.get('BASE_URL', 'https://ksthstsociety.com')}/staff/transaction/certificate/{stid}?action=view"
-        # Get member info for email
-        member_row = supabase.table("members").select("email,name").eq("customer_id", customer_id).execute()
-        if member_row.data and member_row.data[0].get("email"):
-            member_email = member_row.data[0]["email"]
-            member_name = member_row.data[0].get("name", "")
+        # Send email notification using member data we already have
+        member_email = member.get("email")
+        member_name = member.get("name", "")
+        if member_email:
             try:
                 send_transaction_email(
                     member_email,
@@ -457,13 +486,15 @@ def add_transaction():
             amount_words=amount_to_words(tx.get("amount", 0))
         )
         certificate_html = render_template("certificate.html", **template_data)
-        return jsonify({
+        response_data = {
             "status": "success",
             "transaction": resp.data[0],
             "balance_after": new_balance,
             "receipt_url": receipt_url,
             "certificate_html": certificate_html
-        }), 201
+        }
+        print(f"DEBUG API Response: {response_data}")  # Debug log
+        return jsonify(response_data), 201
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

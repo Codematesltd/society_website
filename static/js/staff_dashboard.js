@@ -118,20 +118,23 @@
         const m = data;
         const salaryText = (m.salary!==null && m.salary!==undefined && m.salary!=='') ? '₹'+Number(m.salary).toLocaleString() : '-';
         const balanceText = (m.balance!==null && m.balance!==undefined && m.balance!=='') ? '₹'+Number(m.balance).toLocaleString() : '-';
+        const shareAmountText = (m.share_amount!==null && m.share_amount!==undefined && m.share_amount!=='') ? '₹'+Number(m.share_amount).toLocaleString() : '-';
+        const shareTag = (Number(m.share_amount) >= 30000) ? '<span class="inline-block px-2 py-1 ml-2 text-xs font-semibold bg-green-100 text-green-700 rounded">Share Account Completed</span>' : '';
         resultDiv.innerHTML = `
           <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow border">
             <div class="flex flex-col md:flex-row gap-6 items-start">
               <div class="flex-1 space-y-2 text-sm">
-                <div><strong>Name:</strong> ${m.name ?? '-'}</div>
-                <div><strong>KGID:</strong> ${m.kgid ?? '-'}</div>
-                <div><strong>Phone:</strong> ${m.phone ?? '-'}</div>
-                <div><strong>Email:</strong> ${m.email ?? '-'}</div>
-                <div><strong>Salary:</strong> ${salaryText}</div>
-                <div><strong>Organization:</strong> ${m.organization_name ?? '-'}</div>
-                <div><strong>Address:</strong> ${m.address ?? '-'}</div>
-                <div><strong>Balance:</strong> ${balanceText}</div>
-                <div><strong>Customer ID:</strong> ${m.customer_id ?? '-'}</div>
-                <div><strong>Status:</strong> ${m.status ?? '-'}</div>
+                <div><strong>Name:</strong> ${m.name ?? '-'} </div>
+                <div><strong>KGID:</strong> ${m.kgid ?? '-'} </div>
+                <div><strong>Phone:</strong> ${m.phone ?? '-'} </div>
+                <div><strong>Email:</strong> ${m.email ?? '-'} </div>
+                <div><strong>Salary:</strong> ${salaryText} </div>
+                <div><strong>Organization:</strong> ${m.organization_name ?? '-'} </div>
+                <div><strong>Address:</strong> ${m.address ?? '-'} </div>
+                <div><strong>Balance:</strong> ${balanceText} </div>
+                <div><strong>Share Amount:</strong> ${shareAmountText} ${shareTag}</div>
+                <div><strong>Customer ID:</strong> ${m.customer_id ?? '-'} </div>
+                <div><strong>Status:</strong> ${m.status ?? '-'} </div>
               </div>
               <div class="w-full md:w-64 flex flex-col items-center gap-4">
                 <div class="w-28 h-28 rounded-full overflow-hidden ring-2 ring-blue-200 bg-gray-50 flex items-center justify-center">
@@ -753,10 +756,25 @@
           Object.entries(d).forEach(([k,v])=> fd.append(k,v));
           const res = await fetch('/staff/api/add-transaction',{ method:'POST', body: fd });
           const data = await res.json();
-          if (res.ok && data.status==='success' && data.transaction && data.transaction.stid){
-            window.open(`/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`,'_blank');
-            showDashboardMsgModal("Deposit successful!", "success");
+          console.log('Deposit response:', data); // Debug log
+          if (res.ok && data.status==='success'){
+            console.log('Transaction successful, checking for stid...'); // Debug log
+            if (data.transaction && data.transaction.stid){
+              const receiptUrl = `/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`;
+              console.log('Opening receipt:', receiptUrl); // Debug log
+              const newWindow = window.open(receiptUrl,'_blank');
+              if (!newWindow) {
+                console.log('Popup blocked, trying alternative method...');
+                // Fallback if popup is blocked
+                window.location.href = receiptUrl;
+              }
+              showDashboardMsgModal("Deposit successful! Receipt opened in new tab.", "success");
+            } else {
+              console.log('No stid found in response:', data);
+              showDashboardMsgModal("Deposit successful but receipt unavailable.", "success");
+            }
           } else {
+            console.log('Deposit failed:', data);
             showDashboardMsgModal(data.message || "Deposit failed.", "error");
           }
         }catch{ showDashboardMsgModal("Network error.", "error"); }
@@ -784,10 +802,25 @@
           Object.entries(w).forEach(([k,v])=> fd.append(k,v));
           const res = await fetch('/staff/api/add-transaction',{ method:'POST', body: fd });
           const data = await res.json();
-          if (res.ok && data.status==='success' && data.transaction && data.transaction.stid){
-            window.open(`/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`,'_blank');
-            showDashboardMsgModal("Withdrawal successful!", "success");
+          console.log('Withdrawal response:', data); // Debug log
+          if (res.ok && data.status==='success'){
+            console.log('Transaction successful, checking for stid...'); // Debug log
+            if (data.transaction && data.transaction.stid){
+              const receiptUrl = `/staff/transaction/certificate/${encodeURIComponent(data.transaction.stid)}?action=view`;
+              console.log('Opening receipt:', receiptUrl); // Debug log
+              const newWindow = window.open(receiptUrl,'_blank');
+              if (!newWindow) {
+                console.log('Popup blocked, trying alternative method...');
+                // Fallback if popup is blocked
+                window.location.href = receiptUrl;
+              }
+              showDashboardMsgModal("Withdrawal successful! Receipt opened in new tab.", "success");
+            } else {
+              console.log('No stid found in response:', data);
+              showDashboardMsgModal("Withdrawal successful but receipt unavailable.", "success");
+            }
           } else {
+            console.log('Withdrawal failed:', data);
             showDashboardMsgModal(data.message || "Withdrawal failed.", "error");
           }
         }catch{ showDashboardMsgModal("Network error.", "error"); }
