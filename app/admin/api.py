@@ -680,9 +680,9 @@ def customer_info():
     if not customer_id:
         return jsonify({'status': 'error', 'message': 'customer_id required'}), 400
     try:
-        # Fetch member
+        # Fetch member (include balance and share_amount for admin view)
         member_query = supabase.table("members").select(
-            "name,kgid,customer_id,phone,email,organization_name,photo_url,signature_url"
+            "name,kgid,customer_id,phone,email,organization_name,photo_url,signature_url,balance,share_amount"
         ).eq("customer_id", customer_id)
         member_resp = member_query.limit(1).execute()
         if not member_resp.data or len(member_resp.data) == 0:

@@ -55,7 +55,8 @@
                 </h3>
                 <form id="customerEditForm" class="relative">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="customerBasicInfo">
-                        <!-- Content will be populated by JavaScript -->
+                        <!-- Content will be populated by JavaScript only -->
+                        <!-- JS will render all customer info fields here after search -->
                     </div>
                     <!-- Spinner overlay for update -->
                     <div id="customerUpdateSpinner" class="hidden absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
@@ -353,6 +354,7 @@
                 { key: 'phone', label: 'Phone' },
                 { key: 'email', label: 'Email' },
                 { key: 'balance', label: 'Current Balance', readonly: true, formatCurrency: true },
+                { key: 'share_amount', label: 'Share Amount', readonly: true, formatCurrency: true },
                 { key: 'salary', label: 'Salary', formatCurrency: true },
                 // Renamed to backend column names:
                 { key: 'aadhar_no', label: 'Aadhaar Card' },
@@ -387,11 +389,24 @@
                             <input type="hidden" name="customer_id" value="${valueRaw}">
                         </div>`;
                     } else {
-                        const value = f.formatCurrency ? `₹${(data[f.key] || 0).toLocaleString()}` : (data[f.key] || 'N/A');
-                        html += `<div>
-                            <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
-                            <p class="font-semibold ${f.formatCurrency ? 'text-green-600' : ''}">${value}</p>
-                        </div>`;
+                        if (f.key === 'share_amount') {
+                            const numVal = Number(data[f.key] || 0);
+                            const value = f.formatCurrency ? `₹${numVal.toLocaleString()}` : (data[f.key] || 'N/A');
+                            const completed = numVal >= 30000;
+                            html += `<div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                                <p class="font-semibold ${f.formatCurrency ? 'text-green-600' : ''}">
+                                    ${value}
+                                    ${completed ? '<span class="ml-2 inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 align-middle">Share Account Completed</span>' : ''}
+                                </p>
+                            </div>`;
+                        } else {
+                            const value = f.formatCurrency ? `₹${(data[f.key] || 0).toLocaleString()}` : (data[f.key] || 'N/A');
+                            html += `<div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500">${f.label}</p>
+                                <p class="font-semibold ${f.formatCurrency ? 'text-green-600' : ''}">${value}</p>
+                            </div>`;
+                        }
                     }
                 } else if (editable) {
                     html += `<div>

@@ -992,6 +992,17 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="font-medium">${customerInfo.email || 'N/A'}</p>
           </div>
           <div class="space-y-1">
+            <p class="text-sm text-gray-600">Current Balance</p>
+            <p class="font-medium text-blue-700">₹${Number(customerInfo.balance || 0).toLocaleString()}</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm text-gray-600">Share Amount</p>
+            <p class="font-medium text-green-700">
+              ₹${Number(customerInfo.share_amount || 0).toLocaleString()}
+              ${Number(customerInfo.share_amount || 0) >= 30000 ? '<span class="ml-2 inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 align-middle">Share Account Completed</span>' : ''}
+            </p>
+          </div>
+          <div class="space-y-1">
             <p class="text-sm text-gray-600">Organization</p>
             <p class="font-medium">${customerInfo.organization_name || 'N/A'}</p>
           </div>

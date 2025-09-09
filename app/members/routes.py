@@ -54,7 +54,7 @@ def api_account_overview():
         return jsonify({"status": "error", "message": "Not logged in"}), 401
 
     member_resp = supabase.table("members").select(
-        "name,kgid,phone,email,address,customer_id,organization_name,photo_url,signature_url,aadhar_no,pan_no,balance,salary,created_at"
+        "name,kgid,phone,email,address,customer_id,organization_name,photo_url,signature_url,aadhar_no,pan_no,balance,share_amount,salary,created_at"
     ).eq("email", user_email).limit(1).execute()
     if not member_resp.data:
         return jsonify({"status": "error", "message": "Member not found"}), 404

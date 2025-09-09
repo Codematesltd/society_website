@@ -396,6 +396,11 @@
                 <div><span class="font-semibold">Organization:</span> ${m.organization_name||'-'}</div>
                 <div><span class="font-semibold">Address:</span> ${m.address||'-'}</div>
                 <div><span class="font-semibold">Balance:</span> ${fmtMoney(m.balance)}</div>
+                <div>
+                  <span class="font-semibold">Share Amount:</span>
+                  <span class="text-green-700">${fmtMoney(m.share_amount)}</span>
+                  ${Number(m.share_amount||0) >= 30000 ? '<span class="ml-2 inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 align-middle">Share Account Completed</span>' : ''}
+                </div>
                 <div><span class="font-semibold">Salary:</span> ${fmtMoney(m.salary)}</div>
                 <div><span class="font-semibold">Joined:</span> ${joined}</div>
               </div>
