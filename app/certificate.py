@@ -122,13 +122,17 @@ def fd_certificate(fdid):
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     # Fetch FD by textual fdid or internal id
+    # Try bank fdid first
     fd_resp = supabase.table("fixed_deposits").select("*").eq("fdid", fdid).limit(1).execute()
     fd = None
     if fd_resp.data:
         fd = fd_resp.data[0]
     else:
         # fallback by id (UUID)
-        fd_resp2 = supabase.table("fixed_deposits").select("*").eq("id", fdid).limit(1).execute()
+        # Fallback to system_fdid and then numeric id
+        fd_resp2 = supabase.table("fixed_deposits").select("*").eq("system_fdid", fdid).limit(1).execute()
+        if (not fd_resp2.data):
+            fd_resp2 = supabase.table("fixed_deposits").select("*").eq("id", fdid).limit(1).execute()
         if fd_resp2.data:
             fd = fd_resp2.data[0]
     if not fd:

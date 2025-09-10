@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>FD Certificate - {{ fd.fdid }}</title>
+  <title>FD Certificate - {{ fd.fdid or fd.system_fdid }}</title>
   <style>
     body { font-family: Arial, sans-serif; margin:40px; color:#222; }
     .header { text-align:center; margin-bottom:25px; }
@@ -36,10 +36,16 @@
   <div class="box">
     <table>
       <tr>
-        <td class="bold">FD ID:</td><td>{{ fd.fdid }}</td>
+  <td class="bold">FD ID:</td><td>{{ fd.fdid or fd.system_fdid }}</td>
         <td class="bold">Status:</td>
         <td><span class="status {{ fd.status }}">{{ fd.status|title }}</span></td>
       </tr>
+      {% if fd.system_fdid and (fd.fdid != fd.system_fdid) %}
+      <tr>
+        <td class="bold">System Internal ID:</td><td>{{ fd.system_fdid }}</td>
+        <td></td><td></td>
+      </tr>
+      {% endif %}
       <tr>
         <td class="bold">Customer ID:</td><td>{{ fd.customer_id }}</td>
         <td class="bold">Customer Name:</td><td>{{ member.name or '-' }}</td>

@@ -296,7 +296,7 @@ def fd_approvals():
     try:
         fd_resp = sb_exec(
             supabase.table("fixed_deposits")
-            .select("fdid,customer_id,amount,deposit_date,tenure,interest_rate,status")
+            .select("fdid,system_fdid,customer_id,amount,deposit_date,tenure,interest_rate,status")
             .eq("status", "pending")
             .order("deposit_date", desc=True)
         )
@@ -407,7 +407,7 @@ def admin_reject_fd(fdid):
     try:
         fd_resp = sb_exec(
             supabase.table("fixed_deposits")
-            .select("id,fdid,status")
+            .select("id,fdid,system_fdid,status")
             .eq("fdid", fdid)
             .limit(1)
         )

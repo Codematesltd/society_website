@@ -197,17 +197,15 @@ def generate_stid():
         seq = 1
     return f"STID{seq:04d}"
 
-def generate_fdid():
-    """
-    Generate a unique FDID like FD0001, FD0002, etc.
-    """
-    resp = supabase.table("fixed_deposits").select("fdid").order("id", desc=True).limit(1).execute()
-    last_fdid = None
-    if resp.data and resp.data[0].get("fdid"):
-        last_fdid = resp.data[0]["fdid"]
-    if last_fdid and last_fdid.startswith("FD"):
+def generate_system_fdid():
+    """Generate next sequential internal system_fdid (formerly fdid) like FD0001, FD0002."""
+    resp = supabase.table("fixed_deposits").select("system_fdid").order("id", desc=True).limit(1).execute()
+    last_val = None
+    if resp.data and resp.data[0].get("system_fdid"):
+        last_val = resp.data[0]["system_fdid"]
+    if last_val and isinstance(last_val, str) and last_val.startswith("FD"):
         try:
-            seq = int(last_fdid[2:]) + 1
+            seq = int(last_val[2:]) + 1
         except Exception:
             seq = 1
     else:
@@ -913,27 +911,24 @@ def fd_customer_info():
 
 @staff_api_bp.route('/fd-list', methods=['GET'])
 def fd_list():
-    """
-    Get all fixed deposits for a member by customer_id.
-    Returns: {status, fds: [ ... ]}
-    """
+    """List FDs for member; expose bank fdid (fdid) primarily, include system_fdid for internal reference."""
     customer_id = request.args.get('customer_id')
     if not customer_id:
         return jsonify({'status': 'error', 'message': 'Missing customer_id'}), 400
-    # Query fixed_deposits table for all FDs of this member
     resp = supabase.table("fixed_deposits").select(
-        "id,fdid,amount,deposit_date,tenure,interest_rate,status,approved_by,approved_at"
+        "id,fdid,system_fdid,amount,deposit_date,tenure,interest_rate,status,approved_by,approved_at"
     ).eq("customer_id", customer_id).order("deposit_date", desc=True).execute()
-    fds = resp.data if resp.data else []
+    fds = resp.data or []
+    # Ensure backward compatibility: if fdid is null, set fdid to system_fdid in response for display
+    for fd in fds:
+        if not fd.get('fdid'):
+            fd['fdid'] = fd.get('system_fdid')
     return jsonify({'status': 'success', 'fds': fds}), 200
 
 @staff_api_bp.route('/create-fd', methods=['POST'])
 def create_fd():
-    """
-    Create a new fixed deposit for a member.
-    Expects: customer_id, amount, deposit_date, tenure, interest_rate
-    Returns: {status, fdid, fd}
-    """
+    """Create FD. Input: customer_id, amount, deposit_date (YYYY-MM-DD), tenure (months), interest_rate, optional fdid (bank ID).
+    Returns: status, fdid (bank or internal), system_fdid, fd record."""
     try:
         # Handle both JSON and form data
         if request.is_json:
@@ -976,28 +971,36 @@ def create_fd():
         except (ValueError, TypeError):
             return jsonify({'status': 'error', 'message': 'Invalid numeric values provided'}), 400
         
-        # Generate unique FDID
-        fdid = generate_fdid()
-        
-        # Prepare FD data - ONLY the fields from the form
+        # Optional bank-provided fdid (new external ID)
+        bank_fdid = data.get('fdid') or data.get('bank_fdid') or data.get('bankFdId')
+        if bank_fdid:
+            bank_fdid = str(bank_fdid).strip()
+            if len(bank_fdid) > 50:
+                return jsonify({'status': 'error', 'message': 'FD ID too long (max 50 chars)'}), 400
+        # Generate internal system_fdid always
+        system_fdid = generate_system_fdid()
         fd_data = {
-            "fdid": fdid,
+            "system_fdid": system_fdid,
+            "fdid": bank_fdid,  # may be null
             "customer_id": data['customer_id'],
             "amount": amount,
             "deposit_date": data['deposit_date'],
             "tenure": tenure,
             "interest_rate": interest_rate,
-            "status": "pending"  # Default status
+            "status": "pending"
         }
         
         # Insert into fixed_deposits table
         resp = supabase.table("fixed_deposits").insert(fd_data).execute()
         
         if resp.data and len(resp.data) > 0:
+            fd_row = resp.data[0]
+            public_fdid = fd_row.get('fdid') or fd_row.get('system_fdid')
             return jsonify({
-                'status': 'success', 
-                'fdid': fdid, 
-                'fd': resp.data[0],
+                'status': 'success',
+                'fdid': public_fdid,
+                'system_fdid': fd_row.get('system_fdid'),
+                'fd': fd_row,
                 'message': 'Fixed Deposit created successfully'
             }), 201
         else:

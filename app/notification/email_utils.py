@@ -77,7 +77,8 @@ def _build_fd_certificate_url(fd_data):
     base = _normalized_base()
     if not fd_data:
         return None
-    fdid = fd_data.get("fdid") or fd_data.get("id")
+    # Bank-provided FDID preferred; fallback to internal system_fdid then numeric id
+    fdid = fd_data.get("fdid") or fd_data.get("system_fdid") or fd_data.get("id")
     if not fdid:
         return None
     return f"{base}/fd/certificate/{fdid}?action=view"
@@ -86,7 +87,7 @@ def send_fd_approval_email(customer_email, customer_name, fd_data):
     if not customer_email:
         return
     cert_url = _build_fd_certificate_url(fd_data)
-    fdid = (fd_data or {}).get('fdid', 'FD')
+    fdid = (fd_data or {}).get('fdid') or (fd_data or {}).get('system_fdid', 'FD')
     amount = (fd_data or {}).get('amount')
     tenure = (fd_data or {}).get('tenure')
     rate = (fd_data or {}).get('interest_rate')

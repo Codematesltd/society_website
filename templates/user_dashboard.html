@@ -312,11 +312,11 @@
         }
         const rows = fds.map(fd=>{
           const certLinks = fd.status==='approved'
-            ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid}?action=view">View</a>
-               <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid}?action=download">Download</a>`
+        ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=view">View</a>
+          <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=download">Download</a>`
             : '<span class="text-gray-400 text-sm">Pending</span>';
           return `<tr class="border-t">
-            <td class="px-3 py-2 font-medium text-gray-700">${fd.fdid}</td>
+            <td class="px-3 py-2 font-medium text-gray-700" title="Internal: ${fd.system_fdid || ''}">${fd.fdid || fd.system_fdid}</td>
             <td class="px-3 py-2">₹${fd.amount}</td>
             <td class="px-3 py-2">${fd.deposit_date||'-'}</td>
             <td class="px-3 py-2">${fd.tenure} mo</td>
@@ -716,11 +716,11 @@
         if(!fds.length){ wrap.innerHTML='<div class="text-gray-500">No Fixed Deposits found.</div>'; return; }
         const rows = fds.map(fd=>{
           const cert = fd.status==='approved'
-            ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid}?action=view">View</a>
-               <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid}?action=download">Download</a>`
+        ? `<a class="text-blue-600 underline mr-2" target="_blank" href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=view">View</a>
+          <a class="text-green-600 underline" href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=download">Download</a>`
             : '<span class="text-gray-400 text-xs">Pending</span>';
           return `<tr class="border-t">
-            <td class="px-3 py-2 font-medium">${fd.fdid}</td>
+            <td class="px-3 py-2 font-medium" title="Internal: ${fd.system_fdid || ''}">${fd.fdid || fd.system_fdid}</td>
             <td class="px-3 py-2">₹${fd.amount}</td>
             <td class="px-3 py-2">${fd.deposit_date||'-'}</td>
             <td class="px-3 py-2">${fd.tenure} mo</td>
@@ -811,14 +811,43 @@
           tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No transactions found.</td></tr>';
           return;
         }
-        tbody.innerHTML = rows.map(t => `
+        tbody.innerHTML = rows.map(t => {
+          const type = String(t.type||'').toLowerCase();
+          const isDeposit = type === 'deposit';
+          const amt = (t.amount!=null) ? Number(t.amount)||0 : (isDeposit? Number(t.credit||0): Number(t.debit||0));
+          const debit = isDeposit ? null : (amt||0);
+          const credit = isDeposit ? (amt||0) : null;
+          // Details fallback: remarks, else type/loan disbursement
+          let details = t.remarks || '';
+          if(!details){
+            if(t.source === 'loan') {
+              details = `Loan disbursement${t.stid? ' ('+t.stid+')':''}`;
+            } else if(type) {
+              details = type.toUpperCase();
+            } else {
+              details = '-';
+            }
+          }
+          // Date formatting
+          let dstr = t.date || '';
+          let dispDate = dstr;
+          try{
+            const d = new Date(dstr);
+            if(!isNaN(d.getTime())){
+              dispDate = d.toLocaleDateString();
+            } else if (typeof dstr === 'string' && dstr.length >= 10) {
+              dispDate = dstr.slice(0,10);
+            }
+          }catch{ if(typeof dstr === 'string' && dstr.length >= 10) dispDate = dstr.slice(0,10); }
+          return `
           <tr class="border-t">
-            <td class="px-4 py-2">${t.date||'-'}</td>
-            <td class="px-4 py-2">${t.description||'-'}</td>
-            <td class="px-4 py-2 text-right">${t.debit!=null? '₹'+Number(t.debit).toLocaleString():''}</td>
-            <td class="px-4 py-2 text-right">${t.credit!=null? '₹'+Number(t.credit).toLocaleString():''}</td>
+            <td class="px-4 py-2">${dispDate||'-'}</td>
+            <td class="px-4 py-2">${details}</td>
+            <td class="px-4 py-2 text-right">${debit!=null? '₹'+Number(debit).toLocaleString():''}</td>
+            <td class="px-4 py-2 text-right">${credit!=null? '₹'+Number(credit).toLocaleString():''}</td>
             <td class="px-4 py-2 text-right">${t.balance_after!=null? '₹'+Number(t.balance_after).toLocaleString():''}</td>
-          </tr>`).join('');
+          </tr>`;
+        }).join('');
       } catch(err){
         tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-600">Error loading statement</td></tr>';
         if(msg){ msg.textContent = err.message; msg.classList.remove('hidden'); }

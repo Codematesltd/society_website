@@ -1209,6 +1209,8 @@ def fd_certificate(fdid):
     """
     action = request.args.get('action', 'view')
     fd_resp = supabase.table("fixed_deposits").select("*").eq("fdid", fdid).limit(1).execute()
+    if (not fd_resp.data):
+        fd_resp = supabase.table("fixed_deposits").select("*").eq("system_fdid", fdid).limit(1).execute()
     if not fd_resp.data:
         return jsonify({"status": "error", "message": "FD not found"}), 404
     fd = fd_resp.data[0]

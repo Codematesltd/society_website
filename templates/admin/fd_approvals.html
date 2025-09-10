@@ -18,11 +18,11 @@
   </p>
   <div id="fdCardGrid" class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
     {% for fd in fds %}
-    <div class="bg-white border rounded-xl shadow p-5 flex flex-col justify-between" data-fdid="{{ fd.fdid }}">
+  <div class="bg-white border rounded-xl shadow p-5 flex flex-col justify-between" data-fdid="{{ fd.fdid or fd.system_fdid }}" title="Internal: {{ fd.system_fdid }}">
       <!-- ...existing card content... -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <h3 class="font-semibold text-indigo-700 text-lg">{{ fd.fdid }}</h3>
+          <h3 class="font-semibold text-indigo-700 text-lg">{{ fd.fdid or fd.system_fdid }}</h3>
           <span class="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Pending</span>
         </div>
         <div class="text-sm space-y-1">

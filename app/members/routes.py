@@ -487,7 +487,7 @@ def api_my_fds():
     customer_id = member_resp.data[0]["customer_id"]
 
     fd_resp = supabase.table("fixed_deposits").select(
-        "fdid,amount,deposit_date,tenure,interest_rate,status,approved_at"
+    "fdid,system_fdid,amount,deposit_date,tenure,interest_rate,status,approved_at"
     ).eq("customer_id", customer_id).order("deposit_date", desc=True).execute()
     fds = fd_resp.data or []
 
