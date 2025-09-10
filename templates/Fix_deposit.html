@@ -206,7 +206,8 @@
                     <th class="px-3 py-2 text-left">Tenure</th>
                     <th class="px-3 py-2 text-left">Rate</th>
                     <th class="px-3 py-2 text-left">Status</th>
-                    <th class="px-3 py-2 text-left">Certificate</th> <!-- NEW -->
+                    <th class="px-3 py-2 text-left">Certificate</th>
+                    <th class="px-3 py-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>`;
@@ -219,12 +220,15 @@
                 <td class="px-3 py-2">${fd.interest_rate}%</td>
                 <td class="px-3 py-2">${fd.status}</td>
                 <td class="px-3 py-2">
-                  ${
-                    fd.status === 'approved'
-               ? `<a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=view" target="_blank" class="text-blue-600 underline mr-2">View</a>
-                 <a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=download" class="text-green-600 underline">Download</a>`
-                      : `<span class="text-gray-400 text-sm">Pending</span>`
-                  }
+                   ${
+                     (fd.status === 'approved' || fd.status === 'closed')
+                ? `<a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=view" target="_blank" class="text-blue-600 underline mr-2">View</a>
+                  <a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=download" class="text-green-600 underline">Download</a>`
+                       : `<span class="text-gray-400 text-sm">Pending</span>`
+                   }
+                </td>
+                <td class="px-3 py-2">
+                  ${fd.status === 'approved' ? `<button class="text-red-600 underline" onclick="openCloseFdModal('${fd.fdid || fd.system_fdid}')">Close</button>` : ''}
                 </td>
               </tr>`;
             });
@@ -471,6 +475,90 @@
         }
       });
     });
+
+        // Close FD Modal Logic
+        let closingFdId = null;
+        function openCloseFdModal(fdid){
+          closingFdId = fdid;
+          // Fetch FD details JSON for calculation
+          fetch(`/fd/certificate/${encodeURIComponent(fdid)}?action=json`)
+            .then(r=>r.json())
+            .then(data=>{
+              if(data.status==='success'){
+                const fd = data.fd;
+                const principal = data.principal;
+                const interest = data.interest;
+                const total = data.maturity_amount;
+                document.getElementById('closeFdInfo').innerHTML = `
+                  <p><strong>FD ID:</strong> ${fd.fdid || fd.system_fdid}</p>
+                  <p><strong>Principal:</strong> ₹${principal}</p>
+                  <p><strong>Interest (till full tenure):</strong> ₹${interest}</p>
+                  <p><strong>Maturity (Principal+Interest):</strong> ₹${total}</p>
+                  <p class="text-xs text-gray-500 mt-2">If closing before tenure end, actual interest may differ (current implementation uses full tenure calculation).</p>
+                `;
+                document.getElementById('closeFdModal').classList.remove('hidden');
+              } else {
+                alert('Unable to load FD details');
+              }
+            }).catch(()=>alert('Error loading FD details'));
+        }
+        function cancelCloseFd(){
+          closingFdId = null;
+          document.getElementById('closeFdModal').classList.add('hidden');
+        }
+        function submitCloseFd(){
+          if(!closingFdId) return;
+          const wId = document.getElementById('withdrawalId').value.trim();
+          const closeDate = document.getElementById('closeDate').value;
+          if(!closeDate){
+            alert('Select closure date');
+            return;
+          }
+          const btn = document.getElementById('confirmCloseBtn');
+          btn.disabled = true; btn.textContent='Closing...';
+          fetch('/staff/api/close-fd',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Accept':'application/json'},
+            body: JSON.stringify({ fdid: closingFdId, closure_date: closeDate, withdrawal_id: wId || null })
+          }).then(r=>r.json()).then(data=>{
+            if(data.status==='success'){
+              cancelCloseFd();
+              // Open certificate in new tab if provided
+              if(data.certificate_url){
+                window.open(data.certificate_url,'_blank');
+              }
+              // Show toast message
+              const toast = document.createElement('div');
+              toast.className='fixed top-4 right-4 bg-green-600 text-white px-4 py-3 rounded shadow-lg text-sm z-50';
+              toast.innerHTML = `<strong>FD Closed</strong><br/>Principal: ₹${data.principal} | Interest: ₹${data.payout_interest} | Total Paid: ₹${data.payout_amount}`;
+              document.body.appendChild(toast);
+              setTimeout(()=>toast.remove(),6000);
+              const cust = document.getElementById('fdCustomerId').value;
+              if(cust) loadFDList(cust);
+            } else {
+              alert(data.message || 'Failed to close FD');
+            }
+          }).catch(()=>alert('Network error closing FD')).finally(()=>{btn.disabled=false;btn.textContent='Confirm Close';});
+        }
   </script>
+  <!-- Close FD Modal -->
+  <div id="closeFdModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <h3 class="text-xl font-semibold mb-4 text-red-600">Close Fixed Deposit</h3>
+      <div id="closeFdInfo" class="text-sm space-y-1 mb-4"></div>
+      <div class="mb-3">
+        <label class="block text-sm font-medium mb-1">Closure Date</label>
+        <input type="date" id="closeDate" class="w-full border px-3 py-2 rounded" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Withdrawal ID (optional)</label>
+        <input type="text" id="withdrawalId" placeholder="Enter withdrawal reference" class="w-full border px-3 py-2 rounded" />
+      </div>
+      <div class="flex justify-end space-x-3">
+        <button onclick="cancelCloseFd()" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+        <button id="confirmCloseBtn" onclick="submitCloseFd()" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Confirm Close</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

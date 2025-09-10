@@ -30,11 +30,13 @@ def send_email(to_email, subject, html_body, attachments=None):
         # Log error (print for now)
         print(f"Email send error: {e}")
 
+def _resolve_base_url():
+    """Determine absolute base URL for emails (loan/FD)."""
+    return (os.getenv("PUBLIC_BASE_URL") or os.getenv("BASE_URL") or "https://ksthstsociety.com").rstrip('/')
+
 def _build_certificate_url(loan_data):
-    """Return an absolute URL to view the loan certificate for this loan.
-    Falls back to UUID if textual loan_id isn't available.
-    """
-    base = os.getenv("BASE_URL", "http://127.0.0.1:5000")
+    """Return loan certificate URL (prefers textual loan_id)."""
+    base = _resolve_base_url()
     # prefer textual loan_id like LN0001, else use id (UUID)
     loan_id = None
     if isinstance(loan_data, dict):
@@ -70,8 +72,7 @@ def send_approval_email_with_certificate(customer_email, loan_data, pdf_bytes):
     )
 
 def _normalized_base():
-    base = os.getenv("BASE_URL", "http://127.0.0.1:5000")
-    return base.rstrip('/')
+    return _resolve_base_url()
 
 def _build_fd_certificate_url(fd_data):
     base = _normalized_base()

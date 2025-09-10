@@ -191,7 +191,7 @@ def send_status_email(email, status):
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         raise RuntimeError("EMAIL_USER and EMAIL_PASSWORD must be set in environment")
-    site_url = os.getenv("BASE_URL", "http://www.ksthstsociety.com")
+    site_url = (os.getenv("PUBLIC_BASE_URL") or os.getenv("BASE_URL") or "https://ksthstsociety.com").rstrip('/')
     login_url = f"{site_url}/auth/login"
     first_time_url = f"{site_url}/auth/first-time-signin"
     if status == "approved":

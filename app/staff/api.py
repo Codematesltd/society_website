@@ -1010,6 +1010,82 @@ def create_fd():
         print(f"Error in create_fd: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
 
+@staff_api_bp.route('/close-fd', methods=['POST'])
+def close_fd():
+    """Close an approved FD. Body: fdid (bank or system), closure_date (YYYY-MM-DD), optional withdrawal_id.
+    Returns payout details."""
+    try:
+        data = request.get_json(force=True)
+        fdid = data.get('fdid')
+        closure_date = data.get('closure_date')
+        withdrawal_id = (data.get('withdrawal_id') or '').strip() or None
+        if not fdid or not closure_date:
+            return jsonify({'status':'error','message':'fdid and closure_date required'}), 400
+        # Fetch FD by bank id else system id
+        fd_resp = supabase.table('fixed_deposits').select('*').eq('fdid', fdid).limit(1).execute()
+        if not fd_resp.data:
+            fd_resp = supabase.table('fixed_deposits').select('*').eq('system_fdid', fdid).limit(1).execute()
+        if not fd_resp.data:
+            return jsonify({'status':'error','message':'FD not found'}), 404
+        fd = fd_resp.data[0]
+        if fd.get('status') == 'closed':
+            return jsonify({'status':'error','message':'FD already closed'}), 400
+        if fd.get('status') != 'approved':
+            return jsonify({'status':'error','message':'Only approved FDs can be closed'}), 400
+        # Compute interest (simple) pro-rata based on actual days vs tenure months
+        from datetime import datetime
+        try:
+            dep_date = datetime.strptime(fd['deposit_date'], '%Y-%m-%d')
+            close_dt = datetime.strptime(closure_date, '%Y-%m-%d')
+        except Exception:
+            return jsonify({'status':'error','message':'Invalid date format'}), 400
+        if close_dt < dep_date:
+            return jsonify({'status':'error','message':'Closure date before deposit date'}), 400
+        principal = float(fd.get('amount') or 0)
+        rate = float(fd.get('interest_rate') or 0)
+        tenure_m = int(fd.get('tenure') or 0)
+        # Full tenure days approximation (30 * months)
+        full_days = max(1, tenure_m * 30)
+        actual_days = (close_dt - dep_date).days
+        if actual_days > full_days:
+            actual_days = full_days
+        interest_full = principal * rate * tenure_m / (12 * 100)
+        interest_prorata = interest_full * (actual_days / full_days)
+        interest_prorata = round(interest_prorata, 2)
+        payout_amount = round(principal + interest_prorata, 2)
+        update_fields = {
+            'status':'closed',
+            'closed_at': closure_date,
+            'payout_interest': interest_prorata,
+            'payout_amount': payout_amount,
+            'withdrawal_id': withdrawal_id
+        }
+        upd = supabase.table('fixed_deposits').update(update_fields).eq('id', fd['id']).execute()
+        # Email user (if member email exists)
+        try:
+            member_resp = supabase.table('members').select('email,name,customer_id').eq('customer_id', fd['customer_id']).limit(1).execute()
+            if member_resp.data:
+                member = member_resp.data[0]
+                from app.notification.email_utils import send_email, _resolve_base_url
+                base = _resolve_base_url() if '_resolve_base_url' in globals() else (os.getenv('PUBLIC_BASE_URL') or os.getenv('BASE_URL') or 'https://ksthstsociety.com')
+                cert_link = f"{base}/fd/certificate/{fd.get('fdid') or fd.get('system_fdid')}?action=view"
+                body = f"<p>Dear {member.get('name','Member')},</p><p>Your Fixed Deposit (FD ID: <strong>{fd.get('fdid') or fd.get('system_fdid')}</strong>) has been closed on {closure_date}.</p><ul><li>Principal: ₹{principal}</li><li>Interest Paid: ₹{interest_prorata}</li><li>Total Payout: ₹{payout_amount}</li></ul><p>Certificate Link: <a href='{cert_link}'>{cert_link}</a></p><p>Thank you.</p>"
+                send_email(member.get('email'), f"FD Closed - {fd.get('fdid') or fd.get('system_fdid')}", body)
+        except Exception as mail_err:
+            print('FD close email error', mail_err)
+        cert_url = f"{base}/fd/certificate/{fd.get('fdid') or fd.get('system_fdid')}?action=view"
+        return jsonify({
+            'status':'success',
+            'fdid': fd.get('fdid') or fd.get('system_fdid'),
+            'principal': principal,
+            'payout_interest': interest_prorata,
+            'payout_amount': payout_amount,
+            'certificate_url': cert_url
+        }), 200
+    except Exception as e:
+        print('close_fd error', e)
+        return jsonify({'status':'error','message':f'Internal error: {e}'}), 500
+
 
 
 
