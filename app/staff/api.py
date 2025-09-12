@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import pandas as pd
 import random
 from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect, current_app
 from app.auth.decorators import login_required, role_required
@@ -11,13 +12,131 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timedelta
 from xhtml2pdf import pisa
 import inflect
 from httpx import RemoteProtocolError
 
 staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
+@staff_api_bp.route('/recent-transactions/excel', methods=['GET'])
+@login_required
+@role_required('admin', 'staff')
+def export_recent_transactions_excel():
+    """
+    Export recent transactions as Excel (.xlsx).
+    Query params: year, month, day (all optional)
+    Returns: Excel file
+    """
+    year = request.args.get('year')
+    month = request.args.get('month')
+    day = request.args.get('day')
+    tx_query = supabase.table("transactions").select("*")
+    # Date filtering
+    if year:
+        tx_query = tx_query.gte("date", f"{year}-01-01").lte("date", f"{year}-12-31")
+    if month and year:
+        from_month = f"{year}-{int(month):02d}-01"
+        if int(month) == 12:
+            to_month = f"{int(year)+1}-01-01"
+        else:
+            to_month = f"{year}-{int(month)+1:02d}-01"
+        tx_query = tx_query.gte("date", from_month).lt("date", to_month)
+    if day and month and year:
+        date_str = f"{year}-{int(month):02d}-{int(day):02d}"
+        tx_query = tx_query.eq("date", date_str)
+    tx_resp = tx_query.order("date", desc=True).limit(1000).execute()
+    txs = tx_resp.data or []
+    if not txs:
+        return jsonify({"status": "error", "message": "No transactions found for export."}), 404
+    # Prepare DataFrame
+    df = pd.DataFrame(txs)
+    # Optional: select/rename columns for Excel
+    columns = [
+        ("date", "Date"),
+        ("stid", "STID"),
+        ("type", "Type"),
+        ("amount", "Amount"),
+        ("from_account", "From Account"),
+        ("to_account", "To Account"),
+        ("from_bank_name", "From Bank"),
+        ("to_bank_name", "To Bank"),
+        ("remarks", "Remarks"),
+        ("customer_id", "Customer ID"),
+        ("balance_after", "Balance After"),
+    ]
+    col_map = {k: v for k, v in columns}
+    df = df[[k for k, _ in columns if k in df.columns]].rename(columns=col_map)
+    # Format date
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+    # Write to Excel in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Transactions")
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=recent_transactions.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
 staff_bp = Blueprint('staff', __name__, url_prefix='/staff')
+
+@staff_api_bp.route('/admin/recent-transactions/excel', methods=['GET'])
+@login_required
+def export_recent_transactions_excel_admin():
+    """
+    Export recent transactions as Excel (.xlsx) for admin.
+    Query params: year, month, day (all optional)
+    Returns: Excel file
+    """
+    year = request.args.get('year')
+    month = request.args.get('month')
+    day = request.args.get('day')
+    tx_query = supabase.table("transactions").select("*")
+    # Date filtering
+    if year:
+        tx_query = tx_query.gte("date", f"{year}-01-01").lte("date", f"{year}-12-31")
+    if month and year:
+        from_month = f"{year}-{int(month):02d}-01"
+        if int(month) == 12:
+            to_month = f"{int(year)+1}-01-01"
+        else:
+            to_month = f"{year}-{int(month)+1:02d}-01"
+        tx_query = tx_query.gte("date", from_month).lt("date", to_month)
+    if day and month and year:
+        date_str = f"{year}-{int(month):02d}-{int(day):02d}"
+        tx_query = tx_query.eq("date", date_str)
+    tx_resp = tx_query.order("date", desc=True).limit(1000).execute()
+    txs = tx_resp.data or []
+    if not txs:
+        return jsonify({"status": "error", "message": "No transactions found for export."}), 404
+    # Prepare DataFrame
+    df = pd.DataFrame(txs)
+    columns = [
+        ("date", "Date"),
+        ("stid", "STID"),
+        ("type", "Type"),
+        ("amount", "Amount"),
+        ("from_account", "From Account"),
+        ("to_account", "To Account"),
+        ("from_bank_name", "From Bank"),
+        ("to_bank_name", "To Bank"),
+        ("remarks", "Remarks"),
+        ("customer_id", "Customer ID"),
+        ("balance_after", "Balance After"),
+    ]
+    col_map = {k: v for k, v in columns}
+    df = df[[k for k, _ in columns if k in df.columns]].rename(columns=col_map)
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Transactions")
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=recent_transactions_admin.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
 
 load_dotenv()
 
@@ -51,6 +170,117 @@ def send_otp_email(email, otp):
             server.send_message(msg)
     except smtplib.SMTPException as e:
         raise RuntimeError(f"SMTP error: {e}")
+
+@staff_api_bp.route('/statements', methods=['GET'])
+@login_required
+@role_required('staff')
+def staff_statements():
+    """
+    Staff API to fetch member statements by customer_id.
+    Query params:
+      - customer_id: required
+      - range: 'last10' (default), '1m', '3m', '6m', '1y', 'custom'
+      - from_date: (YYYY-MM-DD, required if range=custom)
+      - to_date: (YYYY-MM-DD, required if range=custom)
+      - format: 'pdf' to get PDF version
+    Returns: { "status": "success", "transactions": [...] } or PDF file
+    """
+    customer_id = request.args.get('customer_id')
+    format = request.args.get('format')
+    if not customer_id:
+        return jsonify({"status": "error", "message": "customer_id is required"}), 400
+
+    # Verify the member exists and get current balance
+    member_resp = supabase.table("members").select("customer_id,balance").eq("customer_id", customer_id).execute()
+    if not member_resp.data:
+        return jsonify({"status": "error", "message": "Member not found"}), 404
+    current_balance = float(member_resp.data[0].get("balance") or 0)
+
+    # Parse query params
+    range_type = request.args.get("range", "last10")
+    from_date = request.args.get("from_date")
+    to_date = request.args.get("to_date")
+
+    now = datetime.now()
+    date_col = "date"  # transactions use 'date' column
+
+    # Fetch transactions for the member
+    tx_query = supabase.table("transactions").select("*")
+    tx_query = tx_query.eq("customer_id", customer_id)
+
+    # Date filtering
+    if range_type == "custom" and from_date and to_date:
+        try:
+            from_dt = datetime.strptime(from_date, "%Y-%m-%d")
+            to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+            tx_query = tx_query.gte(date_col, from_date).lte(date_col, to_date)
+        except Exception:
+            return jsonify({"status": "error", "message": "Invalid date format for custom range"}), 400
+    elif range_type == "1m":
+        since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        tx_query = tx_query.gte(date_col, since)
+    elif range_type == "3m":
+        since = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+        tx_query = tx_query.gte(date_col, since)
+    elif range_type == "6m":
+        since = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+        tx_query = tx_query.gte(date_col, since)
+    elif range_type == "1y":
+        since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+        tx_query = tx_query.gte(date_col, since)
+    # else: last10 handled after fetch
+
+    tx_resp = tx_query.execute()
+    events = tx_resp.data or []
+
+    # Sort by date desc (newest first)
+    events.sort(key=lambda e: str(e.get("date") or ""), reverse=True)
+
+    # If last10 requested, slice top 10 events
+    if range_type == "last10":
+        events = events[:10]
+
+    # Compute running balance_after for each event using current_balance (walk from newest -> oldest)
+    running = float(current_balance or 0)
+    for ev in events:
+        # set balance as snapshot after this event (newest first)
+        ev["balance_after"] = round(running, 2)
+        amt = float(ev.get("amount") or 0)
+        # when moving backwards: deposits increase balance going forward, so subtract deposit to step back
+        if ev.get("type") == "deposit":
+            running = round(running - amt, 2)
+        else:
+            # withdraw/withdrawal types assumed to reduce balance going forward, so add back when stepping back
+            running = round(running + amt, 2)
+
+    # If PDF requested, render statement.html and return as PDF
+    if format == "pdf":
+        # Fetch member details for template
+        member_info = supabase.table("members").select("*").eq("customer_id", customer_id).limit(1).execute()
+        member = member_info.data[0] if member_info.data else {}
+        society_name = os.environ.get("SOCIETY_NAME", "Kushtagi Taluk High School Employees Cooperative Society Ltd., Kushtagi-583277")
+        taluk_name = os.environ.get("TALUK_NAME", "Kushtagi")
+        district_name = os.environ.get("DISTRICT_NAME", "koppala")
+        html = render_template(
+            "statement.html",
+            member=member,
+            transactions=events,
+            current_balance=current_balance,
+            society_name=society_name,
+            taluk_name=taluk_name,
+            district_name=district_name,
+            from_date=from_date,
+            to_date=to_date,
+            range_type=range_type
+        )
+        pdf = BytesIO()
+        pisa.CreatePDF(html, dest=pdf)
+        response = make_response(pdf.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=statement_{customer_id}.pdf'
+        return response
+
+    return jsonify({"status": "success", "transactions": events}), 200
     
 @staff_api_bp.route('/loan-info', methods=['GET'])
 def loan_info():

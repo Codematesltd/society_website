@@ -72,6 +72,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactionsStaff">🕒 Recent Transactions</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="statementSection">📃 Statement</button>
         <button id="getTransactionBtn" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">🔎 Get Transaction</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="unblockAccountSection">🔓 Unblock Account</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="fixedDepositSection">💹 Fixed Deposit</button>
@@ -464,6 +465,57 @@
         <iframe src="{{ url_for('finance.loan_repayment_page') }}" class="w-full min-h-[900px] border-0 rounded-xl shadow" title="Loan Repayment"></iframe>
       </section>
 
+      <!-- Statement Section -->
+      <section id="statementSection" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <!-- Statement controls + table -->
+        <div id="statementControls" class="bg-white rounded-lg shadow p-4 mb-4">
+          <div class="flex flex-wrap gap-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Customer ID</label>
+              <input type="text" id="stmCustomerId" class="border px-3 py-2 rounded" placeholder="Enter Customer ID" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Range</label>
+              <select id="stmRange" class="border px-3 py-2 rounded w-44">
+                <option value="last10">Last 10</option>
+                <option value="1m">Last 1 Month</option>
+                <option value="3m">Last 3 Months</option>
+                <option value="6m">Last 6 Months</option>
+                <option value="1y">Last 1 Year</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div id="stmFromWrap" class="hidden">
+              <label class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+              <input type="date" id="stmFrom" class="border px-3 py-2 rounded">
+            </div>
+            <div id="stmToWrap" class="hidden">
+              <label class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+              <input type="date" id="stmTo" class="border px-3 py-2 rounded">
+            </div>
+            <button id="stmFetchBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition mt-5">Generate</button>
+            <button id="stmDownloadBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition mt-5" disabled>Download PDF</button>
+          </div>
+          <div id="stmMsg" class="text-sm mt-2 text-red-600 hidden"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-blue-100">
+              <tr>
+                <th class="px-4 py-2 text-left">Date</th>
+                <th class="px-4 py-2 text-left">Details</th>
+                <th class="px-4 py-2 text-right">Debit</th>
+                <th class="px-4 py-2 text-right">Credit</th>
+                <th class="px-4 py-2 text-right">Balance After</th>
+              </tr>
+            </thead>
+            <tbody id="stmTbody">
+              <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Select a range to load statements.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Recent Transactions Section -->
       <section id="recentTransactionsStaff" class="dynamic-section hidden bg-white p-6 rounded shadow">
         <div class="loader hidden text-center text-blue-600">Loading...</div>
@@ -478,6 +530,7 @@
               <label for="rtDayStaff" class="text-sm text-gray-600">Day</label>
               <select id="rtDayStaff" class="px-3 py-1 border rounded-lg"></select>
               <button id="rtFilterBtnStaff" class="px-3 py-1 rounded-lg bg-blue-600 text-white">Filter</button>
+              <button id="rtDownloadExcelBtnStaff" class="px-3 py-1 rounded-lg bg-green-600 text-white">Download Excel</button>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -594,6 +647,128 @@
   <!-- External consolidated dashboard script -->
   <script src="{{ url_for('static', filename='js/staff_dashboard.js') }}"></script>
   <script>
+    // Statement functionality
+    async function loadStatements(){
+      const tbody = document.getElementById('stmTbody');
+      const rangeSel = document.getElementById('stmRange');
+      const fromEl = document.getElementById('stmFrom');
+      const toEl = document.getElementById('stmTo');
+      const customerIdEl = document.getElementById('stmCustomerId');
+      const msg = document.getElementById('stmMsg');
+      const downloadBtn = document.getElementById('stmDownloadBtn');
+      if(downloadBtn) downloadBtn.disabled = true;
+      if(!tbody || !customerIdEl){ return; }
+      const customerId = customerIdEl.value.trim();
+      if(!customerId){
+        if(msg){
+          msg.textContent = 'Please enter a Customer ID';
+          msg.classList.remove('hidden');
+        }
+        return;
+      }
+      tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Loading...</td></tr>';
+      msg?.classList.add('hidden');
+      try {
+        let params = new URLSearchParams();
+        params.set('customer_id', customerId);
+        const range = rangeSel ? rangeSel.value : 'last10';
+        params.set('range', range);
+        if(range === 'custom' && fromEl && toEl && fromEl.value && toEl.value){
+          params.set('from_date', fromEl.value);
+          params.set('to_date', toEl.value);
+        }
+        const res = await fetch(`/staff/api/statements?${params.toString()}`);
+        const data = await res.json();
+        if(!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed');
+        const rows = data.transactions || [];
+        if(!rows.length){
+          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No transactions found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(t => {
+          const type = String(t.type||'').toLowerCase();
+          const isDeposit = type === 'deposit';
+          const amt = (t.amount!=null) ? Number(t.amount)||0 : (isDeposit? Number(t.credit||0): Number(t.debit||0));
+          const debit = isDeposit ? null : (amt||0);
+          const credit = isDeposit ? (amt||0) : null;
+          // Details fallback: remarks, else type/loan disbursement
+          let details = t.remarks || '';
+          if(!details){
+            if(t.source === 'loan') {
+              details = `Loan disbursement${t.stid? ' ('+t.stid+')':''}`;
+            } else if(type) {
+              details = type.toUpperCase();
+            } else {
+              details = '-';
+            }
+          }
+          // Date formatting
+          let dstr = t.date || '';
+          let dispDate = dstr;
+          try{
+            const d = new Date(dstr);
+            if(!isNaN(d.getTime())){
+              dispDate = d.toLocaleDateString();
+            } else if (typeof dstr === 'string' && dstr.length >= 10) {
+              dispDate = dstr.slice(0,10);
+            }
+          }catch{ if(typeof dstr === 'string' && dstr.length >= 10) dispDate = dstr.slice(0,10); }
+          return `
+          <tr class="border-t">
+            <td class="px-4 py-2">${dispDate||'-'}</td>
+            <td class="px-4 py-2">${details}</td>
+            <td class="px-4 py-2 text-right">${debit!=null? '₹'+Number(debit).toLocaleString():''}</td>
+            <td class="px-4 py-2 text-right">${credit!=null? '₹'+Number(credit).toLocaleString():''}</td>
+            <td class="px-4 py-2 text-right">${t.balance_after!=null? '₹'+Number(t.balance_after).toLocaleString():''}</td>
+          </tr>`;
+        }).join('');
+        if(downloadBtn) downloadBtn.disabled = false;
+      } catch(err){
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-600">Error loading statement</td></tr>';
+        if(msg){ msg.textContent = err.message; msg.classList.remove('hidden'); }
+      }
+    }
+
+    // Download PDF functionality
+    function downloadStatementPDF() {
+      const customerId = document.getElementById('stmCustomerId').value.trim();
+      const range = document.getElementById('stmRange').value;
+      const fromDate = document.getElementById('stmFrom')?.value;
+      const toDate = document.getElementById('stmTo')?.value;
+      if (!customerId) {
+        alert('Please enter a Customer ID');
+        return;
+      }
+      let url = `/staff/api/statements?customer_id=${encodeURIComponent(customerId)}&range=${encodeURIComponent(range)}&format=pdf`;
+      if (range === 'custom' && fromDate && toDate) {
+        url += `&from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
+      }
+      window.open(url, '_blank');
+    }
+
+    // Initialize statement controls
+    document.addEventListener('DOMContentLoaded', function() {
+      // Statement range selector logic
+      const rangeSel = document.getElementById('stmRange');
+      const fromWrap = document.getElementById('stmFromWrap');
+      const toWrap = document.getElementById('stmToWrap');
+      const fetchBtn = document.getElementById('stmFetchBtn');
+      const downloadBtn = document.getElementById('stmDownloadBtn');
+      if(rangeSel) {
+        rangeSel.addEventListener('change', function() {
+          const isCustom = this.value === 'custom';
+          fromWrap?.classList.toggle('hidden', !isCustom);
+          toWrap?.classList.toggle('hidden', !isCustom);
+        });
+      }
+      if(fetchBtn) {
+        fetchBtn.addEventListener('click', loadStatements);
+      }
+      if(downloadBtn) {
+        downloadBtn.addEventListener('click', downloadStatementPDF);
+      }
+    });
+
     // Highlight active sidebar button
     document.addEventListener('DOMContentLoaded', function() {
       const navBtns = document.querySelectorAll('.nav-button');

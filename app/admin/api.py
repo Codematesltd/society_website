@@ -15,6 +15,60 @@ load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+import pandas as pd
+from io import BytesIO
+from flask import make_response
+# --- Excel Export Endpoints for Audit Sections ---
+@admin_api_bp.route('/audit-summary/excel', methods=['GET'])
+def audit_summary_excel():
+    # Example: Export total credit, debit, expense as a single-row Excel
+    credit_total = float(request.args.get('credit_total', 0))
+    debit_total = float(request.args.get('debit_total', 0))
+    expense_total = float(request.args.get('expense_total', 0))
+    df = pd.DataFrame([{
+        'Total Credit': credit_total,
+        'Total Debit': debit_total,
+        'Total Expense': expense_total
+    }])
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Summary")
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=audit_summary.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
+@admin_api_bp.route('/audit-transactions/excel', methods=['GET'])
+def audit_transactions_excel():
+    # Example: Export all transactions (customize as needed)
+    resp = supabase.table('transactions').select('*').execute()
+    txs = resp.data if hasattr(resp, 'data') and resp.data else []
+    df = pd.DataFrame(txs)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Transactions")
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=audit_transactions.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
+@admin_api_bp.route('/audit-expenses/excel', methods=['GET'])
+def audit_expenses_excel():
+    # Example: Export all expenses (customize as needed)
+    resp = supabase.table('expenses').select('*').execute()
+    expenses = resp.data if hasattr(resp, 'data') and resp.data else []
+    df = pd.DataFrame(expenses)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Expenses")
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=audit_expenses.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
 
 @admin_api_bp.route('/loan-info', methods=['GET'])
 def loan_info():

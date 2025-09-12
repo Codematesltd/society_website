@@ -71,7 +71,8 @@
           </div>
         </div>
       </div>
-    </section>
+  </section>
+  <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
     
     <!-- Recent Transactions Section -->
     <section id="recentTransactions" class="admin-section hidden">
@@ -86,6 +87,7 @@
             <label class="text-sm text-gray-600" for="rtDay">Day</label>
             <select id="rtDay" class="px-3 py-1 border rounded-lg"></select>
             <button id="rtFilterBtn" class="px-3 py-1 rounded-lg bg-blue-600 text-white">Filter</button>
+            <button id="rtDownloadExcelBtn" class="px-3 py-1 rounded-lg bg-green-600 text-white">Download Excel</button>
           </div>
         </div>
         <div class="overflow-x-auto">

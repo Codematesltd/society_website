@@ -31,3 +31,5 @@ pillow
 xhtml2pdf
 Flask-Session
 PyJWT
+openpyxl
+pandas

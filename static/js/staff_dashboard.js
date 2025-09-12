@@ -1004,11 +1004,12 @@
 
   /* ================= Recent Transactions (Staff) ================= */
   document.addEventListener('DOMContentLoaded', ()=>{
-    const ySel = document.getElementById('rtYearStaff');
-    const mSel = document.getElementById('rtMonthStaff');
-    const dSel = document.getElementById('rtDayStaff');
-    const btn = document.getElementById('rtFilterBtnStaff');
-    const body = document.getElementById('rtTableBodyStaff');
+  const ySel = document.getElementById('rtYearStaff');
+  const mSel = document.getElementById('rtMonthStaff');
+  const dSel = document.getElementById('rtDayStaff');
+  const btn = document.getElementById('rtFilterBtnStaff');
+  const body = document.getElementById('rtTableBodyStaff');
+  const excelBtn = document.getElementById('rtDownloadExcelBtnStaff');
     function populateSelectors(){
       if (!ySel || !mSel || !dSel) return;
       const now = new Date();
@@ -1058,6 +1059,18 @@
     if (btn) btn.addEventListener('click', loadRecent);
     const navBtn = document.querySelector('.nav-button[data-target="recentTransactionsStaff"]');
     if (navBtn) navBtn.addEventListener('click', loadRecent);
+
+    // Excel download logic
+    if (excelBtn) {
+      excelBtn.addEventListener('click', function() {
+        const qs = new URLSearchParams();
+        if (ySel && ySel.value) qs.set('year', ySel.value);
+        if (mSel && mSel.value) qs.set('month', mSel.value);
+        if (dSel && dSel.value) qs.set('day', dSel.value);
+        const url = `/staff/api/recent-transactions/excel${qs.toString() ? ('?' + qs.toString()) : ''}`;
+        window.open(url, '_blank');
+      });
+    }
   });
 
   /* ================= Queries (Staff View) ================= */
