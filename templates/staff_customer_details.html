@@ -106,12 +106,10 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Loan ID</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
-                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Amount</th>
-                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Interest</th>
-                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Next Installment</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Principle Amount</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Applied Date</th>
-                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Balance</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Remaining Principle Amount</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                             </tr>
                         </thead>
@@ -231,13 +229,12 @@
                 customerOriginalData.pan_card = customerOriginalData.pan_no;
             }
             
-            // Calculate total outstanding from loan_records summary rows (only for active or completed loans)
+            // Calculate total outstanding principal from all loans (no summary row, use remaining_balance)
             let totalOutstanding = 0;
             loans.forEach(loan => {
                 if (loan.status === 'approved' || loan.status === 'completed') {
-                    const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
-                    if (summaryRow && summaryRow.outstanding_balance !== undefined && summaryRow.outstanding_balance !== null) {
-                        totalOutstanding += Number(summaryRow.outstanding_balance);
+                    if (loan.remaining_balance !== undefined && loan.remaining_balance !== null) {
+                        totalOutstanding += Number(loan.remaining_balance);
                     }
                 }
             });
@@ -259,7 +256,7 @@
                 </div>
                 <div class="text-center p-4 bg-red-50 rounded-lg">
                     <p class="text-2xl font-bold text-red-600">₹${totalOutstanding.toLocaleString()}</p>
-                    <p class="text-sm text-gray-600">Outstanding</p>
+                    <p class="text-sm text-gray-600">Outstanding Principal Amount</p>
                 </div>
             `;
             
@@ -269,14 +266,11 @@
             // Populate loans table
             const loansTableBody = document.getElementById('loansTableBody');
             if (loans.length === 0) {
-                loansTableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
+                loansTableBody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No loans found</td></tr>';
             } else {
                 loansTableBody.innerHTML = loans.map(loan => {
-                    // Find the summary row for this loan to get interest_amount and outstanding_balance
-                    const summaryRow = (loan.repayment_records || []).find(r => r.repayment_amount === null || r.repayment_amount === undefined);
                     const principal = Number(loan.loan_amount || 0);
-                    const interestAmount = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
-                    const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : 0;
+                    const outstanding = loan.remaining_balance !== undefined ? Number(loan.remaining_balance) : 0;
                     let statusLabel = "PENDING";
                     let statusClass = "bg-yellow-100 text-yellow-800";
                     if (loan.status === 'approved') {
@@ -286,20 +280,11 @@
                         statusLabel = "REJECTED";
                         statusClass = "bg-red-100 text-red-800";
                     }
-                    // Fix: next_installment logic (prefer loan, then summaryRow, else '—')
-                    let nextInstallment = '—';
-                    if (loan.next_installment !== undefined && loan.next_installment !== null && !isNaN(Number(loan.next_installment))) {
-                        nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
-                    } else if (summaryRow && summaryRow.next_installment !== undefined && summaryRow.next_installment !== null && !isNaN(Number(summaryRow.next_installment))) {
-                        nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
-                    }
                     return `
                         <tr class="border-t">
                             <td class="px-4 py-3">${loan.loan_id || 'Pending'}</td>
                             <td class="px-4 py-3 capitalize">${loan.loan_type || 'N/A'}</td>
                             <td class="px-4 py-3">₹${principal.toLocaleString()}</td>
-                            <td class="px-4 py-3">₹${interestAmount.toLocaleString()}</td>
-                            <td class="px-4 py-3">${nextInstallment}</td>
                             <td class="px-4 py-3">
                                 <span class="px-2 py-1 rounded-full text-xs ${statusClass}">
                                     ${statusLabel}
@@ -307,7 +292,7 @@
                             </td>
                             <td class="px-4 py-3">${loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'N/A'}</td>
                             <td class="px-4 py-3">
-                                <span title="Outstanding from loan_records">
+                                <span title="Outstanding Principal">
                                     ₹${outstanding.toLocaleString()}
                                 </span>
                             </td>
@@ -643,27 +628,27 @@
 
         function renderSelectedLoan(loan, customer, sureties, records) {
             records = records || [];
-            const summaryRow = records.find(r => r.repayment_amount == null);
+            // Calculate totals
             const principal = Number(loan.loan_amount || 0);
-            const totalInterest = summaryRow ? Number(summaryRow.interest_amount || 0) : 0;
-            const outstanding = summaryRow ? Number(summaryRow.outstanding_balance || 0) : 0;
-            let totalRepaid = 0;
-            records.forEach(r => { if (r.repayment_amount != null) totalRepaid += Number(r.repayment_amount || 0); });
-            let nextInstallment = '—';
-            if (loan.next_installment != null && !isNaN(Number(loan.next_installment))) {
-                nextInstallment = `₹${Number(loan.next_installment).toLocaleString()}`;
-            } else if (summaryRow && summaryRow.next_installment != null && !isNaN(Number(summaryRow.next_installment))) {
-                nextInstallment = `₹${Number(summaryRow.next_installment).toLocaleString()}`;
-            }
+            let totalPrincipalRepaid = 0;
+            let totalInterestRepaid = 0;
+            let outstandingPrincipal = null;
+            // Find last repayment with remaining_principal_amount
+            records.filter(r => r.repayment_amount != null).forEach(r => {
+                totalPrincipalRepaid += Number(r.principal_amount || 0);
+                totalInterestRepaid += Number(r.interest_amount || 0);
+                if (typeof r.remaining_principal_amount === 'number') {
+                    outstandingPrincipal = r.remaining_principal_amount;
+                }
+            });
+            if (outstandingPrincipal === null) outstandingPrincipal = principal;
             const container = document.getElementById('selectedLoanContent');
             container.innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div class="p-3 bg-blue-50 rounded"><p class="text-xs text-gray-500">Principal</p><p class="font-semibold">₹${principal.toLocaleString()}</p></div>
-                    <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Interest</p><p class="font-semibold text-purple-700">₹${Math.round(totalInterest*100)/100}</p></div>
-                    <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Repaid</p><p class="font-semibold text-green-700">₹${Math.round(totalRepaid*100)/100}</p></div>
-                    <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding</p><p class="font-semibold text-yellow-700">₹${Math.round(outstanding*100)/100}</p></div>
-                    <div class="p-3 bg-indigo-50 rounded"><p class="text-xs text-gray-500">Interest Rate</p><p class="font-semibold">${Number(loan.interest_rate||0)}%</p></div>
-                    <div class="p-3 bg-pink-50 rounded"><p class="text-xs text-gray-500">Next Installment</p><p class="font-semibold text-pink-700">${nextInstallment}</p></div>
+                    <div class="p-3 bg-green-50 rounded"><p class="text-xs text-gray-500">Total Principal Repaid</p><p class="font-semibold text-green-700">₹${totalPrincipalRepaid.toLocaleString()}</p></div>
+                    <div class="p-3 bg-purple-50 rounded"><p class="text-xs text-gray-500">Total Interest Repaid</p><p class="font-semibold text-purple-700">₹${totalInterestRepaid.toLocaleString()}</p></div>
+                    <div class="p-3 bg-yellow-50 rounded"><p class="text-xs text-gray-500">Outstanding Principle Amount</p><p class="font-semibold text-yellow-700">₹${outstandingPrincipal.toLocaleString()}</p></div>
                 </div>
                 <h4 class="font-semibold mb-2">Repayment History</h4>
                 ${
@@ -676,8 +661,9 @@
                                     <th class="px-2 py-2 text-left">#</th>
                                     <th class="px-2 py-2 text-left">Date</th>
                                     <th class="px-2 py-2 text-left">Amount</th>
+                                    <th class="px-2 py-2 text-left">Principal Paid</th>
                                     <th class="px-2 py-2 text-left">Interest</th>
-                                    <th class="px-2 py-2 text-left">Outstanding After</th>
+                                    <th class="px-2 py-2 text-left">Outstanding Principle Amount After Repay</th>
                                     <th class="px-2 py-2 text-left">Status</th>
                                 </tr>
                             </thead>
@@ -688,16 +674,9 @@
                                             <td class="px-2 py-1">${i+1}</td>
                                             <td class="px-2 py-1">${r.repayment_date || '—'}</td>
                                             <td class="px-2 py-1">₹${Number(r.repayment_amount||0).toLocaleString()}</td>
-                                            <td class="px-2 py-1 text-purple-700">
-                                                ₹${
-                                                    typeof r.interest_amount !== 'undefined'
-                                                    ? Number(r.interest_amount).toLocaleString()
-                                                    : (typeof r.calculated_interest !== 'undefined'
-                                                        ? Number(r.calculated_interest).toLocaleString()
-                                                        : '—')
-                                                }
-                                            </td>
-                                            <td class="px-2 py-1">₹${Number(r.outstanding_balance||0).toLocaleString()}</td>
+                                            <td class="px-2 py-1 text-blue-700">₹${typeof r.principal_amount !== 'undefined' ? Number(r.principal_amount).toLocaleString() : '—'}</td>
+                                            <td class="px-2 py-1 text-purple-700">₹${typeof r.interest_amount !== 'undefined' ? Number(r.interest_amount).toLocaleString() : '—'}</td>
+                                            <td class="px-2 py-1 text-yellow-700">₹${typeof r.remaining_principal_amount !== 'undefined' ? Number(r.remaining_principal_amount).toLocaleString() : '—'}</td>
                                             <td class="px-2 py-1">
                                                 <span class="px-2 py-0.5 rounded text-[10px] ${
                                                     r.status==='completed'?'bg-green-100 text-green-700':

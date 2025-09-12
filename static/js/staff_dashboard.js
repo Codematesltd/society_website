@@ -905,7 +905,7 @@
   });
 
   /* ================= Loan Info Search (Staff) ================= */
-  document.addEventListener('DOMContentLoaded', ()=>{
+    document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loanInfoSearchForm');
     const input = document.getElementById('loanInfoSearchInput');
     const result = document.getElementById('loanInfoSearchResult');
@@ -918,20 +918,24 @@
         result.innerHTML = '<div class="text-red-600">Please enter a Loan ID.</div>';
         return;
       }
-      result.innerHTML = '<div class="text-blue-600">Searching...</div>';
-      const url = '/admin/api/loan-info?loan_id=' + encodeURIComponent(val);
+  result.innerHTML = '<div class="text-blue-600">Searching...</div>';
+  const url = '/staff/api/loan-info?loan_id=' + encodeURIComponent(val);
       try{
         const res = await fetch(url);
         let data=null; try{ data = await res.json(); }catch{}
-        if (res.ok && data && data.status==='success' && data.loan_info){
+      if (res.ok && data && data.status === 'success' && data.loan_info) {
           const info = data.loan_info;
-          result.innerHTML = `
+          // Always show 0 if falsy/null/undefined for totals
+          const totalPrincipalRepaid = (typeof info.total_principal_repaid === 'number' && !isNaN(info.total_principal_repaid)) ? info.total_principal_repaid : 0;
+          const totalInterestRepaid = (typeof info.total_interest_repaid === 'number' && !isNaN(info.total_interest_repaid)) ? info.total_interest_repaid : 0;
+        result.innerHTML = `
             <div class="bg-gray-50 p-4 rounded shadow">
               <div><strong>Name:</strong> ${info.name ?? '-'} </div>
               <div><strong>Loan Amount:</strong> ₹${info.loan_amount ?? '-'} </div>
               <div><strong>Loan Term (months):</strong> ${info.loan_term_months ?? '-'} </div>
               <div><strong>Interest Rate:</strong> ${info.interest_rate ?? '-'}% </div>
-              <div><strong>Next Installment Amount:</strong> ₹${info.next_installment_amount ?? '-'} </div>
+              <div><strong>Total Principal Repaid:</strong> ₹${totalPrincipalRepaid} </div>
+              <div><strong>Total Interest Repaid:</strong> ₹${totalInterestRepaid} </div>
               <div><strong>Outstanding Amount:</strong> ₹${info.outstanding_amount ?? '-'} </div>
             </div>`;
         } else {

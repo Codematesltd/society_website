@@ -98,7 +98,7 @@ def repayment_certificate(repayment_id):
             "remarks": repayment_row.get("remarks", f"Loan repayment for {loan.get('loan_id')}")
         },
         member=member,
-        society_name="KSTHST Coof Society",
+        society_name="KSTHST Co-Operative Society",
         taluk_name="Taluk",
         district_name="District",
         amount_words=amount_words
@@ -203,12 +203,12 @@ def send_loan_status_email(email, name, loan_id, status):
         subject = f"Your Loan Application Has Been Received – Reference: {loan_id}"
         body = (
             f"Dear {name},\n\n"
-            f"Thank you for choosing KSTHST Coof Society.\n\n"
+            f"Thank you for choosing KSTHST Co-Operative Society.\n\n"
             f"We have received your loan application (Reference ID: {loan_id}) and it is now under review.\n\n"
             f"You can track the status or view the application certificate here:\n{cert_url}\n\n"
             f"If you have any questions, reply to this email or contact support.\n\n"
             f"Best regards,\n"
-            f"KSTHST Coof Society Team"
+            f"KSTHST Co-Operative Society Team"
         )
     elif status == "approved":
         subject = f"Congratulations! Your Loan Application (ID: {loan_id}) is Approved"
@@ -218,7 +218,7 @@ def send_loan_status_email(email, name, loan_id, status):
             f"You may view and download your official loan certificate here:\n{cert_url}\n\n"
             f"If you need assistance, reply to this email.\n\n"
             f"Best regards,\n"
-            f"KSTHST Coof Society Team"
+            f"KSTHST Co-Operative Society Team"
         )
     elif status == "rejected":
         subject = f"Update on Your Loan Application (ID: {loan_id})"
@@ -227,7 +227,7 @@ def send_loan_status_email(email, name, loan_id, status):
             f"We regret to inform you that your loan application (Reference ID: {loan_id}) was not approved at this time.\n\n"
             f"For clarification or to reapply in the future, please contact our support team.\n\n"
             f"Best regards,\n"
-            f"KSTHST Coof Society Team"
+            f"KSTHST Co-Operative Society Team"
         )
     else:
         subject = f"Update Regarding Your Loan Application (ID: {loan_id})"
@@ -237,7 +237,7 @@ def send_loan_status_email(email, name, loan_id, status):
             f"Current status: {status}\n\n"
             f"For more details, log in to your account or contact support.\n\n"
             f"Best regards,\n"
-            f"KSTHST Coof Society Team"
+            f"KSTHST Co-Operative Society Team"
         )
     msg = MIMEText(body)
     msg['Subject'] = subject
@@ -462,53 +462,33 @@ def get_loan(loan_id):
             all_records.append(r)
             seen.add(r["id"])
     # Sort by repayment_date (oldest first, nulls last)
-
     records = sorted(all_records, key=lambda r: (r["repayment_date"] or "9999-12-31"))
 
-    # --- Interest calculation for each repayment record ---
-    interest_rate = float(loan_data.get("interest_rate", 0))
-    prev_date = None
-    prev_balance = float(loan_data.get("loan_amount", 0))
-    for rec in records:
-        # Calculate days since last payment
-        curr_date = rec.get("repayment_date")
-        if curr_date and prev_date:
-            days = (datetime.strptime(curr_date, "%Y-%m-%d") - datetime.strptime(prev_date, "%Y-%m-%d")).days
-        elif curr_date:
-            # First payment: since loan start (assume created_at or repayment_date)
-            loan_start = loan_data.get("created_at")
-            if loan_start:
-                loan_start_date = loan_start.split("T")[0]
-                days = (datetime.strptime(curr_date, "%Y-%m-%d") - datetime.strptime(loan_start_date, "%Y-%m-%d")).days
-            else:
-                days = 0
-        else:
-            days = 0
+    # Calculate principal repaid, interest repaid, last repayment info, and remaining principal
+    principal_repaid = sum(float(r.get("principal_amount") or 0) for r in records if r.get("repayment_amount") is not None)
+    interest_repaid = sum(float(r.get("interest_amount") or 0) for r in records if r.get("repayment_amount") is not None)
+    last_repayment = next((r for r in reversed(records) if r.get("repayment_amount") is not None), None)
+    remaining_principal = last_repayment.get("remaining_principal_amount") if last_repayment else loan_data.get("loan_amount")
 
-        # Calculate interest for this period
-        if days > 0 and interest_rate > 0:
-            interest = prev_balance * (interest_rate / 100) * (days / 365)
-        else:
-            interest = 0.0
-        rec["calculated_interest"] = round(interest, 2)
-        prev_date = curr_date
-        prev_balance = float(rec.get("outstanding_balance", prev_balance))
-
-    # NEW: compute total repaid & auto-complete
-    try:
-        total_repaid = sum(float(r.get("repayment_amount") or 0) for r in records)
-        _auto_complete_loan_if_fully_repaid(loan_data, total_repaid)
-    except Exception as e:
-        print(f"Failed computing repayment summary for loan {loan_id}: {e}")
+    # Add last repayment date and amount for frontend interest panel
+    last_repayment_date = last_repayment["repayment_date"] if last_repayment else None
+    last_repayment_amount = last_repayment["repayment_amount"] if last_repayment else None
 
     staff_details = {
         "email": loan_data.get("staff_email"),
         "name": loan_data.get("staff_name"),
         "phone": loan_data.get("staff_phone")
     }
+    # Compose loan object for frontend compatibility
+    loan_obj = dict(loan_data)
+    loan_obj["principal_repaid"] = principal_repaid
+    loan_obj["interest_repaid"] = interest_repaid
+    loan_obj["remaining_principal"] = remaining_principal
+    loan_obj["last_repayment"] = last_repayment
+
     return jsonify(
         status="success",
-        loan=loan_data,
+        loan=loan_obj,
         customer=customer.data[0] if customer.data else {},
         sureties=sureties.data,
         records=records,
@@ -528,26 +508,7 @@ def approve_loan(loan_id):
     supabase.table("loans").update({"status": "approved"}).eq("id", loan_id).execute()
     # Mark sureties as active for this loan (do NOT update loan_id to LNxxxx, keep UUID linkage)
     supabase.table("sureties").update({"active": True}).eq("loan_id", loan_id).execute()
-    # --- Calculate principal, interest, outstanding, and EMI ---
-    principal = float(loan_row["loan_amount"])
-    rate = float(loan_row["interest_rate"])
-    months = int(loan_row["loan_term_months"])
-    total_interest = round(principal * rate * months / (12 * 100), 2)
-    outstanding = round(principal + total_interest, 2)
-    monthly_rate = rate / (12 * 100)
-    if monthly_rate > 0:
-        emi = round(principal * monthly_rate * (1 + monthly_rate) ** months / ((1 + monthly_rate) ** months - 1), 2)
-    else:
-        emi = round(principal / months, 2) if months > 0 else principal
-    # Store only a single summary row for the loan in loan_records
-    supabase.table("loan_records").insert({
-        "loan_id": ln_loan_id,
-        "repayment_date": None,
-        "repayment_amount": None,
-        "outstanding_balance": outstanding,
-        "status": "active",
-        "interest_amount": total_interest
-    }).execute()
+    # No interest or summary row is calculated/inserted at approval. Interest will be calculated at repayment time only.
     # Send mail to user
     member = get_member_by_customer_id(loan_row["customer_id"])
     if member and member.get("name"):
@@ -639,7 +600,7 @@ def loan_certificate(loan_id):
         loan["sureties"] = []
 
     # Define society info variables
-    society_name = "KSTHST Coof Society"
+    society_name = "KSTHST Co-Operative Society"
     taluk_name = "Taluk"
     district_name = "District"
 
@@ -806,64 +767,52 @@ def fetch_customer_details():
             loan_details = dict(loan)  # Copy loan data
 
             # Fetch loan records (repayments) for this specific loan
+            records = []
             if loan.get("loan_id"):
-                records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan["loan_id"]).execute()
-                loan_details["repayment_records"] = records_resp.data if records_resp.data else []
+                records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan["loan_id"]).order("repayment_date", desc=True).execute()
+                records = records_resp.data if records_resp.data else []
+                loan_details["repayment_records"] = records
 
-                # Calculate total repaid amount
-                total_repaid = 0
-                for record in loan_details["repayment_records"]:
-                    if record.get("repayment_amount"):
-                        total_repaid += float(record["repayment_amount"])
+                # Calculate principal repaid, interest repaid, last repayment info, and remaining principal
+                principal_repaid = sum(float(r.get("principal_amount") or 0) for r in records if r.get("repayment_amount") is not None)
+                interest_repaid = sum(float(r.get("interest_amount") or 0) for r in records if r.get("repayment_amount") is not None)
+                total_repaid = sum(float(r.get("repayment_amount") or 0) for r in records if r.get("repayment_amount") is not None)
+                last_repayment = next((r for r in records if r.get("repayment_amount") is not None), None)
+                remaining_balance = last_repayment.get("remaining_principal_amount") if last_repayment and last_repayment.get("remaining_principal_amount") is not None else loan.get("loan_amount", 0)
 
+                # Compose last repayment details for frontend
+                last_repayment_obj = None
+                if last_repayment:
+                    last_repayment_obj = {
+                        "repayment_date": last_repayment.get("repayment_date"),
+                        "repayment_amount": last_repayment.get("repayment_amount"),
+                        "principal_amount": last_repayment.get("principal_amount"),
+                        "interest_amount": last_repayment.get("interest_amount"),
+                        "remaining_principal_amount": last_repayment.get("remaining_principal_amount"),
+                    }
+
+                loan_details["principal_repaid"] = principal_repaid
+                loan_details["interest_repaid"] = interest_repaid
                 loan_details["total_repaid"] = total_repaid
-                loan_details["remaining_balance"] = max(float(loan["loan_amount"]) - total_repaid, 0)
-            else:
-                loan_details["repayment_records"] = []
-                loan_details["total_repaid"] = 0
-                loan_details["remaining_balance"] = max(float(loan["loan_amount"]), 0)
+                loan_details["last_repayment"] = last_repayment_obj
+                loan_details["remaining_balance"] = float(remaining_balance) if remaining_balance is not None else 0.0
 
-            # Add next installment calculation (EMI, capped by remaining)
-            principal = float(loan.get("loan_amount") or 0)
-            months = int(loan.get("loan_term_months") or 0)
-            rate = float(loan.get("interest_rate") or 0)
-            remaining = loan_details["remaining_balance"]
-            monthly_rate = rate / (12 * 100) if months else 0
-            if principal > 0 and months > 0:
-                if monthly_rate > 0:
-                    try:
-                        pow_term = (1 + monthly_rate) ** months
-                        emi = principal * monthly_rate * pow_term / (pow_term - 1)
-                    except Exception:
-                        emi = principal / months
-                else:
-                    emi = principal / months
-            else:
-                emi = 0.0
-            next_installment = min(emi, remaining) if remaining > 0 and emi > 0 else (0.0 if remaining <= 0 else remaining)
-            loan_details["next_installment"] = round(next_installment, 2)
+            # No next_installment calculation; removed as per new requirements.
 
             # NEW: auto-complete status if fully repaid
             try:
-                if loan_details.get("status") == "approved" and loan_details["remaining_balance"] <= 0:
+                if loan_details.get("status") == "approved" and loan_details.get("remaining_balance", 0) <= 0:
                     supabase.table("loans").update({"status": "completed"}).eq("id", loan_details["id"]).execute()
                     loan_details["status"] = "completed"
             except Exception as e:
-                print(f"Auto-complete update failed for loan {loan_details.get('id')}: {e}")
+                pass
 
             # Fetch staff details if available
             if loan.get("staff_email"):
-                staff_resp = supabase.table("staff").select("name,phone,email").eq("email", loan["staff_email"]).execute()
-                if staff_resp.data:
-                    loan_details["staff_details"] = staff_resp.data[0]
-                else:
-                    loan_details["staff_details"] = {
-                        "name": loan.get("staff_name"),
-                        "phone": loan.get("staff_phone"),
-                        "email": loan.get("staff_email")
-                    }
+                staff_resp = supabase.table("staff").select("name,phone,email").eq("email", loan["staff_email"]).limit(1).execute()
+                loan_details["staff"] = staff_resp.data[0] if staff_resp.data else {}
             else:
-                loan_details["staff_details"] = None
+                loan_details["staff"] = {}
 
             # Fetch sureties for this loan
             sureties_resp = supabase.table("sureties").select("*").eq("loan_id", loan["id"]).execute()
@@ -927,7 +876,6 @@ def repay_loan():
                 return 0.0
 
         custom_amount = safe_float(data.get("amount"))
-        # principal_part and interest_part are not stored in DB, only used for UI breakdown
         principal_part = safe_float(data.get("principal_amount"))
         interest_part = safe_float(data.get("interest_amount"))
         repayment_date = data.get("repayment_date") or datetime.now().date().isoformat()
@@ -943,26 +891,24 @@ def repay_loan():
                 return jsonify({"status": "error", "message": "Loan not found"}), 404
         loan = loan_resp.data[0]
 
-        # Fetch summary row from loan_records (see previous fix)
-        loan_records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).execute()
+        # Fetch all previous repayments for this loan
+        loan_records_resp = supabase.table("loan_records").select("*").eq("loan_id", loan.get("loan_id")).order("repayment_date", desc=True).execute()
         loan_records = loan_records_resp.data or []
-        summary = None
-        for rec in loan_records:
-            if rec.get("repayment_amount") is None:
-                summary = rec
-                break
-        if not summary:
-            loan_records_resp2 = supabase.table("loan_records").select("*").eq("loan_id", loan_id).execute()
-            loan_records2 = loan_records_resp2.data or []
-            for rec in loan_records2:
-                if rec.get("repayment_amount") is None:
-                    summary = rec
-                    break
-        if not summary:
-            return jsonify({"status": "error", "message": "Loan summary record not found"}), 404
+        # Find the latest repayment record (with repayment_amount not null)
+        last_repayment = next((rec for rec in loan_records if rec.get("repayment_amount") is not None), None)
+        # Find the latest summary row (if any, for legacy)
+        summary = next((rec for rec in loan_records if rec.get("repayment_amount") is None), None)
 
-        outstanding = safe_float(summary.get("outstanding_balance"))
-        interest_amount = safe_float(summary.get("interest_amount"))
+        # Calculate outstanding and remaining principal
+        if last_repayment and last_repayment.get("remaining_principal_amount") is not None:
+            prev_remaining_principal = float(last_repayment["remaining_principal_amount"])
+        else:
+            # If no repayments yet, use original loan amount
+            prev_remaining_principal = float(loan.get("loan_amount", 0))
+
+        outstanding = prev_remaining_principal
+        # For interest, sum all previous interest_amounts
+        total_interest_paid = sum(float(r.get("interest_amount") or 0) for r in loan_records if r.get("repayment_amount") is not None)
 
         # Don't allow overpayment or zero/negative repayments
         if outstanding <= 0 or custom_amount <= 0:
@@ -972,15 +918,9 @@ def repay_loan():
 
         # If principal/interest split not provided or invalid, calculate proportionally
         if principal_part < 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
-            principal = safe_float(loan.get("loan_amount"))
-            total_interest = safe_float(summary.get("interest_amount"))
-            total_out = principal + total_interest
-            if total_out > 0:
-                principal_part = round(repayment_amount * (principal / total_out), 2)
-                interest_part = round(repayment_amount * (total_interest / total_out), 2)
-            else:
-                principal_part = repayment_amount
-                interest_part = 0.0
+            # Default: all to principal unless interest is due
+            principal_part = repayment_amount
+            interest_part = 0.0
 
         # Ensure no negative splits
         if principal_part < 0:
@@ -989,28 +929,23 @@ def repay_loan():
             interest_part = 0.0
         # Ensure sum matches repayment_amount
         if abs(principal_part + interest_part - repayment_amount) > 0.01:
-            # Adjust interest to match
             interest_part = repayment_amount - principal_part
 
-        new_outstanding = max(outstanding - repayment_amount, 0)
+        new_remaining_principal = max(prev_remaining_principal - principal_part, 0)
 
-        # Insert repayment record (now includes principal_amount column)
+        # Insert repayment record (now includes remaining_principal_amount)
         supabase.table("loan_records").insert({
             "loan_id": loan.get("loan_id"),
             "repayment_date": repayment_date,
             "repayment_amount": repayment_amount,
             "principal_amount": principal_part,
-            "outstanding_balance": new_outstanding,
-            "status": "completed" if new_outstanding == 0 else "active",
+            "outstanding_balance": new_remaining_principal,  # for legacy compatibility
+            "remaining_principal_amount": new_remaining_principal,
+            "status": "completed" if new_remaining_principal == 0 else "active",
             "interest_amount": interest_part
         }).execute()
 
-        supabase.table("loan_records").update({
-            "outstanding_balance": new_outstanding,
-            "interest_amount": max(safe_float(summary.get("interest_amount")) - interest_part, 0)
-        }).eq("id", summary["id"]).execute()
-
-
+        # No summary row update needed; legacy only
 
         # Send repayment email with repayment certificate download URL (no PDF attachment)
         member_email = None
@@ -1057,7 +992,7 @@ def repay_loan():
                 except Exception as e:
                     current_app.logger.error(f"Failed to send repayment certificate email: {e}")
 
-        if new_outstanding == 0 and loan.get("status") == "approved":
+        if new_remaining_principal == 0 and loan.get("status") == "approved":
             supabase.table("loans").update({"status": "completed"}).eq("id", loan["id"]).execute()
 
         # Build repayment certificate URL with action=view for API response
@@ -1078,7 +1013,7 @@ def repay_loan():
             "repayment_amount": repayment_amount,
             "principal_amount": principal_part,  # for UI only
             "interest_amount": interest_part,    # for UI only
-            "outstanding_balance": new_outstanding,
+            "outstanding_balance": new_remaining_principal,
             "certificate_url": certificate_url,
             "repayment_id": repayment_id
         }), 200
@@ -1252,7 +1187,7 @@ def fd_certificate(fdid):
         maturity_amount=maturity_amount,
         maturity_date=maturity_date,
         amount_words=amount_to_words(maturity_amount),
-        society_name="KSTHST Coof Society",
+        society_name="KSTHST Co-Operative Society",
         taluk_name="Taluk",
         district_name="District"
     )

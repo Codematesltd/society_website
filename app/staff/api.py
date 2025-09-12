@@ -51,6 +51,116 @@ def send_otp_email(email, otp):
             server.send_message(msg)
     except smtplib.SMTPException as e:
         raise RuntimeError(f"SMTP error: {e}")
+    
+@staff_api_bp.route('/loan-info', methods=['GET'])
+def loan_info():
+    """
+    Returns loan info for Loan Info Search panel (by loan_id).
+    Adds total_principal_repaid and total_interest_repaid fields.
+    """
+    loan_id = request.args.get('loan_id')
+    if not loan_id:
+        return jsonify({'status': 'error', 'message': 'Missing loan_id'}), 400
+    # Try to fetch by textual loan_id or UUID
+    loan = None
+    # Try by loan_id (text)
+    resp = supabase.table('loans').select('*').eq('loan_id', loan_id).limit(1).execute()
+    if resp.data:
+        loan = resp.data[0]
+    if not loan:
+        # Try by UUID
+        resp2 = supabase.table('loans').select('*').eq('id', loan_id).limit(1).execute()
+        if resp2.data:
+            loan = resp2.data[0]
+    if not loan:
+        return jsonify({'status': 'error', 'message': 'Loan not found'}), 404
+
+    # Fetch member name
+    member_name = None
+    if loan.get('customer_id'):
+        mresp = supabase.table('members').select('name').eq('customer_id', loan['customer_id']).limit(1).execute()
+        if mresp.data:
+            member_name = mresp.data[0].get('name')
+
+
+  
+    
+    # Fetch all repayments for this loan (by loan_id or UUID)
+
+    recs1 = supabase.table('loan_records').select('*').eq('loan_id', loan.get('loan_id')).execute()
+    recs2 = supabase.table('loan_records').select('*').eq('loan_id', loan.get('id')).execute()
+    
+    
+    
+    all_records = []
+    seen = set()
+    for r in (recs1.data or []) + (recs2.data or []):
+        rid = r.get('id')
+        if rid and rid not in seen:
+            all_records.append(r)
+            seen.add(rid)
+    
+    
+    if all_records:
+        print(f"DEBUG: Sample record: {all_records[0]}")
+            
+   
+
+    # Calculate totals (ignore nulls, sum only numeric values)
+    principal_values = []
+    interest_values = []
+    for r in all_records:
+        if r.get('principal_amount') is not None and r.get('repayment_amount') is not None:
+            try:
+                principal_values.append(float(r['principal_amount']))
+            except (ValueError, TypeError) as e:
+                print(f"DEBUG: Error converting principal_amount to float: {r['principal_amount']}, Error: {e}")
+                
+        if r.get('interest_amount') is not None and r.get('repayment_amount') is not None:
+            try:
+                interest_values.append(float(r['interest_amount']))
+            except (ValueError, TypeError) as e:
+                print(f"DEBUG: Error converting interest_amount to float: {r['interest_amount']}, Error: {e}")
+    
+    print(f"DEBUG: Found {len(principal_values)} valid principal amounts: {principal_values}")
+    print(f"DEBUG: Found {len(interest_values)} valid interest amounts: {interest_values}")
+    
+    total_principal_repaid = sum(principal_values) if principal_values else 0.0
+    total_interest_repaid = sum(interest_values) if interest_values else 0.0
+    
+    print(f"DEBUG: Final totals - Principal: {total_principal_repaid}, Interest: {total_interest_repaid}")
+
+    # Outstanding = last remaining_principal_amount, else loan_amount
+    outstanding_amount = loan.get('loan_amount')
+    # Find the latest repayment with a non-null remaining_principal_amount
+    sorted_records = sorted(
+        [r for r in all_records if r.get('repayment_amount') is not None and r.get('remaining_principal_amount') is not None],
+        key=lambda x: x.get('repayment_date') or '',
+        reverse=True
+    )
+    if sorted_records:
+        outstanding_amount = sorted_records[0]['remaining_principal_amount']
+
+    # Next installment amount (legacy, can be removed from frontend)
+    next_installment_amount = None
+    if 'next_installment' in loan:
+        try:
+            next_installment_amount = float(loan['next_installment'])
+        except Exception:
+            next_installment_amount = None
+
+    info = {
+        'name': member_name or '-',
+        'loan_amount': loan.get('loan_amount'),
+        'loan_term_months': loan.get('loan_term_months'),
+        'interest_rate': loan.get('interest_rate'),
+        'outstanding_amount': outstanding_amount,
+        'total_principal_repaid': total_principal_repaid,
+        'total_interest_repaid': total_interest_repaid,
+        # 'next_installment_amount': next_installment_amount,  # No longer needed in frontend
+    }
+    return jsonify({'status': 'success', 'loan_info': info}), 200
+
 
 @staff_api_bp.route('/add-member/send-otp', methods=['POST'])
 def send_member_otp():

@@ -718,32 +718,35 @@ document.addEventListener('DOMContentLoaded', function() {
       const val = loanInfoSearchInput.value.trim();
       loanInfoSearchResult.innerHTML = '';
       if (!val) {
-        loanInfoSearchResult.innerHTML = '<div class="text-red-600">Please enter Loan ID or Customer ID.</div>';
+        loanInfoSearchResult.innerHTML = '<div class="text-red-600">Please enter a Loan ID.</div>';
         return;
       }
       loanInfoSearchResult.innerHTML = '<div class="text-blue-600">Searching...</div>';
-      let url = '/admin/api/loan-info?';
-      // Always treat input as loan_id for this endpoint
-      url += 'loan_id=' + encodeURIComponent(val);
+      let url = '/staff/api/loan-info?loan_id=' + encodeURIComponent(val);
       try {
         const res = await fetch(url);
-        const data = await res.json();
-        if (res.ok && data.status === 'success' && data.loan_info) {
+        let data = null; 
+        try { data = await res.json(); } catch {}
+        if (res.ok && data && data.status === 'success' && data.loan_info) {
           const info = data.loan_info;
+          // Always show 0 if falsy/null/undefined for totals
+          const totalPrincipalRepaid = (typeof info.total_principal_repaid === 'number' && !isNaN(info.total_principal_repaid)) ? info.total_principal_repaid : 0;
+          const totalInterestRepaid = (typeof info.total_interest_repaid === 'number' && !isNaN(info.total_interest_repaid)) ? info.total_interest_repaid : 0;
           loanInfoSearchResult.innerHTML = `
             <div class="bg-gray-50 p-4 rounded shadow">
-              <div><strong>Name:</strong> ${info.name || '-'} </div>
-              <div><strong>Loan Amount:</strong> ₹${info.loan_amount || '-'} </div>
-              <div><strong>Loan Term (months):</strong> ${info.loan_term_months || '-'} </div>
-              <div><strong>Interest Rate:</strong> ${info.interest_rate || '-'}% </div>
-              <div><strong>Next Installment Amount:</strong> ₹${info.next_installment_amount || '-'} </div>
-              <div><strong>Outstanding Amount:</strong> ₹${info.outstanding_amount || '-'} </div>
-            </div>
-          `;
+              <div><strong>Name:</strong> ${info.name ?? '-'} </div>
+              <div><strong>Loan Amount:</strong> ₹${info.loan_amount ?? '-'} </div>
+              <div><strong>Loan Term (months):</strong> ${info.loan_term_months ?? '-'} </div>
+              <div><strong>Interest Rate:</strong> ${info.interest_rate ?? '-'}% </div>
+              <div><strong>Total Principal Repaid:</strong> ₹${totalPrincipalRepaid} </div>
+              <div><strong>Total Interest Repaid:</strong> ₹${totalInterestRepaid} </div>
+              <div><strong>Outstanding Amount:</strong> ₹${info.outstanding_amount ?? '-'} </div>
+            </div>`;
         } else {
-          loanInfoSearchResult.innerHTML = `<div class="text-red-600">${data.message || 'No loan found.'}</div>`;
+          const msg = (data && data.message) ? data.message : 'No loan found.';
+          loanInfoSearchResult.innerHTML = `<div class="text-red-600">${msg}</div>`;
         }
-      } catch (err) {
+      } catch {
         loanInfoSearchResult.innerHTML = '<div class="text-red-600">Network error.</div>';
       }
     });
