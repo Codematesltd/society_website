@@ -41,33 +41,195 @@ def audit_summary_excel():
 
 @admin_api_bp.route('/audit-transactions/excel', methods=['GET'])
 def audit_transactions_excel():
-    # Example: Export all transactions (customize as needed)
-    resp = supabase.table('transactions').select('*').execute()
-    txs = resp.data if hasattr(resp, 'data') and resp.data else []
-    df = pd.DataFrame(txs)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Transactions")
-    output.seek(0)
-    response = make_response(output.read())
-    response.headers["Content-Disposition"] = "attachment; filename=audit_transactions.xlsx"
-    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    return response
+    """
+    Export all transactions data to Excel.
+    """
+    try:
+        resp = supabase.table('transactions').select('*').execute()
+        txs = resp.data if hasattr(resp, 'data') and resp.data else []
+        df = pd.DataFrame(txs)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Transactions")
+        output.seek(0)
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=audit_transactions.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate transactions Excel: {str(e)}'}), 500
+
+@admin_api_bp.route('/audit-loans/excel', methods=['GET'])
+def audit_loans_excel():
+    """
+    Export loans data to Excel with joined information from loans and loan_records tables.
+    Returns: name, customerid, loan_id, loan_amount, interest_amount, principle_amount, remaining_principle_amount
+    """
+    try:
+        # Get all loans with member details
+        loans_resp = supabase.table('loans').select('*').execute()
+        loans = loans_resp.data if hasattr(loans_resp, 'data') and loans_resp.data else []
+        
+        # Get all loan records
+        loan_records_resp = supabase.table('loan_records').select('*').execute()
+        loan_records = loan_records_resp.data if hasattr(loan_records_resp, 'data') and loan_records_resp.data else []
+        
+        # Get all members
+        members_resp = supabase.table('members').select('*').execute()
+        members = members_resp.data if hasattr(members_resp, 'data') and members_resp.data else []
+        
+        # Create lookup dictionaries
+        member_lookup = {member['customer_id']: member for member in members}
+        loan_records_lookup = {}
+        for record in loan_records:
+            loan_id = record.get('loan_id')
+            if loan_id not in loan_records_lookup:
+                loan_records_lookup[loan_id] = record
+        
+        # Build Excel data
+        excel_data = []
+        for loan in loans:
+            customer_id = loan.get('customer_id')
+            loan_id = loan.get('loan_id')
+            member = member_lookup.get(customer_id, {})
+            loan_record = loan_records_lookup.get(loan_id, {})
+            
+            excel_data.append({
+                'Name': member.get('name', ''),
+                'Customer ID': customer_id,
+                'Loan ID': loan_id,
+                'Loan Amount': loan.get('loan_amount', 0),
+                'Interest Amount': loan_record.get('interest_amount', 0),
+                'Principle Amount': loan_record.get('principle_amount', 0),
+                'Remaining Principle Amount': loan_record.get('remaining_principle_amount', 0)
+            })
+        
+        df = pd.DataFrame(excel_data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Loans")
+        output.seek(0)
+        
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=audit_loans.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate loans Excel: {str(e)}'}), 500
 
 @admin_api_bp.route('/audit-expenses/excel', methods=['GET'])
 def audit_expenses_excel():
-    # Example: Export all expenses (customize as needed)
-    resp = supabase.table('expenses').select('*').execute()
-    expenses = resp.data if hasattr(resp, 'data') and resp.data else []
-    df = pd.DataFrame(expenses)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Expenses")
-    output.seek(0)
-    response = make_response(output.read())
-    response.headers["Content-Disposition"] = "attachment; filename=audit_expenses.xlsx"
-    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    return response
+    """
+    Export all expenses data to Excel.
+    """
+    try:
+        resp = supabase.table('expenses').select('*').execute()
+        expenses = resp.data if hasattr(resp, 'data') and resp.data else []
+        df = pd.DataFrame(expenses)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Expenses")
+        output.seek(0)
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=audit_expenses.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate expenses Excel: {str(e)}'}), 500
+
+@admin_api_bp.route('/audit-salaries/excel', methods=['GET'])
+def audit_salaries_excel():
+    """
+    Export all staff salaries data to Excel.
+    """
+    try:
+        resp = supabase.table('staff_salaries').select('*').execute()
+        salaries = resp.data if hasattr(resp, 'data') and resp.data else []
+        df = pd.DataFrame(salaries)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Salaries")
+        output.seek(0)
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=audit_salaries.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate salaries Excel: {str(e)}'}), 500
+
+@admin_api_bp.route('/share-amount-summary', methods=['GET'])
+def share_amount_summary():
+    """
+    Share amount summary: total share amounts and member breakdown.
+    Returns: { status, total_share_amount, member_count, members: [{ name, customer_id, share_amount }] }
+    """
+    try:
+        # Fetch all members with share amounts
+        resp = supabase.table('members') \
+            .select('name,customer_id,share_amount') \
+            .execute()
+        members = resp.data if hasattr(resp, 'data') and resp.data else []
+        
+        total_share_amount = 0.0
+        member_count = 0
+        member_details = []
+        
+        for member in members:
+            share_amount = float(member.get('share_amount') or 0)
+            if share_amount > 0:  # Only include members with share amounts
+                total_share_amount += share_amount
+                member_count += 1
+                member_details.append({
+                    'name': member.get('name'),
+                    'customer_id': member.get('customer_id'),
+                    'share_amount': round(share_amount, 2)
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'total_share_amount': round(total_share_amount, 2),
+            'member_count': member_count,
+            'members': member_details
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_api_bp.route('/share-amount/excel', methods=['GET'])
+def share_amount_excel():
+    """
+    Export share amount data to Excel with Name, Customer ID, and Share Amount.
+    """
+    try:
+        # Fetch members with share amounts
+        resp = supabase.table('members') \
+            .select('name,customer_id,share_amount') \
+            .execute()
+        members = resp.data if hasattr(resp, 'data') and resp.data else []
+        
+        # Filter and format data for Excel
+        excel_data = []
+        for member in members:
+            share_amount = float(member.get('share_amount') or 0)
+            if share_amount > 0:  # Only include members with share amounts
+                excel_data.append({
+                    'Name': member.get('name') or '',
+                    'Customer ID': member.get('customer_id') or '',
+                    'Share Amount': share_amount
+                })
+        
+        df = pd.DataFrame(excel_data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Share Amounts")
+        output.seek(0)
+        
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=share_amounts.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @admin_api_bp.route('/loan-info', methods=['GET'])
@@ -473,44 +635,43 @@ def expenses_monthly_summary():
 @admin_api_bp.route('/total-amount-summary', methods=['GET'])
 def total_amount_summary():
     """
-    Overall totals: total user balance (members.balance) + interest earned from loan_records.
-    Returns: { status, total_balance, total_interest_earned, total_amount }
+    Overall totals: total user balance (members.balance) + share_amount (members.share_amount) + interest earned from loan_records.interest_amount.
+    Returns: { status, total_balance, total_share_amount, total_interest_earned, total_amount }
     """
     try:
-        # Sum balances from members
-        mresp = supabase.table('members').select('balance').execute()
-        balances = mresp.data if hasattr(mresp, 'data') and mresp.data else []
+        # Sum balances and share amounts from members
+        mresp = supabase.table('members').select('balance,share_amount').execute()
+        members_data = mresp.data if hasattr(mresp, 'data') and mresp.data else []
         total_balance = 0.0
-        for row in balances:
+        total_share_amount = 0.0
+        for row in members_data:
             try:
                 total_balance += float(row.get('balance') or 0)
+                total_share_amount += float(row.get('share_amount') or 0)
             except Exception:
                 continue
 
-        # Sum interest from loan_records; support different column names
-        # Select all columns to avoid errors if specific fields don't exist in the schema
-        lresp = supabase.table('loan_records').select('*').execute()
+        # Sum interest from loan_records using interest_amount column specifically
+        lresp = supabase.table('loan_records').select('interest_amount').execute()
         lrows = lresp.data if hasattr(lresp, 'data') and lresp.data else []
         total_interest = 0.0
         for r in lrows:
-            val = None
-            for key in ('interest', 'interest_amount', 'interest_paid'):
-                if r.get(key) is not None:
-                    try:
-                        val = float(r.get(key) or 0)
-                    except Exception:
-                        val = 0.0
-                    break
-            if val is None:
+            try:
+                interest_val = float(r.get('interest_amount') or 0)
+                if interest_val > 0:
+                    total_interest += interest_val
+            except Exception:
                 continue
-            if val > 0:
-                total_interest += val
+
+        # Total amount includes balance + share amount + interest earned
+        total_amount = total_balance + total_share_amount + total_interest
 
         return jsonify({
             'status': 'success',
             'total_balance': round(total_balance, 2),
+            'total_share_amount': round(total_share_amount, 2),
             'total_interest_earned': round(total_interest, 2),
-            'total_amount': round(total_balance + total_interest, 2)
+            'total_amount': round(total_amount, 2)
         }), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -970,5 +1131,182 @@ def recent_transactions():
         }), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_api_bp.route('/recent-transactions/excel', methods=['GET'])
+def recent_transactions_excel():
+    """
+    Export recent transactions as Excel (.xlsx) for admin.
+    Aggregates data from transactions, loans, loan_records, expenses, and staff_salaries tables.
+    Query params: year, month, day (all optional)
+    Returns: Excel file with all transaction types
+    """
+    try:
+        now = datetime.utcnow()
+        year = int(request.args.get('year', now.year))
+        month = request.args.get('month')
+        day = request.args.get('day')
+
+        if month is not None:
+            month = int(month)
+            if month < 1 or month > 12:
+                return jsonify({'status': 'error', 'message': 'month must be 1-12'}), 400
+        if day is not None:
+            day = int(day)
+            if day < 1 or day > 31:
+                return jsonify({'status': 'error', 'message': 'day must be 1-31'}), 400
+
+        # Determine start/end range [start, end)
+        if day is not None and month is not None:
+            try:
+                start_dt = datetime(year, month, day)
+            except ValueError:
+                return jsonify({'status': 'error', 'message': 'Invalid day for the given month'}), 400
+            end_dt = start_dt + timedelta(days=1)
+        elif month is not None:
+            start_dt = datetime(year, month, 1)
+            end_dt = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+        else:
+            start_dt = datetime(year, 1, 1)
+            end_dt = datetime(year + 1, 1, 1)
+
+        start_str = start_dt.strftime('%Y-%m-%d')
+        end_str = end_dt.strftime('%Y-%m-%d')
+
+        excel_data = []
+
+        # 1) Deposits & Withdrawals from transactions
+        try:
+            tx_resp = supabase.table('transactions') \
+                .select('type,amount,date,customer_id,transaction_id') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            txs = tx_resp.data if hasattr(tx_resp, 'data') and tx_resp.data else []
+            for tx in txs:
+                ttype = str(tx.get('type') or '').lower()
+                if ttype not in ('deposit', 'withdraw', 'withdrawal'):
+                    continue
+                label = 'Deposit' if ttype == 'deposit' else 'Withdrawal'
+                try:
+                    amt = float(tx.get('amount') or 0)
+                except Exception:
+                    amt = 0.0
+                excel_data.append({
+                    'Date': str(tx.get('date') or ''),
+                    'Type': label,
+                    'Amount': round(amt, 2),
+                    'Details': f"Customer: {tx.get('customer_id') or '-'}",
+                    'Reference ID': tx.get('transaction_id')
+                })
+        except Exception:
+            pass
+
+        # 2) Loan approvals from loans
+        try:
+            loan_resp = supabase.table('loans') \
+                .select('loan_id,customer_id,loan_amount,status,created_at') \
+                .gte('created_at', start_str).lt('created_at', end_str).execute()
+            loans = loan_resp.data if hasattr(loan_resp, 'data') and loan_resp.data else []
+            for ln in loans:
+                status = str(ln.get('status') or '').lower()
+                if status == 'approved':
+                    try:
+                        amt = float(ln.get('loan_amount') or 0)
+                    except Exception:
+                        amt = 0.0
+                    excel_data.append({
+                        'Date': str(ln.get('created_at') or ''),
+                        'Type': 'Loan Approved',
+                        'Amount': round(amt, 2),
+                        'Details': f"Customer: {ln.get('customer_id') or '-'}",
+                        'Reference ID': ln.get('loan_id')
+                    })
+        except Exception:
+            pass
+
+        # 3) Loan repayments from loan_records
+        try:
+            rec_resp = supabase.table('loan_records') \
+                .select('loan_id,repayment_amount,repayment_date') \
+                .gte('repayment_date', start_str).lt('repayment_date', end_str).execute()
+            recs = rec_resp.data if hasattr(rec_resp, 'data') and rec_resp.data else []
+            for r in recs:
+                try:
+                    amt = float(r.get('repayment_amount') or 0)
+                except Exception:
+                    amt = 0.0
+                if amt <= 0:
+                    continue
+                excel_data.append({
+                    'Date': str(r.get('repayment_date') or ''),
+                    'Type': 'Loan Repayment',
+                    'Amount': round(amt, 2),
+                    'Details': f"Loan: {r.get('loan_id') or '-'}",
+                    'Reference ID': r.get('loan_id')
+                })
+        except Exception:
+            pass
+
+        # 4) Expenses
+        try:
+            exp_resp = supabase.table('expenses') \
+                .select('id,amount,date,name') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            exps = exp_resp.data if hasattr(exp_resp, 'data') and exp_resp.data else []
+            for e in exps:
+                try:
+                    amt = float(e.get('amount') or 0)
+                except Exception:
+                    amt = 0.0
+                excel_data.append({
+                    'Date': str(e.get('date') or ''),
+                    'Type': 'Expense',
+                    'Amount': round(amt, 2),
+                    'Details': e.get('name') or 'Expense',
+                    'Reference ID': e.get('id')
+                })
+        except Exception:
+            pass
+
+        # 5) Staff salaries
+        try:
+            sal_resp = supabase.table('staff_salaries') \
+                .select('name,kgid,salary,date,transaction_id') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            rows = sal_resp.data if hasattr(sal_resp, 'data') and sal_resp.data else []
+            for s in rows:
+                try:
+                    amt = float(s.get('salary') or 0)
+                except Exception:
+                    amt = 0.0
+                who = s.get('name') or s.get('kgid') or 'Staff'
+                excel_data.append({
+                    'Date': str(s.get('date') or ''),
+                    'Type': 'Staff Salary',
+                    'Amount': round(amt, 2),
+                    'Details': str(who),
+                    'Reference ID': s.get('transaction_id')
+                })
+        except Exception:
+            pass
+
+        # Sort by date descending
+        excel_data.sort(key=lambda x: str(x.get('Date') or ''), reverse=True)
+
+        if not excel_data:
+            return jsonify({'status': 'error', 'message': 'No transactions found for the specified period'}), 404
+
+        # Create DataFrame and Excel file
+        df = pd.DataFrame(excel_data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Recent Transactions")
+        output.seek(0)
+        
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=recent_transactions_complete.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate Excel: {str(e)}'}), 500
 
 

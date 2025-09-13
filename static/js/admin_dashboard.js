@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (ySel && ySel.value) qs.set('year', ySel.value);
       if (mSel && mSel.value) qs.set('month', mSel.value);
       if (dSel && dSel.value) qs.set('day', dSel.value);
-      const url = `/staff/api/admin/recent-transactions/excel${qs.toString() ? ('?' + qs.toString()) : ''}`;
+      const url = `/admin/api/recent-transactions/excel${qs.toString() ? ('?' + qs.toString()) : ''}`;
       window.open(url, '_blank');
     });
   }

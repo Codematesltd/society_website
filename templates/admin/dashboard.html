@@ -1,6 +1,6 @@
 {% extends 'admin/base.html' %}
 
-{% block title %}Admin Dashboard - Chit Fund Management{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
 
 {% block header %}{% endblock %}
 
@@ -255,7 +255,7 @@
           <div class="flex items-center gap-4">
             <h2 class="text-2xl font-bold text-blue-700">Audit</h2>
             <div class="hidden md:flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100">
-              <div class="text-sm text-blue-700">Total (Balance + Interest)</div>
+              <div class="text-sm text-blue-700">Total (Balance + Interest + Share Amount)</div>
               <div id="auditTotalAmount" class="text-xl font-bold text-blue-800">₹0</div>
             </div>
           </div>
@@ -264,14 +264,18 @@
             <button id="auditTabTransactions" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Transactions</button>
             <button id="auditTabSalaries" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Salaries</button>
             <button id="auditTabExpenses" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Expenses</button>
+            <button id="auditTabShareAmount" class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700">Share Amount</button>
           </div>
         </div>
 
         <!-- Loans (Yearly) Panel -->
         <div id="loanAuditPanel">
-          <div class="flex items-center gap-2 mb-4">
-            <label for="loanAuditYear" class="text-sm text-gray-600">Year</label>
-            <select id="loanAuditYear" class="px-3 py-1 border rounded-lg"></select>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <label for="loanAuditYear" class="text-sm text-gray-600">Year</label>
+              <select id="loanAuditYear" class="px-3 py-1 border rounded-lg"></select>
+            </div>
+            <button id="loansDownloadBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow">Download Excel</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div class="p-5 rounded-xl bg-indigo-50 border border-indigo-100 shadow">
@@ -290,11 +294,14 @@
 
         <!-- Transactions (Monthly) Panel -->
         <div id="txnAuditPanel" class="hidden">
-          <div class="flex items-center gap-3 mb-4">
-            <label for="txnAuditYear" class="text-sm text-gray-600">Year</label>
-            <select id="txnAuditYear" class="px-3 py-1 border rounded-lg"></select>
-            <label for="txnAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
-            <select id="txnAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <label for="txnAuditYear" class="text-sm text-gray-600">Year</label>
+              <select id="txnAuditYear" class="px-3 py-1 border rounded-lg"></select>
+              <label for="txnAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
+              <select id="txnAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+            </div>
+            <button id="transactionsDownloadBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow">Download Excel</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div class="p-5 rounded-xl bg-green-50 border border-green-100 shadow">
@@ -313,9 +320,12 @@
 
         <!-- Salaries (Yearly) Panel -->
         <div id="salaryAuditPanel" class="hidden">
-          <div class="flex items-center gap-2 mb-4">
-            <label for="salaryAuditYear" class="text-sm text-gray-600">Year</label>
-            <select id="salaryAuditYear" class="px-3 py-1 border rounded-lg"></select>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <label for="salaryAuditYear" class="text-sm text-gray-600">Year</label>
+              <select id="salaryAuditYear" class="px-3 py-1 border rounded-lg"></select>
+            </div>
+            <button id="salariesDownloadBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow">Download Excel</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div class="p-5 rounded-xl bg-amber-50 border border-amber-100 shadow">
@@ -334,11 +344,14 @@
 
         <!-- Expenses (Monthly) Panel -->
         <div id="expensesAuditPanel" class="hidden">
-          <div class="flex items-center gap-3 mb-4">
-            <label for="expensesAuditYear" class="text-sm text-gray-600">Year</label>
-            <select id="expensesAuditYear" class="px-3 py-1 border rounded-lg"></select>
-            <label for="expensesAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
-            <select id="expensesAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <label for="expensesAuditYear" class="text-sm text-gray-600">Year</label>
+              <select id="expensesAuditYear" class="px-3 py-1 border rounded-lg"></select>
+              <label for="expensesAuditMonth" class="text-sm text-gray-600 ml-2">Month</label>
+              <select id="expensesAuditMonth" class="px-3 py-1 border rounded-lg"></select>
+            </div>
+            <button id="expensesDownloadBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow">Download Excel</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div class="p-5 rounded-xl bg-yellow-50 border border-yellow-100 shadow">
@@ -352,6 +365,49 @@
           </div>
           <div class="bg-white rounded-xl border p-4 h-[320px]">
             <canvas id="expensesAuditChart" height="280"></canvas>
+          </div>
+        </div>
+
+        <!-- Share Amount Panel -->
+        <div id="shareAmountAuditPanel" class="hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Share Amount Distribution</h3>
+            <button id="shareAmountDownloadBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow">Download Excel</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="p-5 rounded-xl bg-purple-50 border border-purple-100 shadow">
+              <div class="text-sm text-purple-700">Total Share Amount</div>
+              <div id="auditTotalShareAmount" class="text-3xl font-bold text-purple-800 mt-1">₹0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-purple-50 border border-purple-100 shadow">
+              <div class="text-sm text-purple-700">Total Members</div>
+              <div id="auditShareMemberCount" class="text-3xl font-bold text-purple-800 mt-1">0</div>
+            </div>
+            <div class="p-5 rounded-xl bg-purple-50 border border-purple-100 shadow">
+              <div class="text-sm text-purple-700">Average per Member</div>
+              <div id="auditAvgShareAmount" class="text-3xl font-bold text-purple-800 mt-1">₹0</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-md font-semibold text-gray-700">Member Share Details</h4>
+            </div>
+            <div class="overflow-x-auto max-h-80">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Share Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="shareAmountTableBody" class="bg-white divide-y divide-gray-200">
+                  <tr>
+                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -1090,6 +1146,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let txnAuditChartInstance = null;
   let salaryAuditChartInstance = null;
   let expensesAuditChartInstance = null;
+  let shareAmountChartInstance = null;
   async function loadTotalAmount() {
     const el = document.getElementById('auditTotalAmount');
     if (!el) return;
@@ -1099,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const data = await res.json();
       if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
       el.textContent = `₹${Number(data.total_amount || 0).toLocaleString()}`;
-      el.title = `Balance: ₹${Number(data.total_balance||0).toLocaleString()} + Interest: ₹${Number(data.total_interest_earned||0).toLocaleString()}`;
+      el.title = `Balance: ₹${Number(data.total_balance||0).toLocaleString()} + Share Amount: ₹${Number(data.total_share_amount||0).toLocaleString()} + Interest: ₹${Number(data.total_interest_earned||0).toLocaleString()}`;
     } catch (e) {
       el.textContent = '—';
       console.error('Total amount load failed:', e);
@@ -1337,6 +1394,52 @@ document.addEventListener('DOMContentLoaded', function() {
       totalEl.textContent = '—'; avgEl.textContent = '—'; console.error('Expenses audit load failed:', e);
     }
   }
+
+  async function loadShareAmountAudit() {
+    const totalEl = document.getElementById('auditTotalShareAmount');
+    const countEl = document.getElementById('auditShareMemberCount');
+    const avgEl = document.getElementById('auditAvgShareAmount');
+    const tableBody = document.getElementById('shareAmountTableBody');
+    
+    if (!totalEl || !countEl || !avgEl || !tableBody) return;
+    
+    totalEl.textContent = 'Loading...';
+    countEl.textContent = 'Loading...';
+    avgEl.textContent = 'Loading...';
+    tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Loading...</td></tr>';
+    
+    try {
+      const res = await fetch('/admin/api/share-amount-summary');
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load');
+      
+      totalEl.textContent = `₹${Number(data.total_share_amount || 0).toLocaleString()}`;
+      countEl.textContent = Number(data.member_count || 0).toLocaleString();
+      const avgAmount = data.member_count > 0 ? (data.total_share_amount / data.member_count) : 0;
+      avgEl.textContent = `₹${Number(avgAmount).toLocaleString()}`;
+      
+      // Populate table
+      const members = data.members || [];
+      if (members.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No share amounts found</td></tr>';
+      } else {
+        tableBody.innerHTML = members.map(member => `
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${member.name || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${member.customer_id || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-600">₹${Number(member.share_amount || 0).toLocaleString()}</td>
+          </tr>
+        `).join('');
+      }
+    } catch (e) {
+      totalEl.textContent = '—';
+      countEl.textContent = '—';
+      avgEl.textContent = '—';
+      tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-red-500">Error loading data</td></tr>';
+      console.error('Share amount audit load failed:', e);
+    }
+  }
+
   // Initialize Audit controls and handlers
   populateLoanAuditYears();
   populateTxnAuditSelectors();
@@ -1367,18 +1470,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const tabTxns = document.getElementById('auditTabTransactions');
   const tabSalaries = document.getElementById('auditTabSalaries');
   const tabExpenses = document.getElementById('auditTabExpenses');
+  const tabShareAmount = document.getElementById('auditTabShareAmount');
   const loanPanel = document.getElementById('loanAuditPanel');
   const txnPanel = document.getElementById('txnAuditPanel');
   const salaryPanel = document.getElementById('salaryAuditPanel');
   const expensesPanel = document.getElementById('expensesAuditPanel');
+  const shareAmountPanel = document.getElementById('shareAmountAuditPanel');
   function showLoanTab() {
     loanPanel.classList.remove('hidden');
     txnPanel.classList.add('hidden');
     salaryPanel.classList.add('hidden');
     expensesPanel.classList.add('hidden');
+    shareAmountPanel.classList.add('hidden');
     tabLoans.classList.remove('bg-gray-100','text-gray-700');
     tabLoans.classList.add('bg-blue-600','text-white');
-    [tabTxns, tabSalaries, tabExpenses].forEach(b => { 
+    [tabTxns, tabSalaries, tabExpenses, tabShareAmount].forEach(b => { 
       b.classList.remove('bg-blue-600','text-white'); 
       b.classList.add('bg-gray-100','text-gray-700'); 
     });
@@ -1392,8 +1498,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loanPanel.classList.add('hidden');
     salaryPanel.classList.add('hidden');
     expensesPanel.classList.add('hidden');
+    shareAmountPanel.classList.add('hidden');
     tabTxns.classList.remove('bg-gray-100','text-gray-700'); tabTxns.classList.add('bg-blue-600','text-white');
-    [tabLoans, tabSalaries, tabExpenses].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
+    [tabLoans, tabSalaries, tabExpenses, tabShareAmount].forEach(b => { b.classList.remove('bg-blue-600','text-white'); b.classList.add('bg-gray-100','text-gray-700'); });
     loadTxnAudit(txnYearSel ? txnYearSel.value : undefined, txnMonthSel ? txnMonthSel.value : undefined);
   }
   function showSalaryTab() {
@@ -1401,8 +1508,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loanPanel.classList.add('hidden');
     txnPanel.classList.add('hidden');
     expensesPanel.classList.add('hidden');
+    shareAmountPanel.classList.add('hidden');
     tabSalaries.classList.remove('bg-gray-100','text-gray-700'); tabSalaries.classList.add('bg-blue-600','text-white');
-    [tabLoans, tabTxns, tabExpenses].forEach(b => { 
+    [tabLoans, tabTxns, tabExpenses, tabShareAmount].forEach(b => { 
       b.classList.remove('bg-blue-600','text-white'); 
       b.classList.add('bg-gray-100','text-gray-700'); 
     });
@@ -1415,8 +1523,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loanPanel.classList.add('hidden');
     txnPanel.classList.add('hidden');
     salaryPanel.classList.add('hidden');
+    shareAmountPanel.classList.add('hidden');
     tabExpenses.classList.remove('bg-gray-100','text-gray-700'); tabExpenses.classList.add('bg-blue-600','text-white');
-    [tabLoans, tabTxns, tabSalaries].forEach(b => { 
+    [tabLoans, tabTxns, tabSalaries, tabShareAmount].forEach(b => { 
       b.classList.remove('bg-blue-600','text-white'); 
       b.classList.add('bg-gray-100','text-gray-700'); 
     });
@@ -1424,10 +1533,146 @@ document.addEventListener('DOMContentLoaded', function() {
       loadExpensesAudit(expensesYearSel?.value, expensesMonthSel?.value);
     }, 100);
   }
+  function showShareAmountTab() {
+    shareAmountPanel.classList.remove('hidden');
+    loanPanel.classList.add('hidden');
+    txnPanel.classList.add('hidden');
+    salaryPanel.classList.add('hidden');
+    expensesPanel.classList.add('hidden');
+    tabShareAmount.classList.remove('bg-gray-100','text-gray-700'); tabShareAmount.classList.add('bg-blue-600','text-white');
+    [tabLoans, tabTxns, tabSalaries, tabExpenses].forEach(b => { 
+      b.classList.remove('bg-blue-600','text-white'); 
+      b.classList.add('bg-gray-100','text-gray-700'); 
+    });
+    setTimeout(() => {
+      loadShareAmountAudit();
+    }, 100);
+  }
   if (tabLoans) tabLoans.addEventListener('click', showLoanTab);
   if (tabTxns) tabTxns.addEventListener('click', showTxnTab);
   if (tabSalaries) tabSalaries.addEventListener('click', showSalaryTab);
   if (tabExpenses) tabExpenses.addEventListener('click', showExpensesTab);
+  if (tabShareAmount) tabShareAmount.addEventListener('click', showShareAmountTab);
+
+  // Excel Download for Share Amount
+  const shareAmountDownloadBtn = document.getElementById('shareAmountDownloadBtn');
+  if (shareAmountDownloadBtn) {
+    shareAmountDownloadBtn.addEventListener('click', async function() {
+      try {
+        const response = await fetch('/admin/api/share-amount/excel');
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'share_amounts.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Excel download failed:', error);
+        alert('Failed to download Excel file');
+      }
+    });
+  }
+
+  // Excel Download for Loans
+  const loansDownloadBtn = document.getElementById('loansDownloadBtn');
+  if (loansDownloadBtn) {
+    loansDownloadBtn.addEventListener('click', async function() {
+      try {
+        const response = await fetch('/admin/api/audit-loans/excel');
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit_loans.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Excel download failed:', error);
+        alert('Failed to download Excel file');
+      }
+    });
+  }
+
+  // Excel Download for Transactions
+  const transactionsDownloadBtn = document.getElementById('transactionsDownloadBtn');
+  if (transactionsDownloadBtn) {
+    transactionsDownloadBtn.addEventListener('click', async function() {
+      try {
+        const response = await fetch('/admin/api/audit-transactions/excel');
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit_transactions.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Excel download failed:', error);
+        alert('Failed to download Excel file');
+      }
+    });
+  }
+
+  // Excel Download for Expenses
+  const expensesDownloadBtn = document.getElementById('expensesDownloadBtn');
+  if (expensesDownloadBtn) {
+    expensesDownloadBtn.addEventListener('click', async function() {
+      try {
+        const response = await fetch('/admin/api/audit-expenses/excel');
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit_expenses.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Excel download failed:', error);
+        alert('Failed to download Excel file');
+      }
+    });
+  }
+
+  // Excel Download for Salaries
+  const salariesDownloadBtn = document.getElementById('salariesDownloadBtn');
+  if (salariesDownloadBtn) {
+    salariesDownloadBtn.addEventListener('click', async function() {
+      try {
+        const response = await fetch('/admin/api/audit-salaries/excel');
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit_salaries.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Excel download failed:', error);
+        alert('Failed to download Excel file');
+      }
+    });
+  }
 
   // Initialize with loans tab active and load initial data
   setTimeout(() => {
