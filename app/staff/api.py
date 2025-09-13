@@ -22,6 +22,36 @@ staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
 @login_required
 @role_required('admin', 'staff')
 def export_recent_transactions_excel():
+    # 6) Fixed Deposits (FDs)
+    try:
+        fd_resp = supabase.table('fixed_deposits') \
+            .select('customer_id,amount,deposit_date,tenure,status,fdid,closed_at,payout_amount,withdrawal_id') \
+            .gte('deposit_date', start_str).lt('deposit_date', end_str).execute()
+        fds = fd_resp.data if hasattr(fd_resp, 'data') and fd_resp.data else []
+        for fd in fds:
+            try:
+                amt = float(fd.get('amount') or 0)
+            except Exception:
+                amt = 0.0
+            excel_data.append({
+                'Date': str(fd.get('deposit_date') or ''),
+                'Type': 'FD Opened',
+                'Amount': round(amt, 2),
+                'Details': f"Customer: {fd.get('customer_id') or '-'}, Tenure: {fd.get('tenure') or '-'} months",
+                'Reference ID': fd.get('fdid')
+            })
+            # If closed, add FD Closed event
+            if fd.get('closed_at'):
+                payout = float(fd.get('payout_amount') or 0)
+                excel_data.append({
+                    'Date': str(fd.get('closed_at') or ''),
+                    'Type': 'FD Closed',
+                    'Amount': round(payout, 2),
+                    'Details': f"Customer: {fd.get('customer_id') or '-'}, FDID: {fd.get('fdid') or '-'}",
+                    'Reference ID': fd.get('withdrawal_id') or fd.get('fdid')
+                })
+    except Exception:
+        pass
     """
     Export recent transactions as Excel (.xlsx) for staff.
     Aggregates data from transactions, loans, loan_records, expenses, and staff_salaries tables.
@@ -193,6 +223,237 @@ def export_recent_transactions_excel():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to generate Excel: {str(e)}'}), 500
 staff_bp = Blueprint('staff', __name__, url_prefix='/staff')
+
+
+# Place after imports and Blueprint definition
+import os
+import uuid
+import re
+import pandas as pd
+import random
+from flask import Blueprint, request, jsonify, render_template, make_response, abort, session, url_for, redirect, current_app
+from app.auth.decorators import login_required, role_required
+from werkzeug.utils import secure_filename
+from io import BytesIO
+from supabase import create_client, Client
+from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+from PIL import Image
+from datetime import datetime, timedelta
+from xhtml2pdf import pisa
+import inflect
+from httpx import RemoteProtocolError
+
+staff_api_bp = Blueprint('staff_api', __name__, url_prefix='/staff/api')
+
+@staff_api_bp.route('/recent-transactions', methods=['GET'])
+@login_required
+@role_required('admin', 'staff')
+def recent_transactions():
+    """
+    Aggregate recent transactions across multiple sources for a given date.
+    Query params (optional):
+      - year (defaults to current UTC year)
+      - month (defaults to current UTC month)
+      - day (defaults to current UTC day)
+    If only year provided -> whole year; if year+month -> whole month; if all -> that specific day.
+
+    Returns: { status, range: {start, end}, events: [ { type, amount, date, details, ref_id } ] }
+    """
+    try:
+        now = datetime.utcnow()
+        year = int(request.args.get('year', now.year))
+        month = request.args.get('month')
+        day = request.args.get('day')
+
+        if month is not None:
+            month = int(month)
+            if month < 1 or month > 12:
+                return jsonify({'status': 'error', 'message': 'month must be 1-12'}), 400
+        if day is not None:
+            day = int(day)
+            if day < 1 or day > 31:
+                return jsonify({'status': 'error', 'message': 'day must be 1-31'}), 400
+
+        # Determine start/end range [start, end)
+        if day is not None and month is not None:
+            try:
+                start_dt = datetime(year, month, day)
+            except ValueError:
+                return jsonify({'status': 'error', 'message': 'Invalid day for the given month'}), 400
+            end_dt = start_dt + timedelta(days=1)
+        elif month is not None:
+            start_dt = datetime(year, month, 1)
+            end_dt = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+        else:
+            start_dt = datetime(year, 1, 1)
+            end_dt = datetime(year + 1, 1, 1)
+
+        start_str = start_dt.strftime('%Y-%m-%d')
+        end_str = end_dt.strftime('%Y-%m-%d')
+
+        events = []
+
+        # 1) Deposits & Withdrawals from transactions
+        try:
+            tx_resp = supabase.table('transactions') \
+                .select('type,amount,date,customer_id,transaction_id') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            txs = tx_resp.data if hasattr(tx_resp, 'data') and tx_resp.data else []
+            for tx in txs:
+                ttype = str(tx.get('type') or '').lower()
+                if ttype not in ('deposit', 'withdraw', 'withdrawal'):
+                    continue
+                label = 'Deposit' if ttype == 'deposit' else 'Withdrawal'
+                try:
+                    amt = float(tx.get('amount') or 0)
+                except Exception:
+                    amt = 0.0
+                events.append({
+                    'type': label,
+                    'amount': round(amt, 2),
+                    'date': str(tx.get('date') or ''),
+                    'details': f"Customer: {tx.get('customer_id') or '-'}",
+                    'ref_id': tx.get('transaction_id')
+                })
+        except Exception:
+            pass
+
+        # 2) Loan approvals from loans
+        try:
+            loan_resp = supabase.table('loans') \
+                .select('loan_id,customer_id,loan_amount,status,created_at') \
+                .gte('created_at', start_str).lt('created_at', end_str).execute()
+            loans = loan_resp.data if hasattr(loan_resp, 'data') and loan_resp.data else []
+            for ln in loans:
+                status = str(ln.get('status') or '').lower()
+                if status == 'approved':
+                    try:
+                        amt = float(ln.get('loan_amount') or 0)
+                    except Exception:
+                        amt = 0.0
+                    events.append({
+                        'type': 'Loan Approved',
+                        'amount': round(amt, 2),
+                        'date': str(ln.get('created_at') or ''),
+                        'details': f"Customer: {ln.get('customer_id') or '-'}",
+                        'ref_id': ln.get('loan_id')
+                    })
+        except Exception:
+            pass
+
+        # 3) Loan repayments from loan_records
+        try:
+            rec_resp = supabase.table('loan_records') \
+                .select('loan_id,repayment_amount,repayment_date') \
+                .gte('repayment_date', start_str).lt('repayment_date', end_str).execute()
+            recs = rec_resp.data if hasattr(rec_resp, 'data') and rec_resp.data else []
+            for r in recs:
+                try:
+                    amt = float(r.get('repayment_amount') or 0)
+                except Exception:
+                    amt = 0.0
+                if amt <= 0:
+                    continue
+                events.append({
+                    'type': 'Loan Repayment',
+                    'amount': round(amt, 2),
+                    'date': str(r.get('repayment_date') or ''),
+                    'details': f"Loan: {r.get('loan_id') or '-'}",
+                    'ref_id': r.get('loan_id')
+                })
+        except Exception:
+            pass
+
+        # 4) Expenses
+        try:
+            exp_resp = supabase.table('expenses') \
+                .select('id,amount,date,name') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            exps = exp_resp.data if hasattr(exp_resp, 'data') and exp_resp.data else []
+            for e in exps:
+                try:
+                    amt = float(e.get('amount') or 0)
+                except Exception:
+                    amt = 0.0
+                events.append({
+                    'type': 'Expense',
+                    'amount': round(amt, 2),
+                    'date': str(e.get('date') or ''),
+                    'details': e.get('name') or 'Expense',
+                    'ref_id': e.get('id')
+                })
+        except Exception:
+            pass
+
+        # 5) Staff salaries
+        try:
+            sal_resp = supabase.table('staff_salaries') \
+                .select('name,kgid,salary,date,transaction_id') \
+                .gte('date', start_str).lt('date', end_str).execute()
+            rows = sal_resp.data if hasattr(sal_resp, 'data') and sal_resp.data else []
+            for s in rows:
+                try:
+                    amt = float(s.get('salary') or 0)
+                except Exception:
+                    amt = 0.0
+                who = s.get('name') or s.get('kgid') or 'Staff'
+                events.append({
+                    'type': 'Staff Salary',
+                    'amount': round(amt, 2),
+                    'date': str(s.get('date') or ''),
+                    'details': str(who),
+                    'ref_id': s.get('transaction_id')
+                })
+        except Exception:
+            pass
+
+        # 6) Fixed Deposits (FDs)
+        try:
+            fd_resp = supabase.table('fixed_deposits') \
+                .select('customer_id,amount,deposit_date,tenure,status,fdid,closed_at,payout_amount,withdrawal_id') \
+                .gte('deposit_date', start_str).lt('deposit_date', end_str).execute()
+            fds = fd_resp.data if hasattr(fd_resp, 'data') and fd_resp.data else []
+            for fd in fds:
+                try:
+                    amt = float(fd.get('amount') or 0)
+                except Exception:
+                    amt = 0.0
+                events.append({
+                    'type': 'FD Opened',
+                    'amount': round(amt, 2),
+                    'date': str(fd.get('deposit_date') or ''),
+                    'details': f"Customer: {fd.get('customer_id') or '-'}, Tenure: {fd.get('tenure') or '-'} months",
+                    'ref_id': fd.get('fdid')
+                })
+                # If closed, add FD Closed event
+                if fd.get('closed_at'):
+                    payout = float(fd.get('payout_amount') or 0)
+                    events.append({
+                        'type': 'FD Closed',
+                        'amount': round(payout, 2),
+                        'date': str(fd.get('closed_at') or ''),
+                        'details': f"Customer: {fd.get('customer_id') or '-'}, FDID: {fd.get('fdid') or '-'}",
+                        'ref_id': fd.get('withdrawal_id') or fd.get('fdid')
+                    })
+        except Exception:
+            pass
+
+        # Sort events by date desc (string compare on ISO works with YYYY-MM-DD)
+        try:
+            events.sort(key=lambda x: str(x.get('date') or ''), reverse=True)
+        except Exception:
+            pass
+
+        return jsonify({
+            'status': 'success',
+            'range': {'start': start_str, 'end': end_str},
+            'events': events
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @staff_api_bp.route('/admin/recent-transactions/excel', methods=['GET'])
 @login_required

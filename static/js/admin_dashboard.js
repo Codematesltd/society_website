@@ -1,3 +1,13 @@
+// FD Excel Download Handler
+document.addEventListener('DOMContentLoaded', function() {
+  const fdDownloadBtn = document.getElementById('fdDownloadBtn');
+  if (fdDownloadBtn) {
+    fdDownloadBtn.addEventListener('click', function() {
+      // No year filter for FD Excel, downloads all FDs
+      window.open('/admin/api/audit-fd/excel', '_blank');
+    });
+  }
+});
 // admin_dashboard.js
 // Handles Recent Transactions Excel download for admin dashboard
 

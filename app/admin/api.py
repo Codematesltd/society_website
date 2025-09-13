@@ -158,6 +158,124 @@ def audit_salaries_excel():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to generate salaries Excel: {str(e)}'}), 500
 
+@admin_api_bp.route('/fd-yearly-summary', methods=['GET'])
+def fd_yearly_summary():
+    """
+    Yearly summary of Fixed Deposits: total FD amount, interest paid, and active FDs.
+    Query params (optional): year (defaults to current UTC year)
+    Returns: { status, year, labels[Jan..Dec], fd_amounts[12], interest_paid[12], total_fd_amount, total_interest_paid, active_fds }
+    """
+    try:
+        now = datetime.utcnow()
+        year = int(request.args.get('year', now.year))
+        
+        # Date range for the year
+        start_dt = datetime(year, 1, 1)
+        end_dt = datetime(year + 1, 1, 1)
+        start_str = start_dt.strftime('%Y-%m-%d')
+        end_str = end_dt.strftime('%Y-%m-%d')
+        
+        # Initialize monthly arrays
+        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        fd_amounts = [0.0] * 12
+        interest_paid = [0.0] * 12
+        total_fd_amount = 0.0
+        total_interest_paid = 0.0
+        active_fds = 0
+        
+        # Fetch all FDs (for monthly stats, only those opened in the year; for active count, all FDs up to year end)
+        resp = supabase.table('fixed_deposits') \
+            .select('amount,deposit_date,payout_interest,status,closed_at') \
+            .execute()
+        fds = resp.data if hasattr(resp, 'data') and resp.data else []
+
+        for fd in fds:
+            try:
+                # FD amount by month (only for FDs opened in the selected year)
+                deposit_date = str(fd.get('deposit_date') or '')
+                if deposit_date and len(deposit_date) >= 7:
+                    deposit_year = int(deposit_date[:4])
+                    if deposit_year == year:
+                        month_idx = int(deposit_date[5:7]) - 1
+                        if 0 <= month_idx < 12:
+                            amount = float(fd.get('amount') or 0)
+                            fd_amounts[month_idx] += amount
+                            total_fd_amount += amount
+
+                # Interest paid calculation (same as before)
+                payout_interest = float(fd.get('payout_interest') or 0)
+                if payout_interest > 0:
+                    interest_date = str(fd.get('closed_at') or fd.get('deposit_date') or '')
+                    if interest_date and len(interest_date) >= 7:
+                        month_idx = int(interest_date[5:7]) - 1
+                        if 0 <= month_idx < 12:
+                            interest_paid[month_idx] += payout_interest
+                            total_interest_paid += payout_interest
+
+            except Exception:
+                continue
+
+        # Count Active FDs: status == 'active' only
+        active_fds = 0
+        for fd in fds:
+            try:
+                status = str(fd.get('status') or '').lower()
+                if status == 'approved':
+                    active_fds += 1
+            except Exception:
+                continue
+        
+        return jsonify({
+            'status': 'success',
+            'year': year,
+            'labels': labels,
+            'fd_amounts': [round(x, 2) for x in fd_amounts],
+            'interest_paid': [round(x, 2) for x in interest_paid],
+            'total_fd_amount': round(total_fd_amount, 2),
+            'total_interest_paid': round(total_interest_paid, 2),
+            'active_fds': active_fds
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_api_bp.route('/audit-fd/excel', methods=['GET'])
+def audit_fd_excel():
+    """
+    Export Fixed Deposits data to Excel.
+    Returns: system_fdicustomer_id, amount, deposit_date, tenure, status, fdid(transaction_id), closed_at, payout_amount, withdrawal_id
+    """
+    try:
+        resp = supabase.table('fixed_deposits').select('*').execute()
+        fds = resp.data if hasattr(resp, 'data') and resp.data else []
+        
+        # Format data for Excel
+        excel_data = []
+        for fd in fds:
+            excel_data.append({
+                'System FD Customer ID': fd.get('customer_id', ''),
+                'Amount': float(fd.get('amount') or 0),
+                'Deposit Date': str(fd.get('deposit_date') or ''),
+                'Tenure': fd.get('tenure', ''),
+                'Status': fd.get('status', ''),
+                'FD ID (Transaction ID)': fd.get('fdid', ''),
+                'Closed At': str(fd.get('closed_at') or ''),
+                'Payout Amount': float(fd.get('payout_amount') or 0),
+                'Withdrawal ID': fd.get('withdrawal_id', '')
+            })
+        
+        df = pd.DataFrame(excel_data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Fixed Deposits")
+        output.seek(0)
+        
+        response = make_response(output.read())
+        response.headers["Content-Disposition"] = "attachment; filename=audit_fixed_deposits.xlsx"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to generate FD Excel: {str(e)}'}), 500
+
 @admin_api_bp.route('/share-amount-summary', methods=['GET'])
 def share_amount_summary():
     """
@@ -958,6 +1076,36 @@ def member_details_by_kgid():
 
 @admin_api_bp.route('/recent-transactions', methods=['GET'])
 def recent_transactions():
+    # 6) Fixed Deposits (FDs)
+    try:
+        fd_resp = supabase.table('fixed_deposits') \
+            .select('customer_id,amount,deposit_date,tenure,status,fdid,closed_at,payout_amount,withdrawal_id') \
+            .gte('deposit_date', start_str).lt('deposit_date', end_str).execute()
+        fds = fd_resp.data if hasattr(fd_resp, 'data') and fd_resp.data else []
+        for fd in fds:
+            try:
+                amt = float(fd.get('amount') or 0)
+            except Exception:
+                amt = 0.0
+            events.append({
+                'type': 'FD Opened',
+                'amount': round(amt, 2),
+                'date': str(fd.get('deposit_date') or ''),
+                'details': f"Customer: {fd.get('customer_id') or '-'}, Tenure: {fd.get('tenure') or '-'} months",
+                'ref_id': fd.get('fdid')
+            })
+            # If closed, add FD Closed event
+            if fd.get('closed_at'):
+                payout = float(fd.get('payout_amount') or 0)
+                events.append({
+                    'type': 'FD Closed',
+                    'amount': round(payout, 2),
+                    'date': str(fd.get('closed_at') or ''),
+                    'details': f"Customer: {fd.get('customer_id') or '-'}, FDID: {fd.get('fdid') or '-'}",
+                    'ref_id': fd.get('withdrawal_id') or fd.get('fdid')
+                })
+    except Exception:
+        pass
     """
     Aggregate recent transactions across multiple sources for a given date.
     Query params (optional):
@@ -1134,6 +1282,36 @@ def recent_transactions():
 
 @admin_api_bp.route('/recent-transactions/excel', methods=['GET'])
 def recent_transactions_excel():
+    # 6) Fixed Deposits (FDs)
+    try:
+        fd_resp = supabase.table('fixed_deposits') \
+            .select('customer_id,amount,deposit_date,tenure,status,fdid,closed_at,payout_amount,withdrawal_id') \
+            .gte('deposit_date', start_str).lt('deposit_date', end_str).execute()
+        fds = fd_resp.data if hasattr(fd_resp, 'data') and fd_resp.data else []
+        for fd in fds:
+            try:
+                amt = float(fd.get('amount') or 0)
+            except Exception:
+                amt = 0.0
+            excel_data.append({
+                'Date': str(fd.get('deposit_date') or ''),
+                'Type': 'FD Opened',
+                'Amount': round(amt, 2),
+                'Details': f"Customer: {fd.get('customer_id') or '-'}, Tenure: {fd.get('tenure') or '-'} months",
+                'Reference ID': fd.get('fdid')
+            })
+            # If closed, add FD Closed event
+            if fd.get('closed_at'):
+                payout = float(fd.get('payout_amount') or 0)
+                excel_data.append({
+                    'Date': str(fd.get('closed_at') or ''),
+                    'Type': 'FD Closed',
+                    'Amount': round(payout, 2),
+                    'Details': f"Customer: {fd.get('customer_id') or '-'}, FDID: {fd.get('fdid') or '-'}",
+                    'Reference ID': fd.get('withdrawal_id') or fd.get('fdid')
+                })
+    except Exception:
+        pass
     """
     Export recent transactions as Excel (.xlsx) for admin.
     Aggregates data from transactions, loans, loan_records, expenses, and staff_salaries tables.
