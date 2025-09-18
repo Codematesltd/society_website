@@ -19,17 +19,28 @@ def manager_login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
-        supabase_url = os.environ.get("SUPABASE_URL")
-        supabase_key = os.environ.get("SUPABASE_KEY")
-        headers = {
-            "apikey": supabase_key,
-            "Authorization": f"Bearer {supabase_key}",
-        }
-        # Fetch manager by email
-        response = httpx.get(
-            f"{supabase_url}/rest/v1/manager?email=eq.{email}",
-            headers=headers
-        )
+        
+        if not email or not password:
+            flash("Email and password are required.", "danger")
+            return render_template("manager_login.html")
+
+        try:
+            # Use Supabase client consistently
+            from app.auth.routes import supabase
+            response = supabase.table("manager").select("*").eq("email", email).execute()
+            if not hasattr(response, 'data'):
+                raise Exception("Invalid response from Supabase")
+                
+            if not response.data:
+                flash("Manager not found.", "danger")
+                return render_template("manager_login.html")
+                
+            manager = response.data[0]
+            
+        except Exception as e:
+            current_app.logger.error(f"Database error during manager login: {str(e)}")
+            flash("Network error. Please try again.", "danger")
+            return render_template("manager_login.html")
         if response.status_code == 200 and response.json():
             manager = response.json()[0]
             if check_password_hash(manager["password_hash"], password):

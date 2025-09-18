@@ -1,13 +1,9 @@
 import os
-from flask import Blueprint, render_template
+from flask import Blueprint
 
+# This blueprint is deprecated, use app/manager/routes.py instead
 manager_bp = Blueprint(
-    'manager',
+    'manager_deprecated',
     __name__,
-    url_prefix='/manager',
-    template_folder=os.path.join(os.path.dirname(__file__), 'templates')
+    url_prefix='/manager_old'
 )
-
-@manager_bp.route('/login')
-def manager_login():
-    return render_template('manager_login.html')
