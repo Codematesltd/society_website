@@ -81,7 +81,8 @@
                             <label class="block text-sm font-medium">Months
                                 <input type="number" id="interestMonthsInput" class="ml-2 border rounded px-2 py-1 w-24" min="1" max="60" step="1" />
                             </label>
-                            <button id="calculateInterestBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Calculate Interest</button>
+                            <button type="button" id="calculateInterestBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Calculate Interest</button>
+                            <button type="button" id="payPrincipalOnlyBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Pay Principal Only</button>
                         </div>
                         <div class="mt-3 text-sm text-gray-700">Calculated Interest: <span id="calculatedInterestAmount" class="font-bold text-purple-700">—</span></div>
                     </div>
@@ -251,6 +252,20 @@
         document.getElementById('repaymentAmountInput').value = interest;
         document.getElementById('principalAmountInput').value = 0;
         document.getElementById('interestAmountInput').value = interest;
+        document.getElementById('repaymentFormPanel').classList.remove('hidden');
+    };
+
+    // Pay Principal Only logic
+    document.getElementById('payPrincipalOnlyBtn').onclick = function() {
+        document.getElementById('calculatedInterestAmount').textContent = '₹0';
+        document.getElementById('interestRateInput').value = '';
+        document.getElementById('interestMonthsInput').value = '';
+        
+        // Blank out inputs for user to enter principal amount manually
+        document.getElementById('repaymentAmountInput').value = ''; 
+        document.getElementById('principalAmountInput').value = ''; 
+        document.getElementById('interestAmountInput').value = 0;
+        
         document.getElementById('repaymentFormPanel').classList.remove('hidden');
     };
 

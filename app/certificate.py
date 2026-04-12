@@ -2,49 +2,10 @@ from flask import Blueprint, render_template, abort, make_response, request, jso
 from io import BytesIO
 from supabase import create_client
 import os
-import inflect
 import pdfkit  # Use pdfkit for PDF generation
+from app.staff.api import amount_to_words
 
 certificate_bp = Blueprint('certificate', __name__)
-
-# Helper for amount in words
-p = inflect.engine()
-
-def amount_to_words(amount):
-    try:
-        n = int(float(amount))
-        # Use Indian numbering system for lakhs/crores
-        def indian_number_words(num):
-            if num < 100000:
-                return p.number_to_words(num, andword='').replace(',', '')
-            elif num < 10000000:
-                lakhs = num // 100000
-                rem = num % 100000
-                lakhs_part = p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
-                if rem:
-                    rem_part = p.number_to_words(rem, andword='').replace(',', '')
-                    return lakhs_part + " " + rem_part
-                return lakhs_part
-            else:
-                crores = num // 10000000
-                rem = num % 10000000
-                crores_part = p.number_to_words(crores, andword='').replace(',', '') + " Crore"
-                if rem:
-                    lakhs = rem // 100000
-                    rem2 = rem % 100000
-                    lakhs_part = ""
-                    if lakhs:
-                        lakhs_part = " " + p.number_to_words(lakhs, andword='').replace(',', '') + " Lakh"
-                    if rem2:
-                        rem_part = " " + p.number_to_words(rem2, andword='').replace(',', '')
-                    else:
-                        rem_part = ""
-                    return crores_part + lakhs_part + rem_part
-                return crores_part
-        words = indian_number_words(n)
-        return words.title() + " Rupees Only"
-    except Exception:
-        return str(amount)
 
 @certificate_bp.route('/certificate/<stid>')
 def certificate_pdf(stid):

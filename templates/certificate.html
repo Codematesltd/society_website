@@ -1,176 +1,278 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-66SZLJBHF6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-66SZLJBHF6');
-</script>
     <meta charset="UTF-8">
-    <title>{{ transaction.type|title }} Receipt</title>
-    <link rel="icon" href="{{ url_for('static', filename='society_logo.png') }}" type="image/png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{{ transaction.type|title }} Receipt - {{ transaction.stid }}</title>
     <style>
-        @media print {
-            .no-print { display: none !important; }
-            body { margin: 0; }
+        @page {
+            size: A4;
+            margin: 1.5cm 2cm;
         }
-        @page { size: A4; margin: 2cm; }
+        * {
+            font-family: Arial, sans-serif;
+            color: #111;
+        }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
             padding: 0;
             background: #fff;
-            color: #222;
         }
-        .certificate-container {
+
+        /* ── Outer wrapper ── */
+        .page-wrap {
             width: 100%;
-            max-width: 700px;
             margin: 0 auto;
-            background: #fff;
-            padding: 2em;
-            box-sizing: border-box;
-            min-height: 900px;
-            border: 1px solid #eee;
+            padding: 0;
         }
-        .header {
+
+        /* ── Outer border box ── */
+        .cert-box {
+            border: 2px solid #1a237e;
+            padding: 0;
+        }
+
+        /* ── Header band ── */
+        .cert-header {
+            background: #1a237e;
+            padding: 14px 20px 10px 20px;
             text-align: center;
-            margin-bottom: 2em;
         }
-        .society-name {
-            font-size: 1.5em;
+        .cert-header img {
+            height: 56px;
+            width: 56px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            display: block;
+            margin: 0 auto 6px auto;
+        }
+        .cert-header .society-name {
+            color: #fff;
+            font-size: 13px;
             font-weight: bold;
+            line-height: 1.4;
         }
-        .certificate-title {
-            font-size: 1.2em;
-            margin: 1em 0;
+        .cert-header .society-sub {
+            color: #c5cae9;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        /* ── Title ribbon ── */
+        .cert-title-row {
+            background: #e8eaf6;
+            text-align: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #9fa8da;
+        }
+        .cert-title-row span {
+            font-size: 14px;
             font-weight: bold;
+            color: #1a237e;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
+
+        /* ── Body ── */
+        .cert-body {
+            padding: 18px 22px;
+        }
+
+        /* ── Details table ── */
         .details-table {
             width: 100%;
-            margin-bottom: 2em;
             border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        .details-table tr:nth-child(odd) {
+            background: #f5f5f5;
+        }
+        .details-table tr:nth-child(even) {
+            background: #fff;
         }
         .details-table td {
-            padding: 0.5em 0.7em;
-            vertical-align: top;
+            padding: 7px 10px;
+            font-size: 11px;
+            border: 1px solid #c5c5c5;
+            vertical-align: middle;
         }
-        .amount-words {
-            margin: 1.5em 0;
-            font-style: italic;
-            font-size: 1.1em;
+        .details-table td.label {
+            font-weight: bold;
+            color: #1a237e;
+            width: 22%;
         }
-        .footer {
-            margin-top: 3em;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
+        .details-table td.value {
+            color: #222;
+            width: 28%;
         }
-        .staff-signature-block {
-            text-align: center;
-            min-width: 200px;
+
+        /* ── Amount in words ── */
+        .amount-words-box {
+            border: 1px dashed #9fa8da;
+            background: #e8eaf6;
+            padding: 8px 12px;
+            margin-bottom: 20px;
+            font-size: 11px;
         }
-        .staff-signature-block img {
-            display: block;
-            margin: 0 auto 0.5em auto;
-            max-width: 120px;
-            max-height: 50px;
-            object-fit: contain;
+        .amount-words-box b {
+            color: #1a237e;
         }
-        .download-btn {
-            display: inline-block;
-            margin-bottom: 1em;
-            padding: 0.5em 1.2em;
-            background: #1976d2;
-            color: #fff;
+
+        /* ── Signature row ── */
+        .sig-row {
+            width: 100%;
+            margin-top: 18px;
+        }
+        .sig-row td {
+            font-size: 10px;
+            color: #555;
+            vertical-align: bottom;
             border: none;
-            border-radius: 4px;
-            font-size: 1em;
-            cursor: pointer;
+            padding: 0;
+        }
+        .sig-right {
+            text-align: right;
+        }
+        .sig-line {
+            border-top: 1px solid #555;
+            margin-bottom: 3px;
+            width: 140px;
+            display: block;
+        }
+
+        /* ── Footer band ── */
+        .cert-footer {
+            background: #1a237e;
+            padding: 6px 20px;
+            text-align: center;
+        }
+        .cert-footer span {
+            color: #c5cae9;
+            font-size: 9px;
+        }
+
+        /* ── Print / download button (browser only) ── */
+        .no-print {
+            text-align: center;
+            margin: 16px 0 0 0;
+        }
+        .no-print a {
+            display: inline-block;
+            padding: 8px 24px;
+            background: #1a237e;
+            color: #fff;
             text-decoration: none;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        @media print {
+            .no-print { display: none !important; }
         }
     </style>
+
+    <!-- Download button script — browser only, ignored by pisa -->
     <script>
-        function downloadPDF() {
-            const url = new URL(window.location.href);
-            url.searchParams.set('action', 'download');
-            window.open(url.toString(), '_blank');
-        }
+    function dlPDF() {
+        var u = new URL(window.location.href);
+        u.searchParams.set('action', 'download');
+        window.open(u.toString(), '_blank');
+    }
     </script>
 </head>
 <body>
-    <div class="certificate-container">
-        <div class="header">
-            <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Society Logo" style="height:80px; margin-bottom:0.5em; display:block; margin-left:auto; margin-right:auto;">
-            <div class="society-name">{{ society_name }}</div>
-            <div>{{ taluk_name }}, {{ district_name|title }}</div>
-            <div class="certificate-title">Transaction Certificate</div>
-        </div>
 
-        <table class="details-table" border="1" style="border-collapse:collapse;">
-            <tr>
-                <td style="font-weight:bold;">Transaction ID (STID):</td>
-                <td>{{ transaction.stid }}</td>
-                <td style="font-weight:bold;">Date:</td>
-                <td>{{ transaction.date }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight:bold;">Member Name:</td>
-                <td>{{ member.name }}</td>
-                <td style="font-weight:bold;">Member ID:</td>
-                <td>{{ member.customer_id }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight:bold;">Transaction Type:</td>
-                <td>{{ transaction.type|capitalize }}</td>
-                <td style="font-weight:bold;">Amount:</td>
-                <td>₹ {{ transaction.amount }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight:bold;">From Account:</td>
-                <td>{{ transaction.from_account }}</td>
-                <td style="font-weight:bold;">To Account:</td>
-                <td>{{ transaction.to_account }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight:bold;">From Bank Name:</td>
-                <td>{{ transaction.from_bank_name }}</td>
-                <td style="font-weight:bold;">To Bank Name:</td>
-                <td>{{ transaction.to_bank_name }}</td>
-            </tr>
-            <tr>
-                <td style="font-weight:bold;">Balance After:</td>
-                <td>₹ {{ transaction.balance_after }}</td>
-                <td style="font-weight:bold;">Remarks:</td>
-                <td>{{ transaction.remarks }}</td>
-            </tr>
-        </table>
+<div class="page-wrap">
 
-        <div class="amount-words">
-            <b>Amount in Words:</b>
-            {{ amount_words }}
-        </div>
-
-        <button class="download-btn" onclick="downloadPDF()">Download PDF</button>
-        <div style="color:#b71c1c; font-size:0.95em; margin-bottom:1em;" class="no-print">
-            {% if request.args.get('action') == 'download' %}
-                {% if not pdfkit %}
-                    PDF download requires <b>wkhtmltopdf</b> to be installed on the server.<br>
-                    <a href="https://github.com/JazzCore/python-pdfkit/wiki/Installing-wkhtmltopdf" target="_blank" style="color:#1976d2;">Installation instructions</a>
-                {% endif %}
-            {% endif %}
-        </div>
-
-        <div class="footer">
-            <div></div>
-            <!-- Staff signature block can be added here if needed -->
-        </div>
+    <!-- Browser-only download button -->
+    <div class="no-print" style="margin-bottom:12px;">
+        <a href="javascript:dlPDF();">&#11015; Download PDF</a>
+        &nbsp;&nbsp;
+        <a href="?action=print" target="_blank" style="background:#388e3c;">&#128438; Print</a>
     </div>
+
+    <div class="cert-box">
+
+        <!-- HEADER -->
+        <div class="cert-header">
+            <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Logo">
+            <div class="society-name">{{ society_name }}</div>
+            <div class="society-sub">{{ taluk_name }}, {{ district_name|title }}</div>
+        </div>
+
+        <!-- TITLE -->
+        <div class="cert-title-row">
+            <span>Transaction Certificate</span>
+        </div>
+
+        <!-- BODY -->
+        <div class="cert-body">
+
+            <table class="details-table">
+                <tr>
+                    <td class="label">Transaction ID</td>
+                    <td class="value">{{ transaction.stid or '-' }}</td>
+                    <td class="label">Date</td>
+                    <td class="value">{{ (transaction.date or '')[:10] }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Member Name</td>
+                    <td class="value">{{ member.name if member else '-' }}</td>
+                    <td class="label">Member ID</td>
+                    <td class="value">{{ member.customer_id if member else '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Transaction Type</td>
+                    <td class="value">{{ transaction.type|capitalize if transaction.type else '-' }}</td>
+                    <td class="label">Amount</td>
+                    <td class="value" style="font-weight:bold;">Rs. {{ transaction.amount }}</td>
+                </tr>
+                <tr>
+                    <td class="label">From Account</td>
+                    <td class="value">{{ transaction.from_account or '-' }}</td>
+                    <td class="label">To Account</td>
+                    <td class="value">{{ transaction.to_account or '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">From Bank</td>
+                    <td class="value">{{ (transaction.from_bank_name or '-')|upper }}</td>
+                    <td class="label">To Bank</td>
+                    <td class="value">{{ (transaction.to_bank_name or '-')|upper }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Balance After</td>
+                    <td class="value">Rs. {{ transaction.balance_after }}</td>
+                    <td class="label">Remarks</td>
+                    <td class="value">{{ transaction.remarks or '-' }}</td>
+                </tr>
+            </table>
+
+            <!-- Amount in words -->
+            <div class="amount-words-box">
+                <b>Amount in Words:</b>&nbsp; {{ amount_words }}
+            </div>
+
+            <!-- Signature row -->
+            <table class="sig-row">
+                <tr>
+                    <td style="width:50%;">
+                        <span>This is a system-generated certificate.</span>
+                    </td>
+                    <td class="sig-right" style="width:50%;">
+                        <span class="sig-line">&nbsp;</span>
+                        Authorised Signatory
+                    </td>
+                </tr>
+            </table>
+
+        </div><!-- /cert-body -->
+
+        <!-- FOOTER -->
+        <div class="cert-footer">
+            <span>{{ society_name }} &mdash; {{ taluk_name }}</span>
+        </div>
+
+    </div><!-- /cert-box -->
+
+</div><!-- /page-wrap -->
+
 </body>
 </html>
-

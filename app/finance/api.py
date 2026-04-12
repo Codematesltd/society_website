@@ -916,25 +916,17 @@ def repay_loan():
 
         repayment_amount = min(custom_amount, outstanding)
 
-        # If principal/interest split not provided or invalid, calculate proportionally
-        if principal_part < 0 or interest_part < 0 or abs(principal_part + interest_part - repayment_amount) > 0.01:
-            # Default: all to principal unless interest is due
-            principal_part = repayment_amount
-            interest_part = 0.0
-
-        # Ensure no negative splits
-        if principal_part < 0:
-            principal_part = 0.0
-        if interest_part < 0:
-            interest_part = 0.0
-        # Ensure sum matches repayment_amount
-        if abs(principal_part + interest_part - repayment_amount) > 0.01:
-            interest_part = repayment_amount - principal_part
+        # User provides total repayment amount and optionally the interest portion.
+        # Ensure interest isn't negative or unexpectedly larger than the payment itself.
+        interest_part = max(0.0, min(interest_part, repayment_amount))
+        
+        # Whatever is left over from the payment after interest is applied to principal
+        principal_part = repayment_amount - interest_part
 
         new_remaining_principal = max(prev_remaining_principal - principal_part, 0)
 
         # Insert repayment record (now includes remaining_principal_amount)
-        supabase.table("loan_records").insert({
+        insert_resp = supabase.table("loan_records").insert({
             "loan_id": loan.get("loan_id"),
             "repayment_date": repayment_date,
             "repayment_amount": repayment_amount,
@@ -945,6 +937,10 @@ def repay_loan():
             "interest_amount": interest_part
         }).execute()
 
+        repayment_id = None
+        if insert_resp.data and len(insert_resp.data) > 0:
+            repayment_id = insert_resp.data[0].get("id")
+
         # No summary row update needed; legacy only
 
         # Send repayment email with repayment certificate download URL (no PDF attachment)
@@ -954,12 +950,6 @@ def repay_loan():
         if member_resp.data and member_resp.data[0].get("email"):
             member_email = member_resp.data[0]["email"]
             member_name = member_resp.data[0].get("name") or "Member"
-
-        # Fetch the latest repayment record to get its ID
-        repayment_record_resp = supabase.table("loan_records").select("id").eq("loan_id", loan.get("loan_id")).order("repayment_date", desc=True).limit(1).execute()
-        repayment_id = None
-        if repayment_record_resp.data and len(repayment_record_resp.data) > 0:
-            repayment_id = repayment_record_resp.data[0]["id"]
 
         # Build repayment certificate URL (public site)
         base_url = "https://ksthstsociety.com"

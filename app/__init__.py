@@ -22,6 +22,7 @@ def create_app():
     from .notification import notification_bp
     from .core import core_bp
     from app.staff.api import staff_api_bp
+    from .certificate import certificate_bp
     
     # Import admin blueprint and base routes
     from .admin import admin_bp
@@ -49,6 +50,7 @@ def create_app():
     app.register_blueprint(notification_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(staff_api_bp)
+    app.register_blueprint(certificate_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_api_bp)
     if bp_expenses is not None:

@@ -1311,17 +1311,66 @@ def staff_dashboard_stats():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @staff_bp.route('/transaction/certificate/<stid>')
+@login_required
+@role_required('admin', 'staff')
 def transaction_certificate(stid):
     """
     View, print, or download a deposit/withdrawal transaction certificate by STID.
     Query param: action=view|download|print|json (default: view)
     """
     action = request.args.get('action', 'view')
+
     # Fetch transaction by STID
     tx_resp = supabase.table("transactions").select("*").eq("stid", stid).execute()
     if not tx_resp.data:
         return jsonify({"status": "error", "message": "Transaction not found"}), 404
     tx = tx_resp.data[0]
+
+    # --- Recompute balance_after if missing or zero (legacy transactions) ---
+    stored_balance_after = tx.get("balance_after")
+    if not stored_balance_after:
+        try:
+            customer_id = tx["customer_id"]
+            tx_date = tx.get("date") or ""
+
+            # Current member balance (latest known state)
+            m_resp = supabase.table("members").select("balance").eq("customer_id", customer_id).execute()
+            current_balance = float(m_resp.data[0].get("balance") or 0) if m_resp.data else 0.0
+
+            # Fetch ALL transactions for this member, ordered newest→oldest
+            all_tx_resp = supabase.table("transactions") \
+                .select("stid,type,amount,date,balance_after") \
+                .eq("customer_id", customer_id) \
+                .order("date", desc=True) \
+                .execute()
+            all_txs = all_tx_resp.data or []
+
+            # Walk backwards from current_balance to reconstruct balance_after
+            # for every transaction that lacks it, then pick ours.
+            running = current_balance
+            computed = {}
+            for t in all_txs:
+                computed[t["stid"]] = round(running, 2)
+                amt = float(t.get("amount") or 0)
+                ttype = str(t.get("type") or "").lower()
+                if ttype == "deposit":
+                    running = round(running - amt, 2)
+                else:
+                    running = round(running + amt, 2)
+
+            recomputed = computed.get(stid)
+            if recomputed is not None:
+                tx["balance_after"] = recomputed
+                # Patch the DB so future views are instant
+                try:
+                    supabase.table("transactions").update(
+                        {"balance_after": recomputed}
+                    ).eq("stid", stid).execute()
+                except Exception:
+                    pass  # Non-critical — display is already correct
+        except Exception:
+            pass  # Fall back to whatever is in tx["balance_after"]
+    # --- end recompute ---
 
     # Fetch member
     member = get_member_by_customer_id(tx["customer_id"])
@@ -1337,7 +1386,7 @@ def transaction_certificate(stid):
         society_name=society_name,
         taluk_name=taluk_name,
         district_name=district_name,
-        amount_words=amount_to_words(tx["amount"])
+        amount_words=amount_to_words(tx.get("amount") or 0)
     )
 
     if action == "json":
@@ -1354,9 +1403,11 @@ def transaction_certificate(stid):
     html = render_template("certificate.html", **template_data)
 
     if action == "download":
-        from xhtml2pdf import pisa
         pdf = BytesIO()
-        pisa.CreatePDF(html, dest=pdf)
+        result = pisa.CreatePDF(html, dest=pdf)
+        if result.err:
+            return jsonify({"status": "error", "message": "PDF generation failed. Check certificate template for unsupported CSS (e.g. width: 100%)."}), 500
+        pdf.seek(0)
         response = make_response(pdf.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={stid}.pdf'
