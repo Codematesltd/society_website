@@ -296,7 +296,7 @@ def fd_approvals():
     try:
         fd_resp = sb_exec(
             supabase.table("fixed_deposits")
-            .select("fdid,system_fdid,customer_id,amount,deposit_date,tenure,interest_rate,status")
+            .select("fdid,system_fdid,customer_id,amount,deposit_date,tenure,interest_rate,status,payment_mode,nominee_name,nominee_relationship,nominee_customer_id")
             .eq("status", "pending")
             .order("deposit_date", desc=True)
         )

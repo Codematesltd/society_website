@@ -498,8 +498,14 @@ def api_my_fds():
             principal = float(fd.get("amount") or 0)
             rate = float(fd.get("interest_rate") or 0)
             tenure_m = int(fd.get("tenure") or 0)
-            interest = round(principal * rate * tenure_m / (12 * 100), 2)
-            maturity_amount = round(principal + interest, 2)
+            # Compound interest: A = P(1 + r/n)^(n*t), quarterly compounding (n=4)
+            n = 4
+            t = tenure_m / 12.0
+            if rate > 0 and t > 0:
+                maturity_amount = round(principal * ((1 + (rate / 100) / n) ** (n * t)), 2)
+            else:
+                maturity_amount = round(principal, 2)
+            interest = round(maturity_amount - principal, 2)
         except Exception:
             interest = 0.0
             maturity_amount = fd.get("amount")
