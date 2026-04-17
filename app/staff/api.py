@@ -1852,6 +1852,49 @@ def close_fd():
         print('close_fd error', e)
         return jsonify({'status':'error','message':f'Internal error: {e}'}), 500
 
+@staff_api_bp.route('/suspense', methods=['POST'])
+@login_required
+@role_required('admin', 'staff')
+def add_suspense_entry():
+    """Add a new deposit entry to the suspense account."""
+    try:
+        data = request.json
+        if not data or 'amount' not in data or 'date' not in data:
+            return jsonify({'status': 'error', 'message': 'Amount and date are required.'}), 400
+        
+        insert_data = {
+            'amount': data['amount'],
+            'date': data['date'],
+            'transaction_id': data.get('transaction_id', ''),
+            'received_account': data.get('received_account', ''),
+            'bank_name': data.get('bank_name', ''),
+            'remarks': data.get('remarks', ''),
+            'status': 'unresolved'
+        }
+        
+        resp = supabase.table('suspense_account').insert(insert_data).execute()
+        
+        if hasattr(resp, 'data') and len(resp.data) > 0:
+            return jsonify({'status': 'success', 'message': 'Suspense entry added.', 'record': resp.data[0]}), 201
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to insert into suspense account.'}), 500
+    except Exception as e:
+        print('add_suspense_entry error:', e)
+        return jsonify({'status': 'error', 'message': f'Internal error: {str(e)}'}), 500
+
+@staff_api_bp.route('/suspense', methods=['GET'])
+@login_required
+@role_required('admin', 'staff')
+def list_suspense_entries():
+    """Retrieve all suspense account entries."""
+    try:
+        resp = supabase.table('suspense_account').select('*').order('date', desc=True).execute()
+        records = resp.data if hasattr(resp, 'data') else []
+        return jsonify({'status': 'success', 'records': records}), 200
+    except Exception as e:
+        print('list_suspense_entries error:', e)
+        return jsonify({'status': 'error', 'message': f'Internal error: {str(e)}'}), 500
+
 
 
 

@@ -652,6 +652,105 @@
     });
   });
 
+  /* ================= Suspense Account Feature ================= */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const suspenseForm = document.getElementById('suspenseForm');
+    const suspenseSubmitBtn = document.getElementById('suspenseSubmitBtn');
+    const refreshSuspenseBtn = document.getElementById('refreshSuspenseBtn');
+    const suspenseTbody = document.getElementById('suspenseTbody');
+    
+    async function loadSuspenseLedger() {
+      if (!suspenseTbody) return;
+      suspenseTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Loading ledger...</td></tr>';
+      try {
+        const res = await fetch('/staff/api/suspense');
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          if (!data.records || data.records.length === 0) {
+            suspenseTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">No suspense records found.</td></tr>';
+            return;
+          }
+          suspenseTbody.innerHTML = data.records.map(r => `
+            <tr class="hover:bg-gray-50">
+              <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900">${r.date || '-'}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-red-600">₹${Number(r.amount||0).toLocaleString()}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${r.transaction_id || '-'}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${r.received_account || '-'}</td>
+              <td class="px-3 py-3 text-sm text-gray-500">
+                <div class="font-medium">${r.bank_name || '-'}</div>
+                <div class="text-xs mt-1 text-gray-400">${r.remarks || ''}</div>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          suspenseTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">Failed to load ledger.</td></tr>';
+        }
+      } catch (e) {
+        suspenseTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">Network error.</td></tr>';
+      }
+    }
+    
+    if (refreshSuspenseBtn) {
+      refreshSuspenseBtn.addEventListener('click', loadSuspenseLedger);
+    }
+    
+    // Load ledger when suspense section is clicked
+    const suspenseNavBtn = document.querySelector('[data-target="suspenseSection"]');
+    if (suspenseNavBtn) {
+      suspenseNavBtn.addEventListener('click', loadSuspenseLedger);
+    }
+
+    if (suspenseForm) {
+      suspenseForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        
+        const amount = document.getElementById('suspenseAmount').value.trim();
+        const date = document.getElementById('suspenseDate').value.trim();
+        const txnId = document.getElementById('suspenseTxnId').value.trim();
+        const toAccount = document.getElementById('suspenseToAccount').value.trim();
+        const bankName = document.getElementById('suspenseBankName').value.trim();
+        const remarks = document.getElementById('suspenseRemarks').value.trim();
+        
+        if (!amount || !date) {
+            showDashboardMsgModal("Amount and Date are required.", "error");
+            return;
+        }
+
+        suspenseSubmitBtn.disabled = true;
+        const originalText = suspenseSubmitBtn.innerHTML;
+        suspenseSubmitBtn.innerHTML = "Adding...";
+        
+        try {
+          const res = await fetch('/staff/api/suspense', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: parseFloat(amount),
+              date: date,
+              transaction_id: txnId,
+              received_account: toAccount,
+              bank_name: bankName,
+              remarks: remarks
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data.status === 'success') {
+            showDashboardMsgModal("Suspense entry added successfully.", "success");
+            suspenseForm.reset();
+            loadSuspenseLedger();
+          } else {
+            showDashboardMsgModal(data.message || "Failed to add entry.", "error");
+          }
+        } catch (err) {
+          showDashboardMsgModal("Network error occurred.", "error");
+        }
+        
+        suspenseSubmitBtn.innerHTML = originalText;
+        suspenseSubmitBtn.disabled = false;
+      });
+    }
+  });
+
   /* ================= Expense Download Placeholder ================= */
   document.addEventListener('DOMContentLoaded', ()=>{
     const downloadReportBtn = document.getElementById('downloadReportBtn');
@@ -724,28 +823,48 @@
     if (depositBtnToggle) depositBtnToggle.addEventListener('click', ()=> toggleForms(true));
     if (withdrawBtnToggle) withdrawBtnToggle.addEventListener('click', ()=> toggleForms(false));
     function formValues(prefix){
+      const el = (id) => document.getElementById(id) ? document.getElementById(id).value.trim() : '';
       return {
-        customer_id: document.getElementById(prefix+'CustomerId')?.value.trim(),
-        amount: document.getElementById(prefix+'Amount')?.value.trim(),
-        date: document.getElementById(prefix+'Date')?.value.trim(),
-        from_account: document.getElementById(prefix+'FromAccount')?.value.trim(),
-        from_bank_name: document.getElementById(prefix+'FromBank')?.value.trim(),
-        to_account: document.getElementById(prefix+'ToAccount')?.value.trim(),
-        to_bank_name: document.getElementById(prefix+'ToBank')?.value.trim(),
-        transaction_id: document.getElementById(prefix+'TxnId')?.value.trim(),
-        remarks: document.getElementById(prefix+'Remarks')?.value.trim()
+        customer_id: el(prefix+'CustomerId'),
+        amount: el(prefix+'Amount'),
+        date: el(prefix+'Date'),
+        from_account: el(prefix+'FromAccount'),
+        from_bank_name: el(prefix+'FromBank'),
+        to_account: el(prefix+'ToAccount'),
+        to_bank_name: el(prefix+'ToBank'),
+        transaction_id: el(prefix+'TxnId'),
+        remarks: el(prefix+'Remarks'),
+        deposit_method: prefix === 'deposit' ? el('depositMethod') : ''
       };
     }
     const depositBtn = document.getElementById('depositBtn');
     if (depositBtn){
       depositBtn.addEventListener('click', async ()=>{
         const d = formValues('deposit');
-        const requiredFields = Object.assign({}, d);
-        delete requiredFields.remarks;
-        if (Object.values(requiredFields).some(v => v==='' ) || !d.date){
-          showDashboardMsgModal("Please fill all Deposit fields.", "error");
+        
+        const reqKeys = ['customer_id', 'amount', 'date', 'deposit_method', 'to_account'];
+        if (d.deposit_method !== 'cash') {
+            reqKeys.push('to_bank_name');
+            if (d.deposit_method !== 'sirf') {
+                reqKeys.push('transaction_id');
+            }
+        }
+        
+        let isValid = true;
+        for (const k of reqKeys) {
+            if (!d[k]) isValid = false;
+        }
+
+        if (!isValid){
+          showDashboardMsgModal("Please fill all required Deposit fields.", "error");
           return;
         }
+        
+        // Fill missing fields with N/A so backend doesn't crash if it expects them
+        if (!d.from_account) d.from_account = 'N/A';
+        if (!d.from_bank_name) d.from_bank_name = 'N/A';
+        if (!d.transaction_id) d.transaction_id = 'N/A';
+        if (!d.to_bank_name) d.to_bank_name = 'N/A';
         d.type='deposit';
         // --- Spinner animation ---
         const origHTML = depositBtn.innerHTML;
@@ -788,6 +907,7 @@
         const w = formValues('withdraw');
         const requiredFields = Object.assign({}, w);
         delete requiredFields.remarks;
+        delete requiredFields.deposit_method;
         if (Object.values(requiredFields).some(v => v==='' ) || !w.date){
           showDashboardMsgModal("Please fill all Withdraw fields.", "error");
           return;

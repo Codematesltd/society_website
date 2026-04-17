@@ -71,6 +71,7 @@
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="depositWithdraw">🏦 Deposit/Withdraw</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="loanRepayment">💰 Loan Repayment</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="queriesSection">📬 Queries</button>
+        <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all font-bold shadow-sm" data-target="suspenseSection">🪙 Suspense Account</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="recentTransactionsStaff">🕒 Recent Transactions</button>
         <button class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all" data-target="statementSection">📃 Statement</button>
         <button id="getTransactionBtn" class="nav-button w-full text-left px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">🔎 Get Transaction</button>
@@ -268,11 +269,10 @@
               </div>
               <!-- Phone & Email Row -->
               <div>
-                <label class="block text-sm font-medium mb-1">Phone Number</label>
+                <label class="block text-sm font-medium mb-1">Phone Number <span class="text-xs text-gray-500">(Optional)</span></label>
                 <input 
     type="text" 
     name="phone" 
-    required 
     pattern="[0-9]{10}" 
     maxlength="10"
     placeholder="Enter 10-digit phone number"
@@ -304,6 +304,14 @@
               </div>
               <!-- More User Details -->
               <div>
+                <label class="block text-sm font-medium mb-1">Date of Birth</label>
+                <input type="date" name="dob" id="dobInput" class="border p-2 rounded w-full" required onchange="calculateRetirement()" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Years to Retirement</label>
+                <input type="text" id="retirementYears" class="border p-2 rounded w-full bg-gray-100 font-bold text-blue-700" readonly placeholder="Calculated automatically" />
+              </div>
+              <div>
                 <label class="block text-sm font-medium mb-1">Father's Name</label>
                 <input type="text" name="father_name" placeholder="Father's Name" class="border p-2 rounded w-full" required />
               </div>
@@ -316,11 +324,10 @@
                 <input type="text" name="organization_name" placeholder="Organization Name" class="border p-2 rounded w-full" required />
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1">Aadhar Number</label>
+                <label class="block text-sm font-medium mb-1">Aadhar Number <span class="text-xs text-gray-500">(Optional)</span></label>
                  <input 
     type="text" 
     name="aadhar_no" 
-    required 
     maxlength="14" 
     placeholder="1234 5678 9012"
     class="border p-2 rounded w-full"
@@ -335,11 +342,10 @@
   /> 
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1">PAN Number</label>
+                <label class="block text-sm font-medium mb-1">PAN Number <span class="text-xs text-gray-500">(Optional)</span></label>
   <input 
     type="text" 
     name="pan_no" 
-    required 
     maxlength="10"
     placeholder="ABCDE1234F"
     class="border p-2 rounded w-full uppercase"
@@ -360,8 +366,8 @@
               </div>
               <!-- Signature Upload -->
               <div>
-                <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Image must be below 50KB)</span></label>
-                <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" required />
+                <label class="block text-sm font-medium mb-1">Upload Signature <span class="text-xs text-gray-500">(Optional, Image must be below 50KB)</span></label>
+                <input type="file" name="signature" class="border p-2 rounded w-full" accept="image/*" />
               </div>
             </div>
             <!-- Warning Message -->
@@ -426,15 +432,25 @@
             <input type="text" placeholder="Customer ID" class="w-full px-4 py-2 border rounded mb-3" id="depositCustomerId" />
             <input type="number" placeholder="Amount" class="w-full px-4 py-2 border rounded mb-3" id="depositAmount" />
             <input type="date" class="w-full px-4 py-2 border rounded mb-3" id="depositDate" />
-            <div class="flex gap-2 mb-3">
-              <input type="number" placeholder="from Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositFromAccount" />
-              <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositFromBank" />
+            <!-- Payment Method Dropdown -->
+            <select id="depositMethod" class="w-full px-4 py-2 border rounded mb-3" onchange="updateDepositFields()">
+              <option value="" disabled selected>Select Deposit Method</option>
+              <option value="upi">UPI</option>
+              <option value="cash">By Cash</option>
+              <option value="sirf">SI/RF</option>
+              <option value="salary">Through Salary</option>
+            </select>
+
+            <div id="depositDynamicFields" class="hidden flex-col gap-3 mb-3">
+              <!-- Transaction ID / UTR -->
+              <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded" id="depositTxnId" />
+              
+              <!-- To Account and Bank Name -->
+              <div class="flex gap-2 w-full" id="depositAccountBankContainer">
+                <input type="number" placeholder="To Account Number" class="w-1/2 px-4 py-2 border rounded transition-all" id="depositToAccount" />
+                <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded transition-all" id="depositToBank" />
+              </div>
             </div>
-            <div class="flex gap-2 mb-3">
-              <input type="number" placeholder="To Account Number" class="w-1/2 px-4 py-2 border rounded" id="depositToAccount" />
-              <input type="text" placeholder="Bank Name" class="w-1/2 px-4 py-2 border rounded" id="depositToBank" />
-            </div>
-            <input type="text" placeholder="Transaction ID" class="w-full px-4 py-2 border rounded mb-3" id="depositTxnId" />
             <input type="text" placeholder="Remarks" class="w-full px-4 py-2 border rounded mb-3" id="depositRemarks" />
             <button id="depositBtn" class="bg-green-500 text-white px-6 py-2 rounded w-full shadow hover:bg-green-600 transition">Deposit</button>
           </div>
@@ -548,6 +564,68 @@
                 <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No data</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Suspense Account Section -->
+      <section id="suspenseSection" class="dynamic-section hidden bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-bold text-red-700 mb-4">Suspense Account</h2>
+        <p class="text-gray-600 mb-6 text-sm">Log deposits where the sender has not informed the society. These will be tracked here until resolved.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-1 md:border-r md:pr-6">
+            <h3 class="font-bold text-gray-700 mb-4">New Suspense Entry</h3>
+            <form id="suspenseForm" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">Amount Deposit</label>
+                <input type="number" id="suspenseAmount" class="w-full border p-2 rounded" required placeholder="0.00" step="0.01">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Date</label>
+                <input type="date" id="suspenseDate" class="w-full border p-2 rounded" required>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Transaction ID or "By Cash"</label>
+                <input type="text" id="suspenseTxnId" class="w-full border p-2 rounded" placeholder="e.g., TXN123 or By Cash">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Received Bank Account Number</label>
+                <input type="text" id="suspenseToAccount" class="w-full border p-2 rounded" placeholder="Account Number">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Bank Name</label>
+                <input type="text" id="suspenseBankName" class="w-full border p-2 rounded" placeholder="Bank Name">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Remarks</label>
+                <textarea id="suspenseRemarks" class="w-full border p-2 rounded" placeholder="Any details..." rows="3"></textarea>
+              </div>
+              <button type="submit" id="suspenseSubmitBtn" class="w-full bg-red-600 text-white font-bold py-2 rounded shadow hover:bg-red-700 transition">Add Entry</button>
+            </form>
+          </div>
+          
+          <div class="md:col-span-2">
+            <h3 class="font-bold text-gray-700 mb-4 flex justify-between items-center">
+              Suspense Ledger
+              <button id="refreshSuspenseBtn" class="text-sm font-normal text-blue-600 hover:underline">Refresh</button>
+            </h3>
+            <div class="overflow-x-auto max-h-[500px] border rounded-lg">
+              <table class="min-w-full text-sm divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Txn ID / Cash</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Received Account</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bank/Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="suspenseTbody" class="bg-white divide-y divide-gray-200">
+                  <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Loading ledger...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -786,6 +864,81 @@
         });
       }
     });
+
+    function updateDepositFields() {
+      const method = document.getElementById('depositMethod').value;
+      const dynamicFields = document.getElementById('depositDynamicFields');
+      const txnIdInput = document.getElementById('depositTxnId');
+      const toAccountInput = document.getElementById('depositToAccount');
+      const toBankInput = document.getElementById('depositToBank');
+      const accountBankContainer = document.getElementById('depositAccountBankContainer');
+      
+      dynamicFields.classList.remove('hidden');
+      dynamicFields.classList.add('flex');
+      
+      txnIdInput.classList.remove('hidden');
+      toBankInput.classList.remove('hidden');
+      toAccountInput.className = 'w-1/2 px-4 py-2 border rounded transition-all';
+      toBankInput.className = 'w-1/2 px-4 py-2 border rounded transition-all';
+      
+      txnIdInput.style.order = '1';
+      accountBankContainer.style.order = '2';
+      accountBankContainer.classList.remove('hidden');
+
+      if (method === 'upi') {
+        txnIdInput.placeholder = 'UTR Number';
+        toAccountInput.placeholder = 'To Account Number';
+        toBankInput.placeholder = 'Bank Name';
+      } else if (method === 'cash') {
+        txnIdInput.classList.add('hidden');
+        toBankInput.classList.add('hidden');
+        toAccountInput.className = 'w-full px-4 py-2 border rounded transition-all';
+        toAccountInput.placeholder = 'To Account Number';
+      } else if (method === 'sirf') {
+        txnIdInput.placeholder = 'Transaction ID Copy (Optional)';
+        toAccountInput.placeholder = 'To Account Number';
+        toBankInput.placeholder = 'Bank Name';
+        // Interleave visually or order properly.
+        accountBankContainer.style.order = '1';
+        txnIdInput.style.order = '2';
+      } else if (method === 'salary') {
+        txnIdInput.placeholder = 'Transaction ID';
+        toAccountInput.placeholder = 'To Account Number';
+        toBankInput.placeholder = 'Bank Name';
+      }
+    }
+
+    function calculateRetirement() {
+      const dobInput = document.getElementById('dobInput');
+      const retirementYears = document.getElementById('retirementYears');
+      if (!dobInput) return;
+      if (!dobInput.value) {
+        retirementYears.value = '';
+        return;
+      }
+      const dob = new Date(dobInput.value);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          age--;
+      }
+      const retirementAge = 60; // Standard retirement age
+      let yearsLeft = retirementAge - age;
+      if (yearsLeft < 0) {
+        retirementYears.value = 'Retired (' + Math.abs(yearsLeft) + ' years ago)';
+        retirementYears.classList.replace('text-blue-700', 'text-red-600');
+        if (!retirementYears.classList.contains('text-red-600')) {
+          retirementYears.classList.add('text-red-600');
+        }
+      } else {
+        retirementYears.value = yearsLeft + ' Years';
+        retirementYears.classList.replace('text-red-600', 'text-blue-700');
+        if (!retirementYears.classList.contains('text-blue-700')) {
+          retirementYears.classList.add('text-blue-700');
+        }
+      }
+    }
   </script>
   <!-- Modal for dashboard messages (used by JS) -->
   <div id="dashboardMsgModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
