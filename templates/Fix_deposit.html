@@ -82,18 +82,74 @@
               <input type="number" id="fdInterestRate" step="0.01" required
                      class="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Enter interest rate">
             </div>
-            <!-- Bank Provided FD ID -->
+            <!-- Payment Mode -->
             <div class="mb-4">
-              <label for="bankFdid" class="block text-gray-700 font-semibold mb-2">Bank FD ID (Provided by bank):</label>
-              <input type="text" id="bankFdid" placeholder="Enter bank FD ID" 
+              <label class="block text-gray-700 font-semibold mb-2">Payment Mode:</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="paymentMode" id="pmodeBank" value="bank" checked
+                         onchange="toggleBankTxnField()" class="accent-blue-600">
+                  <span class="text-gray-700">Bank Transfer</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="paymentMode" id="pmodeCash" value="cash"
+                         onchange="toggleBankTxnField()" class="accent-green-600">
+                  <span class="text-gray-700">By Cash</span>
+                </label>
+              </div>
+            </div>
+            <!-- Bank Transaction ID (hidden for cash) -->
+            <div class="mb-4" id="bankTxnIdField">
+              <label for="bankFdid" class="block text-gray-700 font-semibold mb-2">Transaction ID from Bank:</label>
+              <input type="text" id="bankFdid" placeholder="Enter bank transaction / reference ID"
                      class="w-full border border-yellow-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500">
-              <p class="text-xs text-gray-500 mt-1">Optional: If provided, this will be stored in addition to system FDID.</p>
+              <p class="text-xs text-gray-500 mt-1">Optional: Bank-issued transaction/reference number for this deposit.</p>
             </div>
             <!-- Customer ID -->
             <div class="mb-4">
               <label for="fdCustomerId" class="block text-gray-700 font-semibold mb-2">Customer ID:</label>
               <input type="text" id="fdCustomerId" readonly
                      class="w-full border border-gray-300 rounded px-4 py-3 bg-gray-100 text-gray-700">
+            </div>
+            <!-- Nominee Section -->
+            <div class="mb-4 border border-purple-200 rounded-lg p-4 bg-purple-50">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-gray-700 font-semibold">👤 Nominee Details <span class="text-xs font-normal text-gray-400">(Optional)</span></h3>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-purple-700 font-medium">
+                  <input type="checkbox" id="nomineeToggle" onchange="toggleNomineeFields()" class="accent-purple-600">
+                  Add Nominee
+                </label>
+              </div>
+              <div id="nomineeFields" class="hidden space-y-3">
+                <!-- Nominee Name -->
+                <div>
+                  <label for="nomineeName" class="block text-gray-700 text-sm font-semibold mb-1">Full Name <span class="text-red-500">*</span></label>
+                  <input type="text" id="nomineeName" placeholder="Enter nominee's full name"
+                         class="w-full border border-purple-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm">
+                </div>
+                <!-- Relationship -->
+                <div>
+                  <label for="nomineeRelationship" class="block text-gray-700 text-sm font-semibold mb-1">Relationship <span class="text-red-500">*</span></label>
+                  <select id="nomineeRelationship"
+                          class="w-full border border-purple-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm bg-white">
+                    <option value="">-- Select Relationship --</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <!-- Nominee Customer ID (optional) -->
+                <div>
+                  <label for="nomineeCustomerId" class="block text-gray-700 text-sm font-semibold mb-1">Customer ID <span class="text-gray-400 font-normal">(Optional — if nominee is also a member)</span></label>
+                  <input type="text" id="nomineeCustomerId" placeholder="e.g. KSTHST1234"
+                         class="w-full border border-purple-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm">
+                </div>
+              </div>
             </div>
             <!-- Submit Button -->
             <button onclick="submitFD()" 
@@ -212,8 +268,10 @@
                 </thead>
                 <tbody>`;
             fdData.fds.forEach(fd => {
+              const canRenew = fd.status === 'approved';
+              const renewsLeft = (fd.max_extensions ?? 3) - (fd.extension_count ?? 0);
               html += `<tr class="border-t">
-                <td class="px-3 py-2" title="Internal: ${fd.system_fdid || ''}">${fd.fdid || fd.system_fdid || fd.id}</td>
+                <td class="px-3 py-2" title="Internal: ${fd.system_fdid || ''}">${fd.fdid || fd.system_fdid || fd.id}${fd.extended_from ? ` <span class="text-xs text-purple-600">(renewed)</span>` : ''}</td>
                 <td class="px-3 py-2">₹${fd.amount}</td>
                 <td class="px-3 py-2">${fd.deposit_date}</td>
                 <td class="px-3 py-2">${fd.tenure} mo</td>
@@ -227,8 +285,9 @@
                        : `<span class="text-gray-400 text-sm">Pending</span>`
                    }
                 </td>
-                <td class="px-3 py-2">
-                  ${fd.status === 'approved' ? `<button class="text-red-600 underline" onclick="openCloseFdModal('${fd.fdid || fd.system_fdid}')">Close</button>` : ''}
+                <td class="px-3 py-2 space-x-2">
+                  ${canRenew && renewsLeft > 0 ? `<button class="text-green-600 underline text-sm" onclick="openRenewFdModal('${fd.fdid || fd.system_fdid}', ${fd.tenure}, ${fd.interest_rate})" title="${renewsLeft} renewal(s) left">Renew</button>` : ''}
+                  ${fd.status === 'approved' ? `<button class="text-red-600 underline text-sm" onclick="openCloseFdModal('${fd.fdid || fd.system_fdid}')">Close</button>` : ''}
                 </td>
               </tr>`;
             });
@@ -242,6 +301,27 @@
           console.error('FD list error:', error);
           fdListContainer.innerHTML = `<div class="text-red-500 text-center">Error loading fixed deposits.</div>`;
         });
+    }
+
+    function toggleBankTxnField() {
+      const isCash = document.getElementById('pmodeCash').checked;
+      const field = document.getElementById('bankTxnIdField');
+      if (isCash) {
+        field.classList.add('hidden');
+        document.getElementById('bankFdid').value = '';
+      } else {
+        field.classList.remove('hidden');
+      }
+    }
+
+    function toggleNomineeFields() {
+      const checked = document.getElementById('nomineeToggle').checked;
+      document.getElementById('nomineeFields').classList.toggle('hidden', !checked);
+      if (!checked) {
+        document.getElementById('nomineeName').value = '';
+        document.getElementById('nomineeRelationship').value = '';
+        document.getElementById('nomineeCustomerId').value = '';
+      }
     }
 
     function submitFD() {
@@ -259,6 +339,7 @@
       const fdAccountNumberEl = document.getElementById("fdCustomerId");
       const bankFdidEl = document.getElementById('bankFdid');
       const bankFdid = bankFdidEl ? bankFdidEl.value.trim() : '';
+      const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || 'bank';
 
       // Basic validation - Fix: check if elements exist first
       if (!amountEl || !dateEl || !tenureEl || !interestRateEl || !fdAccountNumberEl) {
@@ -398,6 +479,25 @@
 
       console.log('All validation passed, proceeding with submission...');
 
+      // Nominee validation — if toggle is on, name and relationship are required
+      const nomineeToggle = document.getElementById('nomineeToggle');
+      if (nomineeToggle && nomineeToggle.checked) {
+        const nName = document.getElementById('nomineeName').value.trim();
+        const nRel  = document.getElementById('nomineeRelationship').value;
+        if (!nName) {
+          errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"><strong>❌ Nominee full name is required.</strong></div>`;
+          errorDiv.classList.remove('hidden');
+          document.getElementById('nomineeName').focus();
+          return;
+        }
+        if (!nRel) {
+          errorDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"><strong>❌ Nominee relationship is required.</strong></div>`;
+          errorDiv.classList.remove('hidden');
+          document.getElementById('nomineeRelationship').focus();
+          return;
+        }
+      }
+
       // Get submit button and show loading
       const submitBtn = document.querySelector("button[onclick='submitFD()']");
       const originalText = submitBtn.innerHTML;
@@ -417,7 +517,11 @@
           deposit_date: date,
           tenure: numTenure,
           interest_rate: numInterestRate,
-          fdid: bankFdid || null
+          fdid: bankFdid || null,
+          payment_mode: paymentMode,
+          nominee_name: (document.getElementById('nomineeToggle')?.checked && document.getElementById('nomineeName')?.value.trim()) || null,
+          nominee_relationship: (document.getElementById('nomineeToggle')?.checked && document.getElementById('nomineeRelationship')?.value) || null,
+          nominee_customer_id: (document.getElementById('nomineeToggle')?.checked && document.getElementById('nomineeCustomerId')?.value.trim()) || null
         })
       })
       .then(resp => {
@@ -441,6 +545,12 @@
           tenureEl.value = "";
           interestRateEl.value = "";
           bankFdidEl.value = '';
+          // Clear nominee fields
+          const nomineeToggle = document.getElementById('nomineeToggle');
+          if (nomineeToggle) { nomineeToggle.checked = false; toggleNomineeFields(); }
+          document.getElementById('nomineeName').value = '';
+          document.getElementById('nomineeRelationship').value = '';
+          document.getElementById('nomineeCustomerId').value = '';
           
           // Switch to details tab after 2 seconds and refresh the list
           setTimeout(() => {
@@ -478,61 +588,103 @@
 
         // Close FD Modal Logic
         let closingFdId = null;
+        let _closeFdDepDate = null, _closeFdTenureM = null; // stored for on-change recalc
+
         function openCloseFdModal(fdid){
           closingFdId = fdid;
-          // Fetch FD details JSON for calculation
-          fetch(`/fd/certificate/${encodeURIComponent(fdid)}?action=json`)
-            .then(r=>r.json())
-            .then(data=>{
-              if(data.status==='success'){
-                const fd = data.fd;
-                const principal = data.principal;
-                const interest = data.interest;
-                const total = data.maturity_amount;
-                document.getElementById('closeFdInfo').innerHTML = `
-                  <p><strong>FD ID:</strong> ${fd.fdid || fd.system_fdid}</p>
-                  <p><strong>Principal:</strong> ₹${principal}</p>
-                  <p><strong>Interest (till full tenure):</strong> ₹${interest}</p>
-                  <p><strong>Maturity (Principal+Interest):</strong> ₹${total}</p>
-                  <p class="text-xs text-gray-500 mt-2">If closing before tenure end, actual interest may differ (current implementation uses full tenure calculation).</p>
-                `;
-                document.getElementById('closeFdModal').classList.remove('hidden');
-              } else {
-                alert('Unable to load FD details');
-              }
-            }).catch(()=>alert('Error loading FD details'));
+          document.getElementById('closeFdInfo').innerHTML = '<p class="text-gray-400">Loading…</p>';
+          document.getElementById('closeFdModal').classList.remove('hidden');
+          document.getElementById('closeDate').value = new Date().toISOString().split('T')[0];
+          document.getElementById('bonusAmountRow').classList.add('hidden');
+          document.getElementById('bonusAmount').value = '';
+          _refreshCloseFdInfo();
         }
+
+        function _refreshCloseFdInfo(){
+          if (!closingFdId) return;
+          fetch(`/fd/certificate/${encodeURIComponent(closingFdId)}?action=json`)
+            .then(r => r.json())
+            .then(data => {
+              if (data.status !== 'success') { alert('Unable to load FD details'); return; }
+              const fd        = data.fd;
+              const principal = data.principal;
+              const interest  = data.interest;
+              const total     = data.maturity_amount;
+              const tenureM   = fd.tenure || 0;
+              _closeFdTenureM = tenureM;
+              _closeFdDepDate = fd.deposit_date;
+              const fullDays  = tenureM * 30;
+
+              // Check chosen closure date vs maturity
+              const closeDateVal = document.getElementById('closeDate').value;
+              const depDt  = new Date(fd.deposit_date);
+              const closeDt = closeDateVal ? new Date(closeDateVal) : new Date();
+              const actualDays = Math.max(0, Math.round((closeDt - depDt) / 86400000));
+
+              let statusBadge = '';
+              if (actualDays >= fullDays) {
+                // Post-maturity: show bonus field
+                document.getElementById('bonusAmountRow').classList.remove('hidden');
+                const extraDays = actualDays - fullDays;
+                statusBadge = `<span class="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded ml-2">✅ Post-maturity (+${extraDays} days)</span>`;
+              } else {
+                document.getElementById('bonusAmountRow').classList.add('hidden');
+                document.getElementById('bonusAmount').value = '';
+                const pct = actualDays < 30 ? 'No interest (<30 days)'
+                          : actualDays < 90  ? '3% (premature)'
+                          : actualDays < 180 ? '6% (premature)'
+                          : actualDays < 270 ? '7% (premature)'
+                          : '9% (premature)';
+                statusBadge = `<span class="inline-block bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded ml-2">⚠️ Premature — ${pct}</span>`;
+              }
+
+              document.getElementById('closeFdInfo').innerHTML = `
+                <p><strong>FD ID:</strong> ${fd.fdid || fd.system_fdid} ${statusBadge}</p>
+                <p><strong>Principal:</strong> ₹${principal}</p>
+                <p><strong>Full-tenure Interest:</strong> ₹${interest}</p>
+                <p><strong>Full Maturity Amount:</strong> ₹${total}</p>
+                <p class="text-xs text-gray-500 mt-1">Actual interest paid is calculated by the server based on the selected closure date.</p>
+              `;
+            }).catch(() => {
+              document.getElementById('closeFdInfo').innerHTML = '<p class="text-red-500">Error loading FD details.</p>';
+            });
+        }
+
         function cancelCloseFd(){
           closingFdId = null;
           document.getElementById('closeFdModal').classList.add('hidden');
+          document.getElementById('bonusAmountRow').classList.add('hidden');
+          document.getElementById('bonusAmount').value = '';
         }
         function submitCloseFd(){
           if(!closingFdId) return;
-          const wId = document.getElementById('withdrawalId').value.trim();
+          const wId       = document.getElementById('withdrawalId').value.trim();
           const closeDate = document.getElementById('closeDate').value;
-          if(!closeDate){
-            alert('Select closure date');
-            return;
-          }
+          const bonusVal  = parseFloat(document.getElementById('bonusAmount').value) || 0;
+          if(!closeDate){ alert('Select closure date'); return; }
+          if(bonusVal < 0){ alert('Bonus amount cannot be negative'); return; }
           const btn = document.getElementById('confirmCloseBtn');
           btn.disabled = true; btn.textContent='Closing...';
           fetch('/staff/api/close-fd',{
             method:'POST',
             headers:{'Content-Type':'application/json','Accept':'application/json'},
-            body: JSON.stringify({ fdid: closingFdId, closure_date: closeDate, withdrawal_id: wId || null })
+            body: JSON.stringify({
+              fdid: closingFdId,
+              closure_date: closeDate,
+              withdrawal_id: wId || null,
+              bonus_amount: bonusVal || null
+            })
           }).then(r=>r.json()).then(data=>{
             if(data.status==='success'){
               cancelCloseFd();
-              // Open certificate in new tab if provided
-              if(data.certificate_url){
-                window.open(data.certificate_url,'_blank');
-              }
-              // Show toast message
+              if(data.certificate_url){ window.open(data.certificate_url,'_blank'); }
               const toast = document.createElement('div');
               toast.className='fixed top-4 right-4 bg-green-600 text-white px-4 py-3 rounded shadow-lg text-sm z-50';
-              toast.innerHTML = `<strong>FD Closed</strong><br/>Principal: ₹${data.principal} | Interest: ₹${data.payout_interest} | Total Paid: ₹${data.payout_amount}`;
+              const bonusPart = data.bonus_amount > 0 ? ` | Bonus: ₹${data.bonus_amount}` : '';
+              const prematurePart = data.is_premature ? ` (⚠️ ${data.applied_rate}% premature rate)` : '';
+              toast.innerHTML = `<strong>FD Closed</strong><br/>Principal: ₹${data.principal} | Interest: ₹${data.payout_interest}${bonusPart} | Total Paid: ₹${data.payout_amount}${prematurePart}`;
               document.body.appendChild(toast);
-              setTimeout(()=>toast.remove(),6000);
+              setTimeout(()=>toast.remove(),7000);
               const cust = document.getElementById('fdCustomerId').value;
               if(cust) loadFDList(cust);
             } else {
@@ -540,23 +692,129 @@
             }
           }).catch(()=>alert('Network error closing FD')).finally(()=>{btn.disabled=false;btn.textContent='Confirm Close';});
         }
+
+        // ── Renew FD Logic ──────────────────────────────────────────────────
+        let renewingFdId = null;
+        function openRenewFdModal(fdid, currentTenure, currentRate) {
+          renewingFdId = fdid;
+          document.getElementById('renewFdId').textContent = fdid;
+          document.getElementById('renewTenure').value     = currentTenure || '';
+          document.getElementById('renewRate').value       = '';
+          document.getElementById('renewDate').value       = new Date().toISOString().split('T')[0];
+          document.getElementById('renewRollover').checked = false;
+          document.getElementById('renewMsg').textContent  = '';
+          document.getElementById('renewFdModal').classList.remove('hidden');
+        }
+        function cancelRenewFd() {
+          renewingFdId = null;
+          document.getElementById('renewFdModal').classList.add('hidden');
+        }
+        async function submitRenewFd() {
+          if (!renewingFdId) return;
+          const rate    = parseFloat(document.getElementById('renewRate').value);
+          const tenure  = parseInt(document.getElementById('renewTenure').value);
+          const date    = document.getElementById('renewDate').value;
+          const rollover = document.getElementById('renewRollover').checked;
+          const msgEl   = document.getElementById('renewMsg');
+          if (!rate || rate <= 0) { msgEl.textContent = 'Enter a valid interest rate.'; return; }
+          if (!tenure || tenure <= 0) { msgEl.textContent = 'Enter a valid tenure.'; return; }
+          if (!date) { msgEl.textContent = 'Select a renewal date.'; return; }
+          const btn = document.getElementById('confirmRenewBtn');
+          btn.disabled = true; btn.textContent = 'Renewing...';
+          try {
+            const res  = await fetch('/staff/api/renew-fd', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json','Accept':'application/json'},
+              body: JSON.stringify({ fdid: renewingFdId, new_interest_rate: rate, tenure, renewal_date: date, rollover })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+              cancelRenewFd();
+              // Open the new FD certificate immediately
+              if (data.certificate_url) {
+                window.open(data.certificate_url, '_blank');
+              }
+              const toast = document.createElement('div');
+              toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-3 rounded shadow-lg text-sm z-50';
+              toast.innerHTML = `<strong>FD Renewed ✅</strong><br/>New FD ID: ${data.new_fdid} | Principal: ₹${data.new_amount} | Rate: ${rate}%`;
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 7000);
+              const cust = document.getElementById('fdCustomerId').value;
+              if (cust) loadFDList(cust);
+            } else {
+              msgEl.textContent = data.message || 'Failed to renew FD.';
+            }
+          } catch(e) {
+            msgEl.textContent = 'Network error: ' + e.message;
+          } finally {
+            btn.disabled = false; btn.textContent = 'Confirm Renewal';
+          }
+        }
   </script>
   <!-- Close FD Modal -->
   <div id="closeFdModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
       <h3 class="text-xl font-semibold mb-4 text-red-600">Close Fixed Deposit</h3>
-      <div id="closeFdInfo" class="text-sm space-y-1 mb-4"></div>
+      <div id="closeFdInfo" class="text-sm space-y-1 mb-4 bg-gray-50 p-3 rounded border"></div>
       <div class="mb-3">
-        <label class="block text-sm font-medium mb-1">Closure Date</label>
-        <input type="date" id="closeDate" class="w-full border px-3 py-2 rounded" />
+        <label class="block text-sm font-medium mb-1">Closure Date <span class="text-red-500">*</span></label>
+        <input type="date" id="closeDate" onchange="_refreshCloseFdInfo()"
+               class="w-full border px-3 py-2 rounded" />
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">Withdrawal ID (optional)</label>
-        <input type="text" id="withdrawalId" placeholder="Enter withdrawal reference" class="w-full border px-3 py-2 rounded" />
+      <div class="mb-3">
+        <label class="block text-sm font-medium mb-1">Withdrawal ID <span class="text-gray-400 font-normal">(optional)</span></label>
+        <input type="text" id="withdrawalId" placeholder="Enter withdrawal reference"
+               class="w-full border px-3 py-2 rounded" />
+      </div>
+      <!-- Bonus Amount: only shown for post-maturity closures -->
+      <div id="bonusAmountRow" class="hidden mb-4 border border-blue-200 rounded-lg p-3 bg-blue-50">
+        <label class="block text-sm font-semibold text-blue-800 mb-1">
+          🎁 Society Bonus Amount (&#8377;)
+          <span class="font-normal text-xs text-blue-600 ml-1">Manual extra payout for holding beyond tenure</span>
+        </label>
+        <input type="number" id="bonusAmount" step="0.01" min="0"
+               placeholder="Enter bonus amount (e.g. 500.00)"
+               class="w-full border border-blue-300 px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+        <p class="text-xs text-blue-600 mt-1">This will be added to the total payout amount.</p>
       </div>
       <div class="flex justify-end space-x-3">
         <button onclick="cancelCloseFd()" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-        <button id="confirmCloseBtn" onclick="submitCloseFd()" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Confirm Close</button>
+        <button id="confirmCloseBtn" onclick="submitCloseFd()"
+                class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-medium">Confirm Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Renew FD Modal -->
+  <div id="renewFdModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <h3 class="text-xl font-semibold mb-1 text-green-700">🔄 Renew Fixed Deposit</h3>
+      <p class="text-sm text-gray-500 mb-4">FD ID: <strong id="renewFdId"></strong></p>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1">Renewal Date <span class="text-red-500">*</span></label>
+          <input type="date" id="renewDate" class="w-full border px-3 py-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">New Tenure (months) <span class="text-red-500">*</span></label>
+          <input type="number" id="renewTenure" placeholder="e.g. 12" min="1" class="w-full border px-3 py-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">New Interest Rate (%) <span class="text-red-500">*</span></label>
+          <input type="number" id="renewRate" step="0.01" placeholder="e.g. 8.5" min="0" class="w-full border px-3 py-2 rounded" />
+        </div>
+        <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded p-3">
+          <input type="checkbox" id="renewRollover" class="accent-green-600 w-4 h-4">
+          <label for="renewRollover" class="text-sm text-gray-700 cursor-pointer">
+            <span class="font-medium">Rollover maturity amount</span>
+            <span class="block text-xs text-gray-500">Use principal + accrued interest as new principal (otherwise uses original principal only)</span>
+          </label>
+        </div>
+        <p id="renewMsg" class="text-red-600 text-sm"></p>
+      </div>
+      <div class="flex justify-end space-x-3 mt-5">
+        <button onclick="cancelRenewFd()" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+        <button id="confirmRenewBtn" onclick="submitRenewFd()" class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-medium">Confirm Renewal</button>
       </div>
     </div>
   </div>

@@ -914,7 +914,13 @@ def generate_stid():
 
 def generate_system_fdid():
     """Generate next sequential internal system_fdid (formerly fdid) like FD0001, FD0002."""
-    resp = supabase.table("fixed_deposits").select("system_fdid").order("id", desc=True).limit(1).execute()
+    # Filter out NULL system_fdid rows and order by system_fdid DESC to find the true last value.
+    resp = supabase.table("fixed_deposits") \
+        .select("system_fdid") \
+        .like("system_fdid", "FD%") \
+        .order("system_fdid", desc=True) \
+        .limit(1) \
+        .execute()
     last_val = None
     if resp.data and resp.data[0].get("system_fdid"):
         last_val = resp.data[0]["system_fdid"]
@@ -926,6 +932,70 @@ def generate_system_fdid():
     else:
         seq = 1
     return f"FD{seq:04d}"
+
+
+def _fd_premature_rate(actual_days: int) -> float:
+    """
+    Penalty simple-interest rate (% p.a.) for pre-maturity FD closure.
+
+    Tiers:
+      <  30 days              →  0 %  (no interest; principal only)
+      30 days – 3 months      →  3 %
+      3  months – 6 months    →  6 %
+      6  months – 9 months    →  7 %
+      >  9 months (pre-mat.)  →  9 %
+    """
+    if actual_days < 30:
+        return 0.0          # less than 1 month: no interest
+    months = actual_days / 30.0
+    if months <= 3:
+        return 3.0
+    elif months <= 6:
+        return 6.0
+    elif months <= 9:
+        return 7.0
+    else:
+        return 9.0
+
+
+def _fd_interest(principal: float, contracted_rate: float,
+                 tenure_m: int, actual_days: int) -> tuple:
+    """
+    Choose correct interest method based on whether FD is closed early.
+
+    Returns (interest_amount, applied_rate_pct, is_premature)
+
+    PREMATURE  (actual_days < tenure_m * 30):
+        Simple interest at tiered penalty rate.
+        < 30 days  →  no interest (principal only).
+        I = P × r × t   (t = actual_days / 365)
+
+    AT / AFTER MATURITY:
+        Compound interest, quarterly (n=4).
+        A = P × (1 + r/n)^(n×t)  →  I = A − P
+    """
+    full_days    = max(1, tenure_m * 30)
+    is_premature = actual_days < full_days
+
+    if is_premature:
+        applied_rate = _fd_premature_rate(actual_days)
+        if applied_rate == 0.0:
+            # Held less than 30 days — return principal only, no interest
+            interest = 0.0
+        else:
+            t        = actual_days / 365.0
+            interest = round(principal * applied_rate * t / 100.0, 2)
+    else:
+        applied_rate = contracted_rate
+        n = 4  # quarterly
+        t = tenure_m / 12.0
+        if contracted_rate > 0 and t > 0:
+            maturity = principal * ((1 + (contracted_rate / 100) / n) ** (n * t))
+            interest = round(maturity - principal, 2)
+        else:
+            interest = 0.0
+
+    return interest, applied_rate, is_premature
 
 @staff_api_bp.route('/add-member', methods=['POST'])
 def add_member():
@@ -1682,7 +1752,7 @@ def fd_list():
     if not customer_id:
         return jsonify({'status': 'error', 'message': 'Missing customer_id'}), 400
     resp = supabase.table("fixed_deposits").select(
-        "id,fdid,system_fdid,amount,deposit_date,tenure,interest_rate,status,approved_by,approved_at"
+        "id,fdid,system_fdid,amount,deposit_date,tenure,interest_rate,status,approved_by,approved_at,extended_from,extension_count,max_extensions"
     ).eq("customer_id", customer_id).order("deposit_date", desc=True).execute()
     fds = resp.data or []
     # Ensure backward compatibility: if fdid is null, set fdid to system_fdid in response for display
@@ -1745,15 +1815,27 @@ def create_fd():
                 return jsonify({'status': 'error', 'message': 'FD ID too long (max 50 chars)'}), 400
         # Generate internal system_fdid always
         system_fdid = generate_system_fdid()
+        # If no bank fdid provided, use system_fdid so the fdid column is never NULL
+        if not bank_fdid:
+            bank_fdid = system_fdid
+        # Nominee details (all optional)
+        nominee_name = (data.get('nominee_name') or '').strip() or None
+        nominee_relationship = (data.get('nominee_relationship') or '').strip() or None
+        nominee_customer_id = (data.get('nominee_customer_id') or '').strip() or None
+
         fd_data = {
             "system_fdid": system_fdid,
-            "fdid": bank_fdid,  # may be null
+            "fdid": bank_fdid,
             "customer_id": data['customer_id'],
             "amount": amount,
             "deposit_date": data['deposit_date'],
             "tenure": tenure,
             "interest_rate": interest_rate,
-            "status": "pending"
+            "status": "pending",
+            "payment_mode": data.get('payment_mode', 'bank'),
+            "nominee_name": nominee_name,
+            "nominee_relationship": nominee_relationship,
+            "nominee_customer_id": nominee_customer_id
         }
         
         # Insert into fixed_deposits table
@@ -1766,6 +1848,8 @@ def create_fd():
                 'status': 'success',
                 'fdid': public_fdid,
                 'system_fdid': fd_row.get('system_fdid'),
+                'nominee_name': fd_row.get('nominee_name'),
+                'nominee_relationship': fd_row.get('nominee_relationship'),
                 'fd': fd_row,
                 'message': 'Fixed Deposit created successfully'
             }), 201
@@ -1776,15 +1860,158 @@ def create_fd():
         print(f"Error in create_fd: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
 
+@staff_api_bp.route('/renew-fd', methods=['POST'])
+def renew_fd():
+    """
+    Renew an approved FD with a new interest rate (and optionally new tenure).
+    The renewed FD is created with status='approved' immediately — no admin review needed.
+    Optionally rolls over the maturity amount (principal+interest) as the new principal.
+
+    Body JSON:
+      fdid            – bank fdid or system_fdid of the FD to renew
+      new_interest_rate – new annual interest rate (%)
+      tenure          – tenure in months for the new FD
+      renewal_date    – YYYY-MM-DD date the renewal starts
+      rollover        – bool; if true, new principal = maturity_amount; else = original principal
+    """
+    try:
+        data = request.get_json(force=True)
+        fdid             = data.get('fdid')
+        new_rate         = data.get('new_interest_rate')
+        new_tenure       = data.get('tenure')
+        renewal_date_str = data.get('renewal_date')
+        rollover         = bool(data.get('rollover', False))
+
+        if not all([fdid, new_rate, new_tenure, renewal_date_str]):
+            return jsonify({'status': 'error', 'message': 'fdid, new_interest_rate, tenure, and renewal_date are required'}), 400
+
+        try:
+            new_rate   = float(new_rate)
+            new_tenure = int(new_tenure)
+            if new_rate <= 0 or new_tenure <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({'status': 'error', 'message': 'Invalid interest rate or tenure'}), 400
+
+        from datetime import datetime as _dt
+        try:
+            renewal_dt = _dt.strptime(renewal_date_str, '%Y-%m-%d')
+        except Exception:
+            return jsonify({'status': 'error', 'message': 'Invalid renewal_date format (use YYYY-MM-DD)'}), 400
+
+        # Fetch the original FD
+        fd_resp = supabase.table('fixed_deposits').select('*').eq('fdid', fdid).limit(1).execute()
+        if not fd_resp.data:
+            fd_resp = supabase.table('fixed_deposits').select('*').eq('system_fdid', fdid).limit(1).execute()
+        if not fd_resp.data:
+            return jsonify({'status': 'error', 'message': 'FD not found'}), 404
+        fd = fd_resp.data[0]
+
+        if fd.get('status') != 'approved':
+            return jsonify({'status': 'error', 'message': 'Only approved FDs can be renewed'}), 400
+
+        max_ext = int(fd.get('max_extensions') or 3)
+        ext_cnt = int(fd.get('extension_count') or 0)
+        if ext_cnt >= max_ext:
+            return jsonify({'status': 'error', 'message': f'Maximum renewals ({max_ext}) already reached for this FD'}), 400
+
+        # Calculate compound interest payout for original FD (actual days held)
+        principal    = float(fd.get('amount') or 0)
+        old_rate     = float(fd.get('interest_rate') or 0)
+        old_tenure_m = int(fd.get('tenure') or 0)
+        dep_date_str = fd.get('deposit_date', '')
+        try:
+            dep_dt    = _dt.strptime(dep_date_str, '%Y-%m-%d')
+        except Exception:
+            dep_dt = renewal_dt
+        actual_days  = max(0, (renewal_dt - dep_dt).days)
+        full_days    = max(1, old_tenure_m * 30)
+
+        # Premature renewal? Use tiered simple interest; at/after maturity use compound interest
+        payout_interest, applied_rate, is_premature = _fd_interest(
+            principal, old_rate, old_tenure_m, actual_days
+        )
+        maturity_value = round(principal + payout_interest, 2)
+
+        # New principal: rollover means use maturity_value, else keep original principal
+        new_principal = round(maturity_value, 2) if rollover else round(principal, 2)
+
+        # Mark original FD as closed (renewal closure)
+        supabase.table('fixed_deposits').update({
+            'status': 'closed',
+            'closed_at': renewal_date_str,
+            'payout_interest': payout_interest,
+            'payout_amount': round(principal + payout_interest, 2)
+        }).eq('id', fd['id']).execute()
+
+        # Generate new system_fdid for the renewed FD
+        new_system_fdid = generate_system_fdid()
+
+        # Copy nominee from original FD
+        new_fd_data = {
+            'system_fdid':    new_system_fdid,
+            'fdid':           new_system_fdid,   # auto-set; staff can update later
+            'customer_id':    fd['customer_id'],
+            'amount':         new_principal,
+            'deposit_date':   renewal_date_str,
+            'tenure':         new_tenure,
+            'interest_rate':  new_rate,
+            'status':         'approved',          # no admin approval needed
+            'approved_by':    'system-renewal',
+            'approved_at':    renewal_dt.isoformat(),
+            'extended_from':  fd.get('system_fdid'),
+            'extension_count': ext_cnt + 1,
+            'max_extensions': max_ext,
+            'payment_mode':   fd.get('payment_mode', 'bank'),
+            'nominee_name':         fd.get('nominee_name'),
+            'nominee_relationship': fd.get('nominee_relationship'),
+            'nominee_customer_id':  fd.get('nominee_customer_id'),
+        }
+        new_resp = supabase.table('fixed_deposits').insert(new_fd_data).execute()
+        if not new_resp.data:
+            return jsonify({'status': 'error', 'message': 'Failed to create renewed FD'}), 500
+
+        new_fd_row = new_resp.data[0]
+
+        # Build certificate URL for the new FD (same pattern as close_fd)
+        try:
+            from app.notification.email_utils import _resolve_base_url
+            _base = _resolve_base_url()
+        except Exception:
+            _base = os.getenv('PUBLIC_BASE_URL') or os.getenv('BASE_URL') or 'https://ksthstsociety.com'
+        cert_url = f"{_base}/fd/certificate/{new_system_fdid}?action=view"
+
+        return jsonify({
+            'status':            'success',
+            'message':           'FD renewed successfully',
+            'original_fdid':     fd.get('fdid') or fd.get('system_fdid'),
+            'new_fdid':          new_system_fdid,
+            'new_amount':        new_principal,
+            'new_interest_rate': new_rate,
+            'new_tenure':        new_tenure,
+            'renewal_date':      renewal_date_str,
+            'rollover':          rollover,
+            'fd':                new_fd_row,
+            'certificate_url':   cert_url
+        }), 201
+
+    except Exception as e:
+        print(f'renew_fd error: {e}')
+        return jsonify({'status': 'error', 'message': f'Internal error: {e}'}), 500
+
+
 @staff_api_bp.route('/close-fd', methods=['POST'])
 def close_fd():
     """Close an approved FD. Body: fdid (bank or system), closure_date (YYYY-MM-DD), optional withdrawal_id.
     Returns payout details."""
     try:
         data = request.get_json(force=True)
-        fdid = data.get('fdid')
-        closure_date = data.get('closure_date')
+        fdid          = data.get('fdid')
+        closure_date  = data.get('closure_date')
         withdrawal_id = (data.get('withdrawal_id') or '').strip() or None
+        bonus_amount  = float(data.get('bonus_amount') or 0)   # manual society bonus for post-maturity
+        if bonus_amount < 0:
+            bonus_amount = 0.0
         if not fdid or not closure_date:
             return jsonify({'status':'error','message':'fdid and closure_date required'}), 400
         # Fetch FD by bank id else system id
@@ -1811,20 +2038,25 @@ def close_fd():
         rate = float(fd.get('interest_rate') or 0)
         tenure_m = int(fd.get('tenure') or 0)
         # Full tenure days approximation (30 * months)
-        full_days = max(1, tenure_m * 30)
+        full_days   = max(1, tenure_m * 30)
         actual_days = (close_dt - dep_date).days
         if actual_days > full_days:
-            actual_days = full_days
-        interest_full = principal * rate * tenure_m / (12 * 100)
-        interest_prorata = interest_full * (actual_days / full_days)
-        interest_prorata = round(interest_prorata, 2)
-        payout_amount = round(principal + interest_prorata, 2)
+            actual_days = full_days  # treat post-maturity as maturity
+
+        # Use tiered SIMPLE interest if closed before maturity,
+        # COMPOUND interest (quarterly) if closed at/after full tenure.
+        interest_prorata, applied_rate, is_premature = _fd_interest(
+            principal, rate, tenure_m, actual_days
+        )
+        bonus_amount   = round(bonus_amount, 2)
+        payout_amount  = round(principal + interest_prorata + bonus_amount, 2)
         update_fields = {
-            'status':'closed',
-            'closed_at': closure_date,
-            'payout_interest': interest_prorata,
-            'payout_amount': payout_amount,
-            'withdrawal_id': withdrawal_id
+            'status':           'closed',
+            'closed_at':        closure_date,
+            'payout_interest':  interest_prorata,
+            'payout_amount':    payout_amount,
+            'withdrawal_id':    withdrawal_id,
+            'bonus_amount':     bonus_amount if bonus_amount > 0 else None
         }
         upd = supabase.table('fixed_deposits').update(update_fields).eq('id', fd['id']).execute()
         # Email user (if member email exists)
@@ -1835,17 +2067,36 @@ def close_fd():
                 from app.notification.email_utils import send_email, _resolve_base_url
                 base = _resolve_base_url() if '_resolve_base_url' in globals() else (os.getenv('PUBLIC_BASE_URL') or os.getenv('BASE_URL') or 'https://ksthstsociety.com')
                 cert_link = f"{base}/fd/certificate/{fd.get('fdid') or fd.get('system_fdid')}?action=view"
-                body = f"<p>Dear {member.get('name','Member')},</p><p>Your Fixed Deposit (FD ID: <strong>{fd.get('fdid') or fd.get('system_fdid')}</strong>) has been closed on {closure_date}.</p><ul><li>Principal: ₹{principal}</li><li>Interest Paid: ₹{interest_prorata}</li><li>Total Payout: ₹{payout_amount}</li></ul><p>Certificate Link: <a href='{cert_link}'>{cert_link}</a></p><p>Thank you.</p>"
+                fd_display_id   = fd.get('fdid') or fd.get('system_fdid')
+                rupee           = '\u20b9'
+                premature_note  = '  \u26a0\ufe0f premature closure' if is_premature else ''
+                bonus_line      = f'<li>Society Bonus: {rupee}{bonus_amount}</li>' if bonus_amount > 0 else ''
+                body = (
+                    f'<p>Dear {member.get("name", "Member")},</p>'
+                    f'<p>Your Fixed Deposit (FD ID: <strong>{fd_display_id}</strong>) '
+                    f'has been closed on {closure_date}.</p>'
+                    f'<ul>'
+                    f'<li>Principal: {rupee}{principal}</li>'
+                    f'<li>Interest Paid: {rupee}{interest_prorata} (Rate: {applied_rate}%{premature_note})</li>'
+                    f'{bonus_line}'
+                    f'<li><strong>Total Payout: {rupee}{payout_amount}</strong></li>'
+                    f'</ul>'
+                    f'<p>Certificate Link: <a href="{cert_link}">{cert_link}</a></p>'
+                    f'<p>Thank you.</p>'
+                )
                 send_email(member.get('email'), f"FD Closed - {fd.get('fdid') or fd.get('system_fdid')}", body)
         except Exception as mail_err:
             print('FD close email error', mail_err)
         cert_url = f"{base}/fd/certificate/{fd.get('fdid') or fd.get('system_fdid')}?action=view"
         return jsonify({
-            'status':'success',
-            'fdid': fd.get('fdid') or fd.get('system_fdid'),
-            'principal': principal,
+            'status':          'success',
+            'fdid':            fd.get('fdid') or fd.get('system_fdid'),
+            'principal':       principal,
             'payout_interest': interest_prorata,
-            'payout_amount': payout_amount,
+            'bonus_amount':    bonus_amount,
+            'payout_amount':   payout_amount,
+            'applied_rate':    applied_rate,
+            'is_premature':    is_premature,
             'certificate_url': cert_url
         }), 200
     except Exception as e:

@@ -115,8 +115,14 @@ def fd_certificate(fdid):
         tenure_m = int(fd.get("tenure") or 0)
     except Exception:
         principal, rate, tenure_m = 0.0, 0.0, 0
-    interest = round(principal * rate * tenure_m / (12 * 100), 2)
-    maturity_amount = round(principal + interest, 2)
+    # Compound interest: A = P(1 + r/n)^(n*t), quarterly compounding (n=4)
+    n = 4  # quarterly
+    t = tenure_m / 12.0  # years
+    if rate > 0 and t > 0:
+        maturity_amount = round(principal * ((1 + (rate / 100) / n) ** (n * t)), 2)
+    else:
+        maturity_amount = round(principal, 2)
+    interest = round(maturity_amount - principal, 2)
 
     # Maturity date
     maturity_date = None

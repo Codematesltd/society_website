@@ -1,30 +1,106 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
-  <title>FD Certificate - {{ fd.fdid or fd.system_fdid }}</title>
+  <title>FD Certificate - {{ fd.system_fdid or fd.fdid }}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin:40px; color:#222; }
-    .header { text-align:center; margin-bottom:25px; }
-    .header img { height:80px; }
-    h1 { font-size:22px; margin:10px 0 5px; }
-    h2 { font-size:16px; margin:4px 0; font-weight:600; }
-    table { width:100%; border-collapse:collapse; margin-top:15px; }
-    td { padding:6px 8px; vertical-align:top; }
-    .section { margin-top:22px; }
-    .bold { font-weight:bold; }
-    .box { border:1px solid #ccc; padding:14px; border-radius:8px; }
-    .muted { color:#555; }
-    .status { display:inline-block; padding:4px 10px; border-radius:16px; font-size:12px; font-weight:600; background:#eef; color:#234; }
-    .status.approved { background:#d1fae5; color:#065f46; }
-    .status.pending { background:#fef3c7; color:#92400e; }
-    .status.rejected { background:#fee2e2; color:#991b1b; }
-    @media print { .no-print { display:none; } body { margin:10mm; } }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      color: #222;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .header img {
+      height: 80px;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 10px 0 5px;
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 4px 0;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    td {
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    .section {
+      margin-top: 22px;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .box {
+      border: 1px solid #ccc;
+      padding: 14px;
+      border-radius: 8px;
+    }
+
+    .muted {
+      color: #555;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #eef;
+      color: #234;
+    }
+
+    .status.approved {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status.rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    @media print {
+      .no-print {
+        display: none;
+      }
+
+      body {
+        margin: 10mm;
+      }
+    }
   </style>
 </head>
+
 <body>
   <div class="no-print" style="text-align:right; margin-bottom:10px;">
-    <button onclick="window.print()" style="padding:6px 14px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;">Print</button>
+    <button onclick="window.print()"
+      style="padding:6px 14px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;">Print</button>
   </div>
   <div class="header">
     <img src="https://geqletipzwxokceydhmi.supabase.co/storage/v1/object/public/staff-add/society_logo.png" alt="Logo">
@@ -36,34 +112,54 @@
   <div class="box">
     <table>
       <tr>
-  <td class="bold">FD ID:</td><td>{{ fd.fdid or fd.system_fdid }}</td>
+        <td class="bold">FD ID (Society):</td>
+        <td>{{ fd.system_fdid or fd.fdid }}</td>
         <td class="bold">Status:</td>
         <td><span class="status {{ fd.status }}">{{ fd.status|title }}</span></td>
       </tr>
-      {% if fd.system_fdid and (fd.fdid != fd.system_fdid) %}
+      {% if fd.fdid and fd.fdid != fd.system_fdid %}
       <tr>
-        <td class="bold">System Internal ID:</td><td>{{ fd.system_fdid }}</td>
-        <td></td><td></td>
+        <td class="bold">Transaction ID from Bank:</td>
+        <td>{{ fd.fdid }}</td>
+        <td></td>
+        <td></td>
       </tr>
       {% endif %}
       <tr>
-        <td class="bold">Customer ID:</td><td>{{ fd.customer_id }}</td>
-        <td class="bold">Customer Name:</td><td>{{ member.name or '-' }}</td>
+        <td class="bold">Customer ID:</td>
+        <td>{{ fd.customer_id }}</td>
+        <td class="bold">Customer Name:</td>
+        <td>{{ member.name or '-' }}</td>
       </tr>
       <tr>
-        <td class="bold">Amount (Principal):</td><td>₹ {{ principal }}</td>
-        <td class="bold">Interest Rate:</td><td>{{ rate }} %</td>
+        <td class="bold">Amount (Principal):</td>
+        <td>₹ {{ principal }}</td>
+        <td class="bold">Interest Rate:</td>
+        <td>{{ rate }} %</td>
       </tr>
       <tr>
-        <td class="bold">Tenure:</td><td>{{ tenure_months }} months</td>
-        <td class="bold">Deposit Date:</td><td>{{ fd.deposit_date }}</td>
+        <td class="bold">Tenure:</td>
+        <td>{{ tenure_months }} months</td>
+        <td class="bold">Deposit Date:</td>
+        <td>{{ fd.deposit_date }}</td>
       </tr>
       <tr>
-        <td class="bold">Maturity Date:</td><td>{{ maturity_date or '-' }}</td>
-        <td class="bold">Accrued Interest:</td><td>₹ {{ interest }}</td>
+        <td class="bold">Maturity Date:</td>
+        <td>{{ maturity_date or '-' }}</td>
+        <td class="bold">Accrued Interest:</td>
+        <td>₹ {{ interest }}</td>
       </tr>
       <tr>
-        <td class="bold">Maturity Amount:</td><td colspan="3">₹ {{ maturity_amount }}</td>
+        <td class="bold">Maturity Amount:</td>
+        <td>₹ {{ maturity_amount }}</td>
+        <td class="bold">Payment Mode:</td>
+        <td>
+          {% if fd.payment_mode == 'cash' %}
+          By Cash
+          {% else %}
+          Bank Transfer
+          {% endif %}
+        </td>
       </tr>
     </table>
     <div class="section">
@@ -74,6 +170,27 @@
     <div class="section">
       <div class="bold">Approved At:</div>
       <div class="muted">{{ fd.approved_at }}</div>
+    </div>
+    {% endif %}
+    {% if fd.nominee_name %}
+    <div class="section">
+      <div class="bold" style="margin-bottom:6px;">👤 Nominee Details</div>
+      <table style="margin-top:0;">
+        <tr>
+          <td class="bold">Nominee Name:</td>
+          <td>{{ fd.nominee_name }}</td>
+          <td class="bold">Relationship:</td>
+          <td>{{ fd.nominee_relationship or '-' }}</td>
+        </tr>
+        {% if fd.nominee_customer_id %}
+        <tr>
+          <td class="bold">Nominee Member ID:</td>
+          <td>{{ fd.nominee_customer_id }}</td>
+          <td></td>
+          <td></td>
+        </tr>
+        {% endif %}
+      </table>
     </div>
     {% endif %}
   </div>
@@ -93,4 +210,5 @@
     System generated document. Valid without signature.
   </div>
 </body>
+
 </html>
