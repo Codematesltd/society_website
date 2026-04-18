@@ -82,22 +82,11 @@
         }
       });
 
-      // SQL injection check function
-      function hasSQLi(str) {
-        if (!str) return false;
-        const s = String(str);
-        const patterns = [
-            /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
-            /(\%22)|(\")/i,
-            /(\%3D)|(=)/i,
-            /\b(OR|AND)\b\s+\d+=\d+/i,
-            /\b(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/i,
-            /\b(WHERE|FROM|TABLE|DATABASE)\b/i,
-            /\b(EXEC|EXECUTE|CAST|CONVERT)\b/i,
-            /\b(SLEEP|BENCHMARK|WAITFOR)\b/i,
-        ];
-        return patterns.some(pat => pat.test(s));
-      }
+
+      // SQL injection prevention is handled server-side via Supabase parameterized queries.
+      // No client-side character blocking — passwords with special chars (#, ', etc.) are allowed.
+
+
 
       // Front-end Validation & Submission Handling
   document.getElementById('loginForm').addEventListener('submit', async function (e) {
@@ -127,13 +116,7 @@
           valid = false;
         }
 
-        // Add SQLi check
-        if (hasSQLi(email.value) || hasSQLi(password.value)) {
-          emailError.textContent = "Invalid input detected.";
-          emailError.classList.remove('hidden');
-          e.preventDefault();
-          return;
-        }
+
 
         if (!valid) {
           e.preventDefault();
