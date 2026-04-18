@@ -1002,11 +1002,14 @@ def add_member():
     # Use old working logic, kgid optional
     form = {k.strip(): v for k, v in request.form.items()}
     files = {k.strip(): v for k, v in request.files.items()}
-    required_fields = ['name', 'phone', 'email', 'aadhar_no', 'pan_no', 'salary', 'organization_name', 'address', 'otp']
+    required_fields = ['name', 'phone', 'email', 'salary', 'organization_name', 'address', 'otp']
     data = {field: form.get(field, '').strip() for field in required_fields}
     kgid = form.get('kgid', '').strip()  # optional
+    # aadhar_no and pan_no are optional
+    data['aadhar_no'] = form.get('aadhar_no', '').strip()
+    data['pan_no'] = form.get('pan_no', '').strip()
 
-    missing = [f for f, v in data.items() if not v]
+    missing = [f for f, v in data.items() if f not in ('aadhar_no', 'pan_no') and not v]
     if missing:
         return jsonify({'status': 'error', 'message': f'Missing fields: {", ".join(missing)}'}), 400
 
