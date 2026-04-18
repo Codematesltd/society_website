@@ -1024,46 +1024,44 @@ def add_member():
 
     photo = files.get('photo')
     signature = files.get('signature')
-    if not photo or photo.filename == "":
-        return jsonify({'status': 'error', 'message': 'Missing or empty photo file'}), 400
-    if not signature or signature.filename == "":
-        return jsonify({'status': 'error', 'message': 'Missing or empty signature file'}), 400
-
     allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
-    if photo.mimetype not in allowed_types:
-        return jsonify({'status': 'error', 'message': 'Photo must be a JPEG or PNG image'}), 400
-    if signature.mimetype not in allowed_types:
-        return jsonify({'status': 'error', 'message': 'Signature must be a JPEG or PNG image'}), 400
-
     max_size = 2 * 1024 * 1024
-    photo.seek(0, 2)
-    photo_size = photo.tell()
-    photo.seek(0)
-    signature.seek(0, 2)
-    signature_size = signature.tell()
-    signature.seek(0)
-    if photo_size > max_size:
-        return jsonify({'status': 'error', 'message': 'Photo file too large (max 2MB)'}), 400
-    if signature_size > max_size:
-        return jsonify({'status': 'error', 'message': 'Signature file too large (max 2MB)'}), 400
 
-    photo_filename = f"{uuid.uuid4().hex}_{secure_filename(photo.filename)}"
-    signature_filename = f"{uuid.uuid4().hex}_{secure_filename(signature.filename)}"
+    photo_url = ""
+    if photo and photo.filename != "":
+        if photo.mimetype not in allowed_types:
+            return jsonify({'status': 'error', 'message': 'Photo must be a JPEG or PNG image'}), 400
+        photo.seek(0, 2)
+        if photo.tell() > max_size:
+            return jsonify({'status': 'error', 'message': 'Photo file too large (max 2MB)'}), 400
+        photo.seek(0)
+        
+        try:
+            photo_buffer = compress_image(photo)
+            photo_filename = f"{uuid.uuid4().hex}_{secure_filename(photo.filename)}"
+            bucket = supabase.storage.from_(SUPABASE_BUCKET)
+            bucket.upload(photo_filename, photo_buffer.read())
+            photo_url = f"{STORAGE_PUBLIC_PATH}/{photo_filename}"
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': 'Photo processing upload failed', 'error': str(e)}), 400
 
-    try:
-        photo_buffer = compress_image(photo)
-        signature_buffer = compress_image(signature)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': 'Image processing failed', 'error': str(e)}), 400
-
-    try:
-        bucket = supabase.storage.from_(SUPABASE_BUCKET)
-        bucket.upload(photo_filename, photo_buffer.read())
-        bucket.upload(signature_filename, signature_buffer.read())
-        photo_url = f"{STORAGE_PUBLIC_PATH}/{photo_filename}"
-        signature_url = f"{STORAGE_PUBLIC_PATH}/{signature_filename}"
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': 'Image upload failed', 'error': str(e)}), 500
+    signature_url = ""
+    if signature and signature.filename != "":
+        if signature.mimetype not in allowed_types:
+            return jsonify({'status': 'error', 'message': 'Signature must be a JPEG or PNG image'}), 400
+        signature.seek(0, 2)
+        if signature.tell() > max_size:
+            return jsonify({'status': 'error', 'message': 'Signature file too large (max 2MB)'}), 400
+        signature.seek(0)
+        
+        try:
+            signature_buffer = compress_image(signature)
+            signature_filename = f"{uuid.uuid4().hex}_{secure_filename(signature.filename)}"
+            bucket = supabase.storage.from_(SUPABASE_BUCKET)
+            bucket.upload(signature_filename, signature_buffer.read())
+            signature_url = f"{STORAGE_PUBLIC_PATH}/{signature_filename}"
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': 'Signature processing upload failed', 'error': str(e)}), 400
 
     member_data = {
         "name": data['name'],
