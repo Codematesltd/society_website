@@ -1,0 +1,131 @@
+<h2 class="text-2xl font-bold text-emerald-700 mb-6">💳 Share Fees Collection</h2>
+
+<!-- Customer Search -->
+<div class="bg-emerald-50 p-6 rounded-xl shadow border border-emerald-100 mb-6">
+  <label class="block font-semibold mb-2 text-gray-700">Enter Customer ID:</label>
+  <div class="flex gap-4">
+    <input type="text" id="sfCustomerId" placeholder="e.g. KSTHST7934"
+           class="w-full md:w-1/3 px-4 py-2 border rounded shadow-sm focus:ring focus:ring-emerald-200">
+    <button type="button" id="sfFetchBtn"
+            class="bg-emerald-600 text-white px-6 py-2 rounded shadow hover:bg-emerald-700 transition">
+      Fetch
+    </button>
+  </div>
+  <div id="sfFetchMsg" class="text-sm mt-2 font-medium"></div>
+</div>
+
+<!-- Customer Info Card -->
+<div id="sfCustomerCard" class="hidden bg-white border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-4 shadow-sm">
+  <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
+    👤
+  </div>
+  <div>
+    <p class="font-bold text-gray-800" id="sfCustomerName">—</p>
+    <p class="text-sm text-gray-500">Customer ID: <span id="sfCustomerIdDisplay" class="text-emerald-700 font-medium"></span></p>
+  </div>
+</div>
+
+<!-- Share Fee Form -->
+<form id="sfForm" class="hidden space-y-6">
+
+  <!-- Fee Entry Fields -->
+  <div class="bg-white p-6 rounded-xl shadow border">
+    <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Share Fee Details</h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+      <!-- Amount -->
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">Share Fee Amount <span class="text-red-500">*</span></label>
+        <div class="relative">
+          <span class="absolute left-3 top-2 text-gray-500">₹</span>
+          <input type="number" id="sfAmount" min="0.01" step="0.01" required
+                 class="w-full pl-8 pr-4 py-2 border rounded focus:ring focus:ring-emerald-200"
+                 placeholder="0.00">
+        </div>
+      </div>
+
+      <!-- Date -->
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">Date <span class="text-red-500">*</span></label>
+        <input type="date" id="sfDate" required
+               class="w-full px-4 py-2 border rounded focus:ring focus:ring-emerald-200">
+      </div>
+
+      <!-- Payment Mode -->
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">Payment Mode <span class="text-red-500">*</span></label>
+        <div class="flex gap-5 mt-1">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="sfPaymentMode" value="cash" id="sfModeCash" checked
+                   class="form-radio text-emerald-600">
+            <span class="text-gray-800 font-medium">Cash</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="sfPaymentMode" value="online" id="sfModeOnline"
+                   class="form-radio text-emerald-600">
+            <span class="text-gray-800 font-medium">Online / Bank</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bank fields (shown only for online) -->
+    <div id="sfBankFields" class="hidden mt-5 grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">To Account</label>
+        <input type="text" id="sfToAccount" placeholder="Account number / UPI ID"
+               class="w-full px-4 py-2 border rounded focus:ring focus:ring-emerald-200">
+      </div>
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">Bank Name</label>
+        <input type="text" id="sfBankName" placeholder="e.g. SBI, HDFC"
+               class="w-full px-4 py-2 border rounded focus:ring focus:ring-emerald-200">
+      </div>
+      <div>
+        <label class="block font-medium text-gray-700 mb-1">Transaction ID</label>
+        <input type="text" id="sfTxnId" placeholder="Bank / UPI transaction ID"
+               class="w-full px-4 py-2 border rounded focus:ring focus:ring-emerald-200">
+      </div>
+    </div>
+
+    <!-- Remarks -->
+    <div class="mt-5">
+      <label class="block font-medium text-gray-700 mb-1">Remarks <span class="text-sm text-gray-400">(Optional)</span></label>
+      <input type="text" id="sfRemarks" placeholder="Any extra notes"
+             class="w-full px-4 py-2 border rounded focus:ring focus:ring-emerald-200">
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="flex justify-end pb-8">
+    <button type="submit" id="sfSubmitBtn"
+            class="bg-emerald-600 text-white font-bold px-10 py-3 rounded-lg shadow-lg hover:bg-emerald-700 transition transform hover:scale-105">
+      💾 Save Share Fee
+    </button>
+  </div>
+</form>
+
+<!-- Previous Share Fees History -->
+<div id="sfHistorySection" class="hidden">
+  <h3 class="text-lg font-bold text-gray-700 mb-3">📋 Previous Share Fees for this Customer</h3>
+  <div class="overflow-x-auto rounded-xl shadow border">
+    <table class="min-w-full text-sm">
+      <thead class="bg-emerald-100 text-emerald-900">
+        <tr>
+          <th class="px-4 py-2 text-left">Fee ID</th>
+          <th class="px-4 py-2 text-left">Amount</th>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Mode</th>
+          <th class="px-4 py-2 text-left">Bank / Account</th>
+          <th class="px-4 py-2 text-left">Txn ID</th>
+          <th class="px-4 py-2 text-left">Remarks</th>
+        </tr>
+      </thead>
+      <tbody id="sfHistoryTbody" class="divide-y">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1572,7 +1572,7 @@ def fetch_account_member():
         'signature_url': m.get('signature_url'),
         'balance': m.get('balance'),
         'customer_id': m.get('customer_id'),
-        'status': m.get('status')
+        'account_status': m.get('status')   # renamed to avoid overwriting 'status': 'success'
     }), 200
 
 @staff_api_bp.route('/send-update-otp', methods=['POST'])
@@ -2148,5 +2148,414 @@ def list_suspense_entries():
         return jsonify({'status': 'error', 'message': f'Internal error: {str(e)}'}), 500
 
 
+# ===================== Record Entry (Historical Data Migration) =====================
+
+def _generate_fee_id():
+    """Generate next sequential share fee ID like SF0001, SF0002."""
+    try:
+        resp = supabase.table("share_fees") \
+            .select("fee_id") \
+            .like("fee_id", "SF%") \
+            .order("fee_id", desc=True) \
+            .limit(1) \
+            .execute()
+        if resp.data and resp.data[0].get("fee_id"):
+            last_val = resp.data[0]["fee_id"]
+            try:
+                seq = int(last_val[2:]) + 1
+            except Exception:
+                seq = 1
+        else:
+            seq = 1
+        return f"SF{seq:04d}"
+    except Exception:
+        return f"SF{int(datetime.now().timestamp()) % 10000:04d}"
 
 
+def _generate_loan_id_for_record():
+    """Generate next sequential loan ID like LN0001 (mirrors finance api generate_loan_id)."""
+    try:
+        result = supabase.table("loans").select("loan_id").execute()
+        highest_num = 0
+        if result.data:
+            for loan in result.data:
+                lid = loan.get("loan_id", "")
+                if lid and lid.startswith("LN"):
+                    try:
+                        highest_num = max(highest_num, int(lid[2:]))
+                    except ValueError:
+                        pass
+        return f"LN{highest_num + 1:04d}"
+    except Exception:
+        return f"LN{int(datetime.now().timestamp()) % 10000:04d}"
+
+
+@staff_api_bp.route('/record-entry', methods=['POST'])
+@login_required
+@role_required('admin', 'staff')
+def record_entry():
+    """
+    Historical Data Migration endpoint.
+    Accepts JSON with the following optional sections:
+      - customer_id (required)
+      - share_amount, share_fees, balance  (member financial fields)
+      - loan section: loan_type, loan_id, loan_amount, loan_interest,
+        loan_date, surety1_id, surety2_id,
+        principal_paid, interest_paid, date_paid
+      - fd section: fd_id, fd_amount, fd_interest, fd_reg_date,
+        fd_maturity_date, fd_nominee
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        customer_id = (data.get('customer_id') or '').strip()
+        if not customer_id:
+            return jsonify({'status': 'error', 'message': 'customer_id is required'}), 400
+
+        # Verify customer exists
+        member_resp = supabase.table("members") \
+            .select("customer_id,name,phone,balance,share_amount") \
+            .eq("customer_id", customer_id).limit(1).execute()
+        if not member_resp.data:
+            return jsonify({'status': 'error', 'message': f'Customer {customer_id} not found'}), 404
+
+        member = member_resp.data[0]
+        results = {}
+        staff_email = session.get('staff_email') or session.get('email') or ''
+
+        # -------- 1. Update member financial fields (share_amount, balance) --------
+        member_update = {}
+        if data.get('share_amount') not in (None, '', 0):
+            try:
+                member_update['share_amount'] = float(data['share_amount'])
+            except (ValueError, TypeError):
+                pass
+        if data.get('balance') not in (None, '', 0):
+            try:
+                member_update['balance'] = float(data['balance'])
+            except (ValueError, TypeError):
+                pass
+
+        if member_update:
+            supabase.table("members").update(member_update) \
+                .eq("customer_id", customer_id).execute()
+            results['member_updated'] = member_update
+
+        # -------- 2. Insert share_fees record if share_fees amount provided --------
+        share_fees_val = data.get('share_fees')
+        if share_fees_val not in (None, '', 0):
+            try:
+                fee_amount = float(share_fees_val)
+                if fee_amount > 0:
+                    fee_id = _generate_fee_id()
+                    fee_row = {
+                        "fee_id": fee_id,
+                        "customer_id": customer_id,
+                        "amount": fee_amount,
+                        "payment_mode": "cash",
+                        "remarks": "Historical record entry (data migration)",
+                        "recorded_by": staff_email or None,
+                    }
+                    supabase.table("share_fees").insert(fee_row).execute()
+                    results['share_fee'] = {'fee_id': fee_id, 'amount': fee_amount}
+            except (ValueError, TypeError):
+                pass
+
+        # -------- 3. Loan section --------
+        loan_amount_val = data.get('loan_amount')
+        loan_type_val = data.get('loan_type')
+        if loan_amount_val and loan_type_val:
+            try:
+                loan_amount = float(loan_amount_val)
+                if loan_amount > 0:
+                    interest_rate = float(data.get('loan_interest') or 0)
+                    loan_date = data.get('loan_date') or datetime.now().strftime('%Y-%m-%d')
+
+                    # Use provided loan_id or generate a new one
+                    provided_loan_id = (data.get('loan_id') or '').strip()
+                    if provided_loan_id:
+                        # Check for duplicates
+                        dup_check = supabase.table("loans") \
+                            .select("id").eq("loan_id", provided_loan_id).limit(1).execute()
+                        if dup_check.data:
+                            return jsonify({
+                                'status': 'error',
+                                'message': f'Loan ID {provided_loan_id} already exists'
+                            }), 409
+                        loan_id_text = provided_loan_id
+                    else:
+                        loan_id_text = _generate_loan_id_for_record()
+
+                    # Principal paid so far
+                    principal_paid = float(data.get('principal_paid') or 0)
+                    interest_paid = float(data.get('interest_paid') or 0)
+                    remaining = loan_amount - principal_paid
+
+                    # Determine status: if fully paid mark completed, else approved
+                    loan_status = 'approved'
+                    if remaining <= 0:
+                        loan_status = 'completed'
+
+                    loan_insert = {
+                        "loan_id": loan_id_text,
+                        "customer_id": customer_id,
+                        "loan_type": loan_type_val,
+                        "loan_amount": loan_amount,
+                        "interest_rate": interest_rate,
+                        "loan_term_months": 0,  # historical, unknown tenure
+                        "status": loan_status,
+                        "created_at": loan_date,
+                    }
+                    # Purpose field
+                    if loan_type_val == 'normal':
+                        loan_insert['purpose_of_loan'] = 'Historical record (data migration)'
+                    else:
+                        loan_insert['purpose_of_emergency_loan'] = 'Historical record (data migration)'
+
+                    loan_resp = supabase.table("loans").insert(loan_insert).execute()
+                    if not loan_resp.data:
+                        return jsonify({'status': 'error', 'message': 'Failed to create loan record'}), 500
+
+                    loan_row = loan_resp.data[0]
+                    loan_uuid = loan_row['id']
+                    results['loan'] = {
+                        'loan_id': loan_id_text,
+                        'uuid': loan_uuid,
+                        'status': loan_status
+                    }
+
+                    # Insert sureties (no check-surety validation, just store existing data)
+                    surety1_id = (data.get('surety1_id') or '').strip()
+                    surety2_id = (data.get('surety2_id') or '').strip()
+                    for sid in [surety1_id, surety2_id]:
+                        if sid:
+                            # Fetch surety member info
+                            sm_resp = supabase.table("members") \
+                                .select("name,phone,signature_url,photo_url") \
+                                .eq("customer_id", sid).limit(1).execute()
+                            sm = sm_resp.data[0] if sm_resp.data else {}
+                            supabase.table("sureties").insert({
+                                "loan_id": loan_uuid,
+                                "surety_customer_id": sid,
+                                "surety_name": sm.get("name", ""),
+                                "surety_mobile": sm.get("phone", ""),
+                                "surety_signature_url": sm.get("signature_url"),
+                                "surety_photo_url": sm.get("photo_url"),
+                                "active": loan_status == 'approved'
+                            }).execute()
+
+                    # Insert a repayment summary record if any payment has been made
+                    if principal_paid > 0 or interest_paid > 0:
+                        repayment_date = data.get('date_paid') or datetime.now().strftime('%Y-%m-%d')
+                        repayment_amount = principal_paid + interest_paid
+                        loan_record_row = {
+                            "loan_id": loan_id_text,
+                            "repayment_date": repayment_date,
+                            "repayment_amount": repayment_amount,
+                            "principal_amount": principal_paid,
+                            "interest_amount": interest_paid,
+                            "remaining_principal_amount": remaining if remaining > 0 else 0,
+                            "outstanding_balance": remaining if remaining > 0 else 0,
+                            "status": "active"
+                        }
+                        supabase.table("loan_records").insert(loan_record_row).execute()
+                        results['loan_repayment'] = {
+                            'total_paid': repayment_amount,
+                            'remaining': remaining if remaining > 0 else 0
+                        }
+            except (ValueError, TypeError) as e:
+                print(f"record_entry loan error: {e}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Invalid loan numeric values: {str(e)}'
+                }), 400
+
+        # -------- 4. Fixed Deposit section --------
+        fd_amount_val = data.get('fd_amount')
+        if fd_amount_val:
+            try:
+                fd_amount = float(fd_amount_val)
+                if fd_amount > 0:
+                    fd_interest = float(data.get('fd_interest') or 0)
+                    fd_reg_date = data.get('fd_reg_date') or datetime.now().strftime('%Y-%m-%d')
+                    fd_maturity_date = data.get('fd_maturity_date') or ''
+                    fd_nominee = (data.get('fd_nominee') or '').strip()
+
+                    # Calculate tenure from dates if both provided
+                    tenure_months = 12  # default
+                    if fd_reg_date and fd_maturity_date:
+                        try:
+                            reg_dt = datetime.strptime(fd_reg_date, '%Y-%m-%d')
+                            mat_dt = datetime.strptime(fd_maturity_date, '%Y-%m-%d')
+                            tenure_months = max(1, (mat_dt.year - reg_dt.year) * 12 + (mat_dt.month - reg_dt.month))
+                        except Exception:
+                            pass
+
+                    # Use provided FD ID or generate
+                    provided_fd_id = (data.get('fd_id') or '').strip()
+                    system_fdid = generate_system_fdid()
+
+                    if provided_fd_id:
+                        # Check for duplicate
+                        dup_fd = supabase.table("fixed_deposits") \
+                            .select("id").eq("fdid", provided_fd_id).limit(1).execute()
+                        if dup_fd.data:
+                            return jsonify({
+                                'status': 'error',
+                                'message': f'FD ID {provided_fd_id} already exists'
+                            }), 409
+                        bank_fdid = provided_fd_id
+                    else:
+                        bank_fdid = system_fdid
+
+                    fd_insert = {
+                        "system_fdid": system_fdid,
+                        "fdid": bank_fdid,
+                        "customer_id": customer_id,
+                        "amount": fd_amount,
+                        "deposit_date": fd_reg_date,
+                        "tenure": tenure_months,
+                        "interest_rate": fd_interest,
+                        "status": "active",
+                        "nominee_name": fd_nominee or None,
+                    }
+                    fd_resp = supabase.table("fixed_deposits").insert(fd_insert).execute()
+                    if fd_resp.data:
+                        results['fd'] = {
+                            'fdid': bank_fdid,
+                            'system_fdid': system_fdid,
+                            'amount': fd_amount
+                        }
+                    else:
+                        return jsonify({
+                            'status': 'error',
+                            'message': 'Failed to create FD record'
+                        }), 500
+            except (ValueError, TypeError) as e:
+                print(f"record_entry FD error: {e}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Invalid FD numeric values: {str(e)}'
+                }), 400
+
+        if not results:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided to record. Fill at least one section.'
+            }), 400
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Historical record entry saved successfully',
+            'customer_id': customer_id,
+            'results': results
+        }), 201
+
+    except Exception as e:
+        import traceback
+        print(f"record_entry error: {e}")
+        print(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': f'Internal error: {str(e)}'}), 500
+
+
+# ===================== Share Fees =====================
+
+@staff_api_bp.route('/share-fees', methods=['GET'])
+@login_required
+@role_required('admin', 'staff')
+def list_share_fees():
+    """List share fee records for a given customer_id."""
+    customer_id = request.args.get('customer_id', '').strip()
+    if not customer_id:
+        return jsonify({'status': 'error', 'message': 'customer_id is required'}), 400
+    try:
+        resp = supabase.table('share_fees') \
+            .select('fee_id,amount,created_at,payment_mode,txn_id,to_account,bank_name,remarks') \
+            .eq('customer_id', customer_id) \
+            .order('created_at', desc=True) \
+            .execute()
+        return jsonify({'status': 'success', 'fees': resp.data or []}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@staff_api_bp.route('/share-fees', methods=['POST'])
+@login_required
+@role_required('admin', 'staff')
+def add_share_fee():
+    """
+    Record a share fee payment into the share_fees table.
+    Body (JSON):
+      customer_id   – required
+      amount        – required, positive numeric
+      date          – required, YYYY-MM-DD
+      payment_mode  – 'cash' or 'online'
+      to_account    – optional, for online
+      bank_name     – optional, for online
+      txn_id        – optional, for online
+      remarks       – optional
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        customer_id = (data.get('customer_id') or '').strip()
+        if not customer_id:
+            return jsonify({'status': 'error', 'message': 'customer_id is required'}), 400
+
+        # Verify customer exists
+        m_resp = supabase.table('members') \
+            .select('customer_id,name') \
+            .eq('customer_id', customer_id).limit(1).execute()
+        if not m_resp.data:
+            return jsonify({'status': 'error', 'message': f'Customer {customer_id} not found'}), 404
+
+        # Validate amount
+        try:
+            amount = float(data.get('amount') or 0)
+            if amount <= 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            return jsonify({'status': 'error', 'message': 'Amount must be a positive number'}), 400
+
+        # Validate date
+        fee_date = (data.get('date') or '').strip()
+        if not fee_date:
+            return jsonify({'status': 'error', 'message': 'Date is required'}), 400
+        try:
+            datetime.strptime(fee_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Invalid date format, use YYYY-MM-DD'}), 400
+
+        # Validate payment_mode
+        payment_mode = (data.get('payment_mode') or 'cash').strip().lower()
+        if payment_mode not in ('cash', 'online'):
+            return jsonify({'status': 'error', 'message': "payment_mode must be 'cash' or 'online'"}), 400
+
+        staff_email = session.get('staff_email') or session.get('email') or ''
+        fee_id = _generate_fee_id()
+
+        row = {
+            'fee_id':       fee_id,
+            'customer_id':  customer_id,
+            'amount':       amount,
+            'payment_mode': payment_mode,
+            'created_at':   fee_date,
+            'to_account':   (data.get('to_account') or '').strip() or None,
+            'bank_name':    (data.get('bank_name') or '').strip() or None,
+            'txn_id':       (data.get('txn_id') or '').strip() or None,
+            'remarks':      (data.get('remarks') or '').strip() or None,
+            'recorded_by':  staff_email or None,
+        }
+
+        resp = supabase.table('share_fees').insert(row).execute()
+        if resp.data:
+            return jsonify({
+                'status': 'success',
+                'message': 'Share fee recorded successfully',
+                'fee_id': fee_id,
+                'fee': resp.data[0]
+            }), 201
+        return jsonify({'status': 'error', 'message': 'Failed to insert share fee record'}), 500
+
+    except Exception as e:
+        import traceback
+        print(f"add_share_fee error: {e}\n{traceback.format_exc()}")
+        return jsonify({'status': 'error', 'message': f'Internal error: {str(e)}'}), 500

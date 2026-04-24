@@ -1397,4 +1397,368 @@
     }
   });
 
+  /* ================= Record Entry Logic ================= */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const reSearchCustomerId = document.getElementById('reSearchCustomerId');
+    const reFetchBtn = document.getElementById('reFetchBtn');
+    const reFetchMsg = document.getElementById('reFetchMsg');
+    const recordEntryForm = document.getElementById('recordEntryForm');
+    
+    // Auto-calculate remaining amount
+    const rePrinPaid = document.getElementById('rePrinPaid');
+    const reLoanAmount = document.getElementById('reLoanAmount');
+    const reRemAmount = document.getElementById('reRemAmount');
+    
+    function calcRemAmount() {
+      if(!rePrinPaid || !reLoanAmount || !reRemAmount) return;
+      const loanAmt = parseFloat(reLoanAmount.value) || 0;
+      const prinPaid = parseFloat(rePrinPaid.value) || 0;
+      const remaining = loanAmt - prinPaid;
+      reRemAmount.value = remaining > 0 ? remaining.toFixed(2) : '0.00';
+    }
+    
+    if (rePrinPaid) rePrinPaid.addEventListener('input', calcRemAmount);
+    if (reLoanAmount) reLoanAmount.addEventListener('input', calcRemAmount);
+
+    if (reFetchBtn) {
+      reFetchBtn.addEventListener('click', async () => {
+        const cid = reSearchCustomerId.value.trim();
+        if(!cid) {
+          reFetchMsg.textContent = "Please enter a Customer ID.";
+          reFetchMsg.className = "text-sm mt-2 text-red-600 font-medium";
+          return;
+        }
+        reFetchMsg.textContent = "Fetching...";
+        reFetchMsg.className = "text-sm mt-2 text-blue-600 font-medium";
+        
+        try {
+          const res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(cid)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'success') {
+              reFetchMsg.textContent = "Customer found!";
+              reFetchMsg.className = "text-sm mt-2 text-green-600 font-medium";
+              recordEntryForm.classList.remove('hidden');
+              
+              if(document.getElementById('reCustomerName')) document.getElementById('reCustomerName').value = data.name || '';
+            } else {
+              reFetchMsg.textContent = "Customer not found.";
+              reFetchMsg.className = "text-sm mt-2 text-red-600 font-medium";
+              recordEntryForm.classList.add('hidden');
+            }
+          } else {
+            reFetchMsg.textContent = "Customer not found.";
+            reFetchMsg.className = "text-sm mt-2 text-red-600 font-medium";
+            recordEntryForm.classList.add('hidden');
+          }
+        } catch (e) {
+          reFetchMsg.textContent = "Network error.";
+          reFetchMsg.className = "text-sm mt-2 text-red-600 font-medium";
+        }
+      });
+    }
+
+    // Verify surety info without enforcing loan limits (existing data)
+    function setupRESuretyCheck(checkBtnId, kgidInputId, msgId) {
+      const checkBtn = document.getElementById(checkBtnId);
+      const kgidInput = document.getElementById(kgidInputId);
+      const msgDiv = document.getElementById(msgId);
+      const removeBtn = document.getElementById(checkBtnId.replace('Check','Remove'));
+      
+      if (checkBtn) {
+        checkBtn.addEventListener('click', async () => {
+          const kgid = kgidInput.value.trim();
+          msgDiv.textContent = "Checking surety...";
+          msgDiv.className = "text-sm text-blue-600 block mb-2";
+          try {
+            // Bypass the 2-loan limit by using fetch-account instead of check-surety
+            const res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(kgid)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'success' && data.name) {
+                msgDiv.textContent = "Surety Valid: " + data.name;
+                msgDiv.className = "text-sm text-green-600 block mb-2";
+                checkBtn.classList.add('hidden');
+                kgidInput.disabled = true;
+                if(removeBtn) removeBtn.classList.remove('hidden');
+              } else {
+                msgDiv.textContent = data.message || "Surety not found.";
+                msgDiv.className = "text-sm text-red-600 block mb-2";
+              }
+            } else {
+              msgDiv.textContent = "Error fetching surety account.";
+              msgDiv.className = "text-sm text-red-600 block mb-2";
+            }
+          } catch(e) {
+            msgDiv.textContent = "Network error.";
+            msgDiv.className = "text-sm text-red-600 block mb-2";
+          }
+        });
+      }
+      
+      if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+          msgDiv.textContent = "";
+          kgidInput.value = "";
+          kgidInput.disabled = false;
+          checkBtn.classList.remove('hidden');
+          removeBtn.classList.add('hidden');
+        });
+      }
+    }
+    
+    setupRESuretyCheck('reCheckSurety1Btn', 'reSurety1Id', 'reSurety1Msg');
+    setupRESuretyCheck('reCheckSurety2Btn', 'reSurety2Id', 'reSurety2Msg');
+
+    // Save Record Entry — calls backend API
+    const reSaveBtn = document.getElementById('reSaveBtn');
+    if (reSaveBtn) {
+      recordEntryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const customerId = reSearchCustomerId.value.trim();
+        if (!customerId) {
+          showDashboardMsgModal('Please fetch a customer first.', 'error');
+          return;
+        }
+
+        // Collect all form data
+        const payload = {
+          customer_id: customerId,
+          // Member fields
+          share_amount: document.getElementById('reShareAmount')?.value || null,
+          share_fees: document.getElementById('reShareFees')?.value || null,
+          balance: document.getElementById('reBalance')?.value || null,
+          // Loan fields
+          loan_type: document.querySelector('input[name="reLoanType"]:checked')?.value || null,
+          loan_id: document.getElementById('reLoanId')?.value || null,
+          loan_amount: document.getElementById('reLoanAmount')?.value || null,
+          loan_interest: document.getElementById('reLoanInterest')?.value || null,
+          loan_date: document.getElementById('reLoanDate')?.value || null,
+          surety1_id: document.getElementById('reSurety1Id')?.value || null,
+          surety2_id: document.getElementById('reSurety2Id')?.value || null,
+          principal_paid: document.getElementById('rePrinPaid')?.value || null,
+          interest_paid: document.getElementById('reIntPaid')?.value || null,
+          date_paid: document.getElementById('reDatePaid')?.value || null,
+          // FD fields
+          fd_id: document.getElementById('reFdId')?.value || null,
+          fd_amount: document.getElementById('reFdAmount')?.value || null,
+          fd_interest: document.getElementById('reFdInterest')?.value || null,
+          fd_reg_date: document.getElementById('reFdRegDate')?.value || null,
+          fd_maturity_date: document.getElementById('reFdMatDate')?.value || null,
+          fd_nominee: document.getElementById('reFdNominee')?.value || null,
+        };
+
+        // Disable button and show spinner
+        reSaveBtn.disabled = true;
+        const origText = reSaveBtn.textContent;
+        reSaveBtn.textContent = 'Saving...';
+
+        try {
+          const res = await fetch('/staff/api/record-entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => null);
+
+          if (res.ok && data && data.status === 'success') {
+            // Build a summary of what was saved
+            let summary = 'Record saved successfully!';
+            const r = data.results || {};
+            const parts = [];
+            if (r.member_updated) parts.push('Member data updated');
+            if (r.share_fee) parts.push('Share Fee: ' + r.share_fee.fee_id);
+            if (r.loan) parts.push('Loan: ' + r.loan.loan_id + ' (' + r.loan.status + ')');
+            if (r.loan_repayment) parts.push('Repayment recorded');
+            if (r.fd) parts.push('FD: ' + r.fd.fdid);
+            if (parts.length) summary += '\n' + parts.join(' | ');
+
+            showDashboardMsgModal(summary, 'success');
+
+            // Reset form
+            recordEntryForm.reset();
+            recordEntryForm.classList.add('hidden');
+            reFetchMsg.textContent = '';
+            reSearchCustomerId.value = '';
+
+            // Reset Sureties
+            ['reSurety1Id', 'reSurety2Id'].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.disabled = false;
+            });
+            ['reCheckSurety1Btn', 'reCheckSurety2Btn'].forEach(id => {
+              const btn = document.getElementById(id);
+              if (btn) btn.classList.remove('hidden');
+            });
+            ['reRemoveSurety1Btn', 'reRemoveSurety2Btn'].forEach(id => {
+              const btn = document.getElementById(id);
+              if (btn) btn.classList.add('hidden');
+            });
+          } else {
+            showDashboardMsgModal((data && data.message) || 'Failed to save record.', 'error');
+          }
+        } catch (err) {
+          showDashboardMsgModal('Network error. Please try again.', 'error');
+        } finally {
+          reSaveBtn.disabled = false;
+          reSaveBtn.textContent = origText;
+        }
+      });
+    }
+  });
+
+  /* ================= Share Fees Logic ================= */
+  document.addEventListener('DOMContentLoaded', () => {
+    const sfCustomerId  = document.getElementById('sfCustomerId');
+    const sfFetchBtn    = document.getElementById('sfFetchBtn');
+    const sfFetchMsg    = document.getElementById('sfFetchMsg');
+    const sfCustomerCard = document.getElementById('sfCustomerCard');
+    const sfCustomerName = document.getElementById('sfCustomerName');
+    const sfCustomerIdDisplay = document.getElementById('sfCustomerIdDisplay');
+    const sfForm        = document.getElementById('sfForm');
+    const sfHistorySection = document.getElementById('sfHistorySection');
+    const sfHistoryTbody = document.getElementById('sfHistoryTbody');
+    const sfModeCash    = document.getElementById('sfModeCash');
+    const sfModeOnline  = document.getElementById('sfModeOnline');
+    const sfBankFields  = document.getElementById('sfBankFields');
+    const sfSubmitBtn   = document.getElementById('sfSubmitBtn');
+
+    if (!sfFetchBtn) return;  // section not in DOM this page load
+
+    // Payment mode toggle – show bank fields for online
+    [sfModeCash, sfModeOnline].forEach(radio => {
+      if (radio) {
+        radio.addEventListener('change', () => {
+          if (sfModeOnline && sfModeOnline.checked) {
+            sfBankFields.classList.remove('hidden');
+          } else {
+            sfBankFields.classList.add('hidden');
+          }
+        });
+      }
+    });
+
+    // Fetch customer
+    sfFetchBtn.addEventListener('click', async () => {
+      const cid = sfCustomerId.value.trim();
+      if (!cid) {
+        sfFetchMsg.textContent = 'Please enter a Customer ID.';
+        sfFetchMsg.className = 'text-sm mt-2 text-red-600 font-medium';
+        return;
+      }
+      sfFetchMsg.textContent = 'Fetching...';
+      sfFetchMsg.className = 'text-sm mt-2 text-blue-600 font-medium';
+      try {
+        const res = await fetch(`/staff/api/fetch-account?customer_id=${encodeURIComponent(cid)}`, { credentials: 'include' });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && data.status === 'success') {
+          sfFetchMsg.textContent = 'Customer found!';
+          sfFetchMsg.className = 'text-sm mt-2 text-green-600 font-medium';
+          sfCustomerName.textContent = data.name || '—';
+          sfCustomerIdDisplay.textContent = cid;
+          sfCustomerCard.classList.remove('hidden');
+          sfForm.classList.remove('hidden');
+          // Load fee history
+          loadSFHistory(cid);
+        } else {
+          sfFetchMsg.textContent = (data && data.message) || 'Customer not found.';
+          sfFetchMsg.className = 'text-sm mt-2 text-red-600 font-medium';
+          sfCustomerCard.classList.add('hidden');
+          sfForm.classList.add('hidden');
+          sfHistorySection.classList.add('hidden');
+        }
+      } catch {
+        sfFetchMsg.textContent = 'Network error.';
+        sfFetchMsg.className = 'text-sm mt-2 text-red-600 font-medium';
+      }
+    });
+
+    // Load fee history table
+    async function loadSFHistory(cid) {
+      try {
+        const res = await fetch(`/staff/api/share-fees?customer_id=${encodeURIComponent(cid)}`, { credentials: 'include' });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && data.status === 'success') {
+          const fees = data.fees || [];
+          if (fees.length === 0) {
+            sfHistorySection.classList.add('hidden');
+            return;
+          }
+          sfHistoryTbody.innerHTML = fees.map(f => `
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-2 text-sm font-mono text-emerald-700">${f.fee_id || '—'}</td>
+              <td class="px-4 py-2 text-sm font-semibold">₹${Number(f.amount || 0).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+              <td class="px-4 py-2 text-sm">${f.created_at || '—'}</td>
+              <td class="px-4 py-2 text-sm capitalize">${f.payment_mode || '—'}</td>
+              <td class="px-4 py-2 text-sm">${f.bank_name ? `${f.bank_name}${f.to_account ? ' / ' + f.to_account : ''}` : '—'}</td>
+              <td class="px-4 py-2 text-sm">${f.txn_id || '—'}</td>
+              <td class="px-4 py-2 text-sm text-gray-500">${f.remarks || '—'}</td>
+            </tr>
+          `).join('');
+          sfHistorySection.classList.remove('hidden');
+        }
+      } catch { /* silent */ }
+    }
+
+    // Form submit
+    if (sfForm) {
+      sfForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const cid = sfCustomerId.value.trim();
+        if (!cid) { showDashboardMsgModal('Fetch a customer first.', 'error'); return; }
+
+        const amount = document.getElementById('sfAmount')?.value;
+        const date   = document.getElementById('sfDate')?.value;
+        const mode   = document.querySelector('input[name="sfPaymentMode"]:checked')?.value || 'cash';
+        if (!amount || !date) {
+          showDashboardMsgModal('Amount and Date are required.', 'error');
+          return;
+        }
+
+        const payload = {
+          customer_id:  cid,
+          amount:       parseFloat(amount),
+          date:         date,
+          payment_mode: mode,
+          to_account:   document.getElementById('sfToAccount')?.value || null,
+          bank_name:    document.getElementById('sfBankName')?.value || null,
+          txn_id:       document.getElementById('sfTxnId')?.value || null,
+          remarks:      document.getElementById('sfRemarks')?.value || null,
+        };
+
+        const origText = sfSubmitBtn.textContent;
+        sfSubmitBtn.disabled = true;
+        sfSubmitBtn.textContent = 'Saving...';
+
+        try {
+          const res = await fetch('/staff/api/share-fees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => null);
+          if (res.ok && data && data.status === 'success') {
+            showDashboardMsgModal(`Share fee saved! Fee ID: ${data.fee_id}`, 'success');
+            sfForm.reset();
+            // restore default mode
+            if (sfModeCash) sfModeCash.checked = true;
+            sfBankFields.classList.add('hidden');
+            // refresh history
+            loadSFHistory(cid);
+          } else {
+            showDashboardMsgModal((data && data.message) || 'Failed to save share fee.', 'error');
+          }
+        } catch {
+          showDashboardMsgModal('Network error. Please try again.', 'error');
+        } finally {
+          sfSubmitBtn.disabled = false;
+          sfSubmitBtn.textContent = origText;
+        }
+      });
+    }
+  });
+
 })();

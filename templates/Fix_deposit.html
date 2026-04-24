@@ -268,7 +268,8 @@
                 </thead>
                 <tbody>`;
             fdData.fds.forEach(fd => {
-              const canRenew = fd.status === 'approved';
+              const isActionable = fd.status === 'approved' || fd.status === 'active';
+              const canRenew = isActionable;
               const renewsLeft = (fd.max_extensions ?? 3) - (fd.extension_count ?? 0);
               html += `<tr class="border-t">
                 <td class="px-3 py-2" title="Internal: ${fd.system_fdid || ''}">${fd.fdid || fd.system_fdid || fd.id}${fd.extended_from ? ` <span class="text-xs text-purple-600">(renewed)</span>` : ''}</td>
@@ -279,7 +280,7 @@
                 <td class="px-3 py-2">${fd.status}</td>
                 <td class="px-3 py-2">
                    ${
-                     (fd.status === 'approved' || fd.status === 'closed')
+                     (fd.status === 'approved' || fd.status === 'active' || fd.status === 'closed')
                 ? `<a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=view" target="_blank" class="text-blue-600 underline mr-2">View</a>
                   <a href="/fd/certificate/${fd.fdid || fd.system_fdid}?action=download" class="text-green-600 underline">Download</a>`
                        : `<span class="text-gray-400 text-sm">Pending</span>`
@@ -287,7 +288,7 @@
                 </td>
                 <td class="px-3 py-2 space-x-2">
                   ${canRenew && renewsLeft > 0 ? `<button class="text-green-600 underline text-sm" onclick="openRenewFdModal('${fd.fdid || fd.system_fdid}', ${fd.tenure}, ${fd.interest_rate})" title="${renewsLeft} renewal(s) left">Renew</button>` : ''}
-                  ${fd.status === 'approved' ? `<button class="text-red-600 underline text-sm" onclick="openCloseFdModal('${fd.fdid || fd.system_fdid}')">Close</button>` : ''}
+                  ${isActionable ? `<button class="text-red-600 underline text-sm" onclick="openCloseFdModal('${fd.fdid || fd.system_fdid}')">Close</button>` : ''}
                 </td>
               </tr>`;
             });
